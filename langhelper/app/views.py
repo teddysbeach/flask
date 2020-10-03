@@ -44,7 +44,6 @@ def login():
         if(result):
             if(result.tryLogin(password)):
                 session['username'] = username
-                flash('You were successfully logged in!')
                 return redirect(url_for("index"))
             else:
                 flash('Something is wrong. It could be your account or password')
