@@ -1,11 +1,14 @@
 from app import app, db
 from app.models import User, Post
-from flask import render_template, request
+from flask import render_template, redirect, url_for, request, session, flash
 
 
 @app.route('/')
 def hello_world():
-    return render_template("index.html")
+    if('username' in session):
+        return render_template("index.html", user=session['username'])
+    else:
+        return render_template("index.html")
 
 @app.route('/diary')
 def showlists():
@@ -29,3 +32,24 @@ def register():
         db.session.add(user)
         db.session.commit()
         return render_template("users.html")    
+
+@app.route('/login', methods=['POST', 'GET'])
+def login():
+    if request.method == 'GET':
+        return render_template("login.html")
+    else:
+        username = request.form['username']
+        password = request.form['password']
+        result = User.query.filter_by(username=username).first()
+        if(result):
+            if(result.tryLogin(password)):
+                session['username'] = username
+                flash('You were successfully logged in!')
+                return redirect(url_for("index"))
+            else:
+                flash('Something is wrong. It could be your account or password')
+                return redirect(url_for('login'))
+
+        else:
+            flash('I couldn\'t find your account dude.')
+            return redirect(url_for('login'))
