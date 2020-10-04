@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="row col-md-6 bg-light m-auto">
+        <div class="col-md-5 mb-5 mt-5">
+            <form method="POST" class='form-inline' role="form">
+                <label>Expression</label>
+                <input type="text" class="form-control" name="expression"/>
+                <label>Own definition</label>
+                <input type="text" class="form-control" name="definition"/>
+                <label>Dict definition</label>
+                <input type="text" class="form-control" name="definition1"/>
+            </form>
+        </div>
+        <div class="col-md-7 mb-5 mt-5">
+            <div class="input-group">
+                <input type="text" class="form-control" id="example" placeholder="An example">
+                <div class="input-group-append">
+                <button class="btn btn-dark" id="addtolists" type="button">
+                    <i class="fas fa-plus-circle fa-2x"></i>
+                </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <hr>
+</div>
+{% endblock %}

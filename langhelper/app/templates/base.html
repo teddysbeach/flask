@@ -6,12 +6,11 @@
     <title>LangHelper - teddy</title>
     <meta name='viewport' content='width=device-width, initial-scale=1'>
     <link rel='stylesheet' type='text/css' media='screen' href='https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha2/css/bootstrap.min.css'>
-    <script src='https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha2/js/bootstrap.min.js'></script>
 </head>
 <body>
   
     <main role="main">
-      <nav class="navbar navbar-expand-lg navbar-light bg-light">
+      <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <a class="navbar-brand" href="#">TeddysBitch</a>
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
           <span class="navbar-toggler-icon"></span>
@@ -26,10 +25,24 @@
               <a class="nav-link" href="/users">Users</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="/diary">Diary</a>
+              <a class="nav-link" href="/notebook">Notebook</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="/login">Login</a>
+              <a class="nav-link" href="/diary">Diary</a>
+            </li>
+          </ul>
+          <ul class="navbar-nav ml-auto">
+            {% if session['username'] %}
+            <li class="nav-item">
+                <a class="nav-link" href="/me">MyPage</a>
+            </li>
+            {% endif %}
+            <li class="nav-item">
+              {% if session['username'] %}
+                <a class="nav-link" href="/logout">Logout</a>
+              {% else %}
+                <a class="nav-link" href="/login">Login</a>
+              {% endif %}
             </li>
             <li class="nav-item">
               <a class="nav-link" href="/register">Register</a>
@@ -40,5 +53,11 @@
         {% block content %}
         {% endblock %}
     </main>
+    {% block scripts %}
+    {% endblock %}
+    <script src="http://code.jquery.com/jquery-latest.min.js"></script>
+    <script src="{{ url_for('static', filename='js/diary.js')}}"></script>
+    <script src="https://use.fontawesome.com/releases/v5.2.0/js/all.js"></script>
+    <script src='https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha2/js/bootstrap.min.js'></script>
 </body>
 </html>

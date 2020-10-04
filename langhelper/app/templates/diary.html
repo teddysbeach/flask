@@ -1,5 +1,31 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h1> Diary! </h1>
+    <div class="row col-md-8 bg-light m-auto">
+            <form method="POST" action="/diary/new" class='form-inline' role="form">
+                <label>Date</label>
+                <input type="date" class="form-control" name="date"/>
+                <label>Content</label>
+                <textarea class="form-control" rows="15" name="content"></textarea>
+                <button type="submit" class="btn btn-dark btn-block">Write</button>
+            </form>
+    </div>
+    <hr>
+    <div class="col-md-8 m-auto">
+    {% if posts %}
+        {% for post in posts %}
+            <div class="card mt-3 mb-3">
+                <div class="card-header">
+                  {{ post.title }}
+                </div>
+                <div class="card-body">
+                  <blockquote class="blockquote mb-0">
+                    <p>{{ post.content }}</p>
+                    <footer class="blockquote-footer"> {{ post.user_id }}<cite title="Source Title">{{ post.datePosted }}</cite></footer>
+                  </blockquote>
+                </div>
+              </div>
+        {% endfor %}
+    {% endif %}
+    </div>
 {% endblock %}
