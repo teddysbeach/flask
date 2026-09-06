@@ -46,7 +46,7 @@
 ## 디자인 교체
 
 디자인은 **`design/design_tokens.json` 하나가 유일한 교체 지점**이다.
-값만 바꾸고 `dart run design/build_tokens.dart` 를 돌리면 Flutter 테마와 학습지 CSS가 함께 다시 생성된다.
+값만 바꾸고 `node design/build_tokens.mjs` 를 돌리면 Flutter 테마와 학습지 CSS가 함께 다시 생성된다.
 앱 코드도 학습지 렌더러도 한 줄 고치지 않는다. 코드에 색·간격·서체 리터럴이 없도록 CI가 강제한다.
 
 ## 유닛 이코노믹스

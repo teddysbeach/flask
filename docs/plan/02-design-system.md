@@ -105,20 +105,26 @@ Orca 는 타이포를 Tailwind 유틸리티로 처리해서 별도 스케일 토
 ```
 design/design_tokens.json          ← 유일한 교체 지점
         │
-        ├─ dart run design/build_tokens.dart
+        ├─ node design/build_tokens.mjs
         │
         ├──► packages/design_system/lib/src/tokens/tokens.g.dart   (Flutter UI)
-        └──► server/supabase/functions/_shared/worksheet.css.ts    (학습지 HTML)
+        └──► server/supabase/functions/_shared/tokens.css.ts       (학습지 HTML)
 ```
 
+생성기는 Dart 가 아니라 **Node(의존성 0)** 로 짰다. 서버(TypeScript)와 툴체인이 같고,
+Flutter SDK 없이도 CI 에서 토큰 드리프트를 검사할 수 있기 때문이다.
+
 - 생성물은 `// GENERATED` 배너를 달고 **직접 편집 금지**.
-- CI 에서 `build_tokens.dart` 재실행 후 diff 가 있으면 빌드 실패 → 토큰 드리프트 차단.
+- 생성기는 **라이트/다크 팔레트의 키 집합이 정확히 일치하는지 검사**한다. 어긋나면 빌드가 실패한다
+  (한쪽에만 있는 색은 테마 전환 시 구멍이 된다).
+- `node design/build_tokens.mjs --check` 로 드리프트만 검사한다 (CI용).
+- CI 에서 `build_tokens.mjs` 재실행 후 diff 가 있으면 빌드 실패 → 토큰 드리프트 차단.
 - **코드 어디에도 색·간격·서체 리터럴이 없어야 한다.** 이게 "마지막에 갈아끼우기"의 전제다.
 
 **나중에 디자인을 교체할 때 하는 일** (예: popol.me 값 확보 시)
 1. `design_tokens.json` 의 `color` / `colorDark` / `typography` / `radius` / `shadow` 값 교체
 2. `meta.base` 갱신
-3. `dart run design/build_tokens.dart`
+3. `node design/build_tokens.mjs`
 4. Widgetbook 카탈로그로 눈 검수
 
 앱 코드도 학습지 렌더러도 **한 줄도 안 고친다.**

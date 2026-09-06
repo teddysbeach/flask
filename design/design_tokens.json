@@ -1,7 +1,7 @@
 {
   "_comment": [
     "단일 진실 공급원(SSOT). 이 파일 하나에서 Flutter 테마와 학습지 HTML의 CSS가 함께 생성된다:",
-    "  dart run design/build_tokens.dart",
+    "  node design/build_tokens.mjs",
     "    -> packages/design_system/lib/src/tokens/tokens.g.dart",
     "    -> server/supabase/functions/_shared/worksheet.css.ts",
     "생성물은 직접 편집하지 않는다. 규약은 docs/plan/02-design-system.md 참조.",

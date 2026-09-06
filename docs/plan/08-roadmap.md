@@ -28,7 +28,7 @@
 - [x] **[리스크2] 디자인 토큰 확보** — Orca Design System(MIT) 기반으로 `design/design_tokens.json` 작성 완료.
       나중에 다른 시스템으로 교체 가능한 구조. (`02-design-system.md`)
 - [ ] Flutter 프로젝트 생성 (`app/`), 멀티 플레이버(dev/prod), `--dart-define-from-file`
-- [ ] `packages/design_system` 스켈레톤 + `design/build_tokens.dart` 코드 생성기
+- [ ] `packages/design_system` 스켈레톤 + `design/build_tokens.mjs` 코드 생성기
 - [ ] Supabase 프로젝트 생성, 로컬 개발 스택(`supabase start`)
 - [ ] 마이그레이션 001~006 작성 및 적용 (`03-data-model.md` §5)
 - [ ] Edge Function 배포 파이프라인 + `_shared/` (auth 검증, admin client, 에러 타입)
