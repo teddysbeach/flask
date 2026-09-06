@@ -46,8 +46,3 @@
 2. **Apple Pencil 필압 spike** — WKWebView 안에서 Pointer Events 필압이 나오는지 실기기 검증.
    결과가 필기 아키텍처를 확정한다. ([M0](docs/plan/08-roadmap.md))
 3. **Supabase 프로젝트 / Anthropic API 키** ([Q5](docs/plan/09-open-questions.md))
-
-## 레거시
-
-`langhelper/` 는 이 레포의 이전 Flask 프로젝트이며 신규 프로젝트와 무관하다.
-처리 방침 미정 — [Q7](docs/plan/09-open-questions.md) 참조.

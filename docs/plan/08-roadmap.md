@@ -32,7 +32,7 @@
 - [ ] Edge Function 배포 파이프라인 + `_shared/` (auth 검증, admin client, 에러 타입)
 - [ ] CI: `flutter analyze` / `flutter test` / `deno check` / 마이그레이션 드라이런 / **토큰 drift 체크**
 - [ ] `.gitignore` 보강 (`.env`, `env/*.json`, `*.secrets.*`, `supabase/.env`)
-- [ ] 기존 `langhelper/` 처리 결정 (`09-open-questions.md` Q7)
+- [x] 기존 `langhelper/` Flask 코드 삭제 완료 (Q7 확정)
 
 ## M1 — 인증 & 쿼터
 

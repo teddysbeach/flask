@@ -125,8 +125,7 @@ LLM이 HTML을 직접 뱉으면 (a) 태그가 깨지고 (b) 디자인 시스템 
 ├─ design/
 │  ├─ design_tokens.json             # 단일 진실 공급원 (SSOT)
 │  └─ build_tokens.dart              # → dart 토큰 + worksheet.css 동시 생성
-├─ docs/plan/                        # 이 문서들
-└─ legacy/langhelper/                # 기존 Flask 코드 (Q7 참조)
+└─ docs/plan/                        # 이 문서들
 ```
 
 ## 5. 환경 / 시크릿

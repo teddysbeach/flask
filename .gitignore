@@ -1,1 +1,29 @@
 /.vscode
+.DS_Store
+.idea/
+
+# secrets
+.env
+.env.*
+env/*.json
+*.secrets.*
+server/supabase/.env
+
+# flutter / dart
+app/.dart_tool/
+app/build/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/ios/Pods/
+app/ios/.symlinks/
+app/android/.gradle/
+app/android/local.properties
+packages/*/.dart_tool/
+**/*.g.dart.bak
+
+# supabase local stack
+server/supabase/.branches/
+server/supabase/.temp/
+
+# deno
+deno.lock
