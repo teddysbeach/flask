@@ -10,6 +10,7 @@ import { TOKENS_CSS } from './tokens.css.ts'
 import { WORKSHEET_CSS } from './worksheet-css.ts'
 import { INK_RUNTIME_JS } from './ink-runtime.g.ts'
 import { SECTIONS } from './worksheet-types.ts'
+import { icon } from './icons.g.ts'
 import type { WorksheetContent, InlineNode, RenderContext } from './worksheet-types.ts'
 
 /** HTML 텍스트 이스케이프. 속성값까지 안전하도록 따옴표도 처리한다. */
@@ -47,7 +48,7 @@ const callout = (kind: 'story' | 'tip' | 'caution', label: string, body: string)
 
 /** 파르(먼저 헤맨 사람)의 한마디. 선생이 아니라 옆자리 사람의 목소리다. */
 const guideNote = (note: string) =>
-  `<aside class="par"><span class="par__badge" aria-hidden="true">파르</span>` +
+  `<aside class="par"><span class="par__badge">${icon('guide', 18)}<span>파르</span></span>` +
   `<p class="par__note">${esc(note)}</p></aside>`
 
 /**
@@ -101,11 +102,11 @@ const CONF_LABEL: Record<string, string> = {
 const RENDERERS: ((c: WorksheetContent, ctx: RenderContext) => string)[] = [
   // ① 무엇을 배우는가 — 비유가 정의보다 먼저 온다 (설명 사다리 ①단)
   (c) => [
-    `<p class="analogy">${esc(c.what_we_learn.analogy)}</p>`,
+    `<p class="analogy">${icon('analogy', 20, 'analogy__ico')}<span>${esc(c.what_we_learn.analogy)}</span></p>`,
     p(c.what_we_learn.summary),
     `<p class="h3">이 학습지를 마치면</p>`,
     ul(c.what_we_learn.objectives),
-    `<p class="h3">먼저 풀고 갈 말들</p>`,
+    `<p class="h3">${icon('glossary', 18)}먼저 풀고 갈 말들</p>`,
     `<dl class="glossary">${c.glossary.map((g) =>
       `<dt>${esc(g.term)}</dt><dd>${esc(g.plain)}</dd>`).join('')}</dl>`,
   ].join(''),
@@ -218,6 +219,14 @@ const RENDERERS: ((c: WorksheetContent, ctx: RenderContext) => string)[] = [
     </div>`).join('')}</div>`,
 ]
 
+/** 섹션 키 → 아이콘 이름. Untitled UI 아이콘을 섹션 제목 앞에 놓는다. */
+const SECTION_ICON: Record<string, string> = {
+  what_we_learn: 'secWhatWeLearn', before_and_need: 'secBeforeAndNeed',
+  prerequisites: 'secPrerequisites', origin_story: 'secOriginStory',
+  roleplay: 'secRoleplay', main_lesson: 'secMainLesson', pro_tips: 'secProTips',
+  quiz: 'secQuiz', homework: 'secHomework', wrap_up: 'secWrapUp', next_steps: 'secNextSteps',
+}
+
 /** 여러 줄에 걸친 템플릿 리터럴 때문에 생긴 공백을 걷어낸다(결정론적 출력을 위해). */
 const tidy = (html: string) => html.replace(/>\s+</g, '><').replace(/\s{2,}/g, ' ').trim()
 
@@ -241,7 +250,8 @@ export function renderWorksheet(c: WorksheetContent, ctx: RenderContext): string
     // 문제 섹션은 문제마다 필기 칸이 이미 있으므로 섹션 끝 여백을 붙이지 않는다.
     const trailing = s.key === 'quiz' ? '' : inkSpace(s.ink)
     return `<section class="sec" id="sec-${i + 1}" data-section="${s.key}">` +
-      `<h2 class="sec__title"><span class="sec__num">${num}</span>${esc(s.title)}</h2>` +
+      `<h2 class="sec__title"><span class="sec__num">${num}</span>` +
+      `<span class="sec__ico">${icon(SECTION_ICON[s.key], 20)}</span>${esc(s.title)}</h2>` +
       `<div class="sec__body">${body}${notes}</div>${trailing}</section>`
   }).join('')
 

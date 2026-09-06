@@ -5,35 +5,45 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>이벤트 소싱, 결과 말고 과정을 저장하기</title>
 <style>:root {
-  --ds-color-brand-primary: #7C5CFF;
-  --ds-color-brand-primary-hover: #6A46F5;
-  --ds-color-brand-primary-pressed: #5B37E0;
-  --ds-color-brand-primary-subtle: #F1EDFF;
-  --ds-color-brand-on-primary: #FAFAFA;
-  --ds-color-neutral-primary-base: #171717;
-  --ds-color-neutral-primary-on-base: #FAFAFA;
-  --ds-color-surface-base: #FFFFFF;
+  --ds-color-brand-primary: #FF6600;
+  --ds-color-brand-primary-hover: #E14D00;
+  --ds-color-brand-primary-pressed: #E14D00;
+  --ds-color-brand-primary-subtle: #FFF2EC;
+  --ds-color-brand-primary-subtle-pressed: #FFE8DB;
+  --ds-color-brand-text-on-subtle: #E14D00;
+  --ds-color-brand-text: #FF6600;
+  --ds-color-brand-on-primary: #FFFFFF;
+  --ds-color-neutral-primary-base: #1A1C20;
+  --ds-color-neutral-primary-on-base: #FFFFFF;
+  --ds-color-surface-base: #F3F4F5;
   --ds-color-surface-raised: #FFFFFF;
-  --ds-color-surface-sunken: #F5F5F5;
+  --ds-color-surface-sunken: #F7F8F9;
   --ds-color-surface-overlay: #FFFFFF;
-  --ds-color-text-primary: #0A0A0A;
-  --ds-color-text-secondary: #737373;
-  --ds-color-text-tertiary: #A1A1A1;
-  --ds-color-text-disabled: #D4D4D4;
-  --ds-color-text-on-brand: #FAFAFA;
-  --ds-color-border-subtle: #F0F0F0;
-  --ds-color-border-default: #E5E5E5;
-  --ds-color-border-strong: #868690;
-  --ds-color-border-focus: #A1A1A1;
-  --ds-color-status-success: #15803D;
-  --ds-color-status-warning: #D4A300;
-  --ds-color-status-danger: #E40014;
-  --ds-color-status-info: #2563EB;
-  --ds-color-ink-pen: #111111;
-  --ds-color-ink-pen-blue: #2563EB;
-  --ds-color-ink-pen-red: #E40014;
-  --ds-color-ink-highlighter: #F59E0B;
-  --ds-color-ink-highlighter-alt: #FACC15;
+  --ds-color-surface-pressed: #F7F8F9;
+  --ds-color-text-primary: #1A1C20;
+  --ds-color-text-secondary: #555D6D;
+  --ds-color-text-tertiary: #868B94;
+  --ds-color-text-disabled: #D1D3D8;
+  --ds-color-text-placeholder: #B0B3BA;
+  --ds-color-text-inverted: #FFFFFF;
+  --ds-color-text-on-brand: #FFFFFF;
+  --ds-color-border-subtle: #DCDEE3;
+  --ds-color-border-default: rgb(0 0 0 / 0.06274509803921569);
+  --ds-color-border-strong: #555D6D;
+  --ds-color-border-focus: #5E98FE;
+  --ds-color-status-success: #079171;
+  --ds-color-status-warning: #9B7821;
+  --ds-color-status-danger: #FA342C;
+  --ds-color-status-info: #217CF9;
+  --ds-color-status-bg-success: #EDFAF6;
+  --ds-color-status-bg-warning: #FFF7DE;
+  --ds-color-status-bg-danger: #FDF0F0;
+  --ds-color-status-bg-info: #EFF6FF;
+  --ds-color-ink-pen: #1A1C20;
+  --ds-color-ink-pen-blue: #5E98FE;
+  --ds-color-ink-pen-red: #FC6A66;
+  --ds-color-ink-highlighter: #E9C647;
+  --ds-color-ink-highlighter-alt: #FBDC65;
   --ds-space-0: 0px;
   --ds-space-1: 4px;
   --ds-space-2: 8px;
@@ -43,114 +53,134 @@
   --ds-space-8: 32px;
   --ds-space-12: 48px;
   --ds-space-16: 64px;
-  --ds-radius-base: 10px;
-  --ds-radius-sm: 6px;
-  --ds-radius-md: 8px;
-  --ds-radius-lg: 10px;
-  --ds-radius-xl: 14px;
-  --ds-radius-2xl: 18px;
-  --ds-radius-3xl: 22px;
-  --ds-radius-4xl: 26px;
+  --ds-radius-base: 8px;
+  --ds-radius-sm: 4px;
+  --ds-radius-md: 6px;
+  --ds-radius-lg: 8px;
+  --ds-radius-xl: 12px;
+  --ds-radius-2xl: 16px;
+  --ds-radius-3xl: 20px;
+  --ds-radius-4xl: 24px;
   --ds-radius-full: 9999px;
-  --ds-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.04);
-  --ds-shadow-md: 0 2px 8px rgb(0 0 0 / 0.08);
-  --ds-shadow-lg: 0 10px 24px rgb(0 0 0 / 0.18);
-  --ds-font-sans: 'Geist', 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', sans-serif;
-  --ds-font-mono: 'SF Mono', SFMono-Regular, ui-monospace, 'Cascadia Code', Menlo, Consolas, 'Liberation Mono', monospace;
+  --ds-shadow-sm: 0px 1px 4px #00000014;
+  --ds-shadow-md: 0px 2px 10px #0000001a;
+  --ds-shadow-lg: 0px 4px 16px #0000001f;
+  --ds-font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', system-ui, sans-serif;
+  --ds-font-mono: 'SF Mono', SFMono-Regular, ui-monospace, Menlo, Consolas, monospace;
   --ds-sheet-width: 820px;
   --ds-sheet-padding: 56px;
   --ds-sheet-section-gap: 32px;
   --ds-ink-space-sm: 96px;
   --ds-ink-space-md: 160px;
   --ds-ink-space-lg: 240px;
-  --ds-ws-body-size: 17px;
+  --ds-ws-body-size: 18px;
   --ds-ws-body-lh: 1.78;
   --ds-ws-body-weight: 400;
   --ds-ws-section-title-size: 22px;
   --ds-ws-section-title-lh: 1.4;
   --ds-ws-section-title-weight: 700;
-  --ds-ws-section-num-size: 13px;
+  --ds-ws-section-num-size: 12px;
   --ds-ws-section-num-lh: 1;
   --ds-ws-section-num-weight: 700;
   --ds-ws-quiz-question-size: 18px;
   --ds-ws-quiz-question-lh: 1.7;
-  --ds-ws-quiz-question-weight: 600;
+  --ds-ws-quiz-question-weight: 500;
   --ds-ws-caption-size: 14px;
   --ds-ws-caption-lh: 1.6;
   --ds-ws-caption-weight: 400;
-  --ds-callout-story-bar: #7C5CFF;
-  --ds-callout-story-bg: #F7F5FF;
-  --ds-callout-tip-bar: #F59E0B;
-  --ds-callout-tip-bg: #FFFBEB;
-  --ds-callout-caution-bar: #E40014;
-  --ds-callout-caution-bg: #FEF2F2;
+  --ds-callout-story-bar: #FF6600;
+  --ds-callout-story-bg: #FFF2EC;
+  --ds-callout-tip-bar: #9B7821;
+  --ds-callout-tip-bg: #FFF7DE;
+  --ds-callout-caution-bar: #FA342C;
+  --ds-callout-caution-bg: #FDF0F0;
   --ds-callout-bar-width: 4px;
   --ds-paper: #FFFFFF;
 }
 :root[data-theme="dark"] {
-  --ds-color-brand-primary: #A78BFA;
-  --ds-color-brand-primary-hover: #B9A3FB;
-  --ds-color-brand-primary-pressed: #8B6DF0;
-  --ds-color-brand-primary-subtle: #241E3D;
-  --ds-color-brand-on-primary: #171717;
-  --ds-color-neutral-primary-base: #E5E5E5;
-  --ds-color-neutral-primary-on-base: #171717;
-  --ds-color-surface-base: #0A0A0A;
-  --ds-color-surface-raised: #171717;
-  --ds-color-surface-sunken: #262626;
-  --ds-color-surface-overlay: #171717;
-  --ds-color-text-primary: #FAFAFA;
-  --ds-color-text-secondary: #A1A1A1;
-  --ds-color-text-tertiary: #737373;
-  --ds-color-text-disabled: #525252;
-  --ds-color-text-on-brand: #171717;
-  --ds-color-border-subtle: rgb(255 255 255 / 0.04);
-  --ds-color-border-default: rgb(255 255 255 / 0.07);
-  --ds-color-border-strong: #71717A;
-  --ds-color-border-focus: #737373;
-  --ds-color-status-success: #86EFAC;
-  --ds-color-status-warning: #D4A300;
-  --ds-color-status-danger: #FF6568;
-  --ds-color-status-info: #60A5FA;
-  --ds-color-ink-pen: #FAFAFA;
-  --ds-color-ink-pen-blue: #60A5FA;
-  --ds-color-ink-pen-red: #FF6568;
-  --ds-color-ink-highlighter: #F59E0B;
-  --ds-color-ink-highlighter-alt: #FACC15;
-  --ds-paper: #141414;
+  --ds-color-brand-primary: #FF6600;
+  --ds-color-brand-primary-hover: #FF9E65;
+  --ds-color-brand-primary-pressed: #FF9E65;
+  --ds-color-brand-primary-subtle: #31241F;
+  --ds-color-brand-primary-subtle-pressed: #4B291C;
+  --ds-color-brand-text-on-subtle: #FF6600;
+  --ds-color-brand-text: #FF6600;
+  --ds-color-brand-on-primary: #FFFFFF;
+  --ds-color-neutral-primary-base: #2B2E35;
+  --ds-color-neutral-primary-on-base: #16171B;
+  --ds-color-surface-base: #000000;
+  --ds-color-surface-raised: #16171B;
+  --ds-color-surface-sunken: #1D2025;
+  --ds-color-surface-overlay: #1D2025;
+  --ds-color-surface-pressed: #2B2E35;
+  --ds-color-text-primary: #F3F4F5;
+  --ds-color-text-secondary: #DCDEE3;
+  --ds-color-text-tertiary: #B0B3BA;
+  --ds-color-text-disabled: #5B606A;
+  --ds-color-text-placeholder: #868B94;
+  --ds-color-text-inverted: #16171B;
+  --ds-color-text-on-brand: #FFFFFF;
+  --ds-color-border-subtle: #393D46;
+  --ds-color-border-default: rgb(255 255 255 / 0.09019607843137255);
+  --ds-color-border-strong: #DCDEE3;
+  --ds-color-border-focus: #1E82EB;
+  --ds-color-status-success: #22B27F;
+  --ds-color-status-warning: #CA901C;
+  --ds-color-status-danger: #FF6E60;
+  --ds-color-status-info: #41A2F9;
+  --ds-color-status-bg-success: #202926;
+  --ds-color-status-bg-warning: #302819;
+  --ds-color-status-bg-danger: #322323;
+  --ds-color-status-bg-info: #202742;
+  --ds-color-ink-pen: #F3F4F5;
+  --ds-color-ink-pen-blue: #1E82EB;
+  --ds-color-ink-pen-red: #F73526;
+  --ds-color-ink-highlighter: #714E15;
+  --ds-color-ink-highlighter-alt: #543E15;
+  --ds-paper: #16171B;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --ds-color-brand-primary: #A78BFA;
-    --ds-color-brand-primary-hover: #B9A3FB;
-    --ds-color-brand-primary-pressed: #8B6DF0;
-    --ds-color-brand-primary-subtle: #241E3D;
-    --ds-color-brand-on-primary: #171717;
-    --ds-color-neutral-primary-base: #E5E5E5;
-    --ds-color-neutral-primary-on-base: #171717;
-    --ds-color-surface-base: #0A0A0A;
-    --ds-color-surface-raised: #171717;
-    --ds-color-surface-sunken: #262626;
-    --ds-color-surface-overlay: #171717;
-    --ds-color-text-primary: #FAFAFA;
-    --ds-color-text-secondary: #A1A1A1;
-    --ds-color-text-tertiary: #737373;
-    --ds-color-text-disabled: #525252;
-    --ds-color-text-on-brand: #171717;
-    --ds-color-border-subtle: rgb(255 255 255 / 0.04);
-    --ds-color-border-default: rgb(255 255 255 / 0.07);
-    --ds-color-border-strong: #71717A;
-    --ds-color-border-focus: #737373;
-    --ds-color-status-success: #86EFAC;
-    --ds-color-status-warning: #D4A300;
-    --ds-color-status-danger: #FF6568;
-    --ds-color-status-info: #60A5FA;
-    --ds-color-ink-pen: #FAFAFA;
-    --ds-color-ink-pen-blue: #60A5FA;
-    --ds-color-ink-pen-red: #FF6568;
-    --ds-color-ink-highlighter: #F59E0B;
-    --ds-color-ink-highlighter-alt: #FACC15;
-    --ds-paper: #141414;
+    --ds-color-brand-primary: #FF6600;
+    --ds-color-brand-primary-hover: #FF9E65;
+    --ds-color-brand-primary-pressed: #FF9E65;
+    --ds-color-brand-primary-subtle: #31241F;
+    --ds-color-brand-primary-subtle-pressed: #4B291C;
+    --ds-color-brand-text-on-subtle: #FF6600;
+    --ds-color-brand-text: #FF6600;
+    --ds-color-brand-on-primary: #FFFFFF;
+    --ds-color-neutral-primary-base: #2B2E35;
+    --ds-color-neutral-primary-on-base: #16171B;
+    --ds-color-surface-base: #000000;
+    --ds-color-surface-raised: #16171B;
+    --ds-color-surface-sunken: #1D2025;
+    --ds-color-surface-overlay: #1D2025;
+    --ds-color-surface-pressed: #2B2E35;
+    --ds-color-text-primary: #F3F4F5;
+    --ds-color-text-secondary: #DCDEE3;
+    --ds-color-text-tertiary: #B0B3BA;
+    --ds-color-text-disabled: #5B606A;
+    --ds-color-text-placeholder: #868B94;
+    --ds-color-text-inverted: #16171B;
+    --ds-color-text-on-brand: #FFFFFF;
+    --ds-color-border-subtle: #393D46;
+    --ds-color-border-default: rgb(255 255 255 / 0.09019607843137255);
+    --ds-color-border-strong: #DCDEE3;
+    --ds-color-border-focus: #1E82EB;
+    --ds-color-status-success: #22B27F;
+    --ds-color-status-warning: #CA901C;
+    --ds-color-status-danger: #FF6E60;
+    --ds-color-status-info: #41A2F9;
+    --ds-color-status-bg-success: #202926;
+    --ds-color-status-bg-warning: #302819;
+    --ds-color-status-bg-danger: #322323;
+    --ds-color-status-bg-info: #202742;
+    --ds-color-ink-pen: #F3F4F5;
+    --ds-color-ink-pen-blue: #1E82EB;
+    --ds-color-ink-pen-red: #F73526;
+    --ds-color-ink-highlighter: #714E15;
+    --ds-color-ink-highlighter-alt: #543E15;
+    --ds-paper: #16171B;
   }
 }
 *, *::before, *::after { box-sizing: border-box; }
@@ -214,6 +244,7 @@ body {
   letter-spacing: -.3px;
   margin: 0 0 20px;
 }
+.sec__ico { flex: none; display: inline-flex; color: var(--ds-color-text-tertiary); }
 .sec__num {
   flex: none;
   display: inline-flex; align-items: center; justify-content: center;
@@ -250,9 +281,15 @@ code, .code {
 .list li { font-size: var(--ds-ws-body-size); line-height: var(--ds-ws-body-lh); margin-bottom: 8px; }
 .list li::marker { color: var(--ds-color-text-tertiary); }
 
+/* ── 아이콘 (Untitled UI) ──
+   currentColor 를 쓰므로 색은 주변 텍스트를 따라간다. */
+.ico { display: inline-block; vertical-align: -0.18em; flex: none; }
+
 /* ── 일상 비유 ──
    학습지에서 독자가 가장 먼저 읽는 문장. 정의보다 먼저 온다. */
+.analogy__ico { color: var(--ds-color-brand-primary); margin-top: 4px; }
 .analogy {
+  display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start;
   font-size: 19px; line-height: 1.7; font-weight: 500;
   margin: 0 0 20px; padding: 18px 20px;
   background: var(--ds-callout-story-bg);
@@ -281,10 +318,12 @@ code, .code {
   border-radius: var(--ds-radius-lg);
 }
 .par__badge {
-  flex: none; display: inline-flex; align-items: center; justify-content: center;
-  width: 34px; height: 34px; border-radius: var(--ds-radius-full);
+  flex: none; display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 11px 6px 9px; border-radius: var(--ds-radius-full);
   background: var(--ds-color-brand-primary); color: var(--ds-color-text-on-brand);
-  font-size: 12px; font-weight: 700; letter-spacing: -.02em;
+  font-size: 13px; font-weight: 700; letter-spacing: -.02em;
+  /* 흰 글자 / 브랜드 주황은 대비가 2.9:1 이라 본문 크기로는 쓰지 않는다.
+     여기는 13px 굵은 글씨의 짧은 라벨이라 허용 범위로 본다. */
 }
 .par__note {
   font-size: 15px; line-height: 1.72; margin: 0;
@@ -504,10 +543,10 @@ pre code { background: none; padding: 0; }
 <p class="sheet__one-liner">지금의 결과 대신, 거기까지 온 과정을 전부 저장하는 방식</p>
 <div class="sheet__meta"><span class="meta-chip">입문</span><span class="meta-chip">약 25분</span><span class="meta-chip">문제 5개</span></div>
 </header>
-<section class="sec" id="sec-1" data-section="what_we_learn"><h2 class="sec__title"><span class="sec__num">01</span>무엇을 배우는가</h2><div class="sec__body"><p class="analogy">가계부를 떠올려 보세요. 남은 돈만 적나요, 쓴 내역을 하나씩 적나요? 대부분 내역을 적을 거예요. 그래야 나중에 &quot;이 돈 어디 갔지?&quot;에 답할 수 있으니까요. 이벤트 소싱은 컴퓨터에 그 방식을 쓰는 거예요.</p><p class="p">보통 프로그램은 <strong>지금 상태</strong>를 저장해요. 잔액 12,000원, 주소 서울 어딘가. 이벤트 소싱은 그 대신 <strong>일어난 일들</strong>을 순서대로 저장해요. 지금 상태가 궁금하면 그 목록을 처음부터 더해서 계산합니다.</p><p class="h3">이 학습지를 마치면</p><ul class="list"><li>상태를 저장하는 것과 변화를 저장하는 것의 차이를 예로 들어 설명하기</li><li>이벤트를 왜 고치면 안 되는지 이유 말하기</li><li>이벤트 소싱을 쓰지 말아야 할 상황 하나 이상 대기</li></ul><p class="h3">먼저 풀고 갈 말들</p><dl class="glossary"><dt>이벤트(Event)</dt><dd>이미 일어난 일 하나를 가리켜요. &#39;5만원 출금됨&#39; 같은 거예요. 앞으로 하겠다는 게 아니라 이미 벌어진 일이라는 게 중요해요.</dd><dt>이벤트 스토어(Event Store)</dt><dd>이벤트를 순서대로 쌓아두는 곳이에요. 이름은 거창하지만 하는 일은 장부와 같아요. 새로 적기만 하고 지우지 않아요.</dd><dt>append-only(어펜드 온리)</dt><dd>&#39;덧붙이기만&#39; 이라는 뜻이에요. 새로 쓰는 건 되고 이미 쓴 걸 고치거나 지우는 건 안 돼요.</dd><dt>리플레이(Replay)</dt><dd>쌓인 이벤트를 처음부터 다시 훑어서 지금 상태를 계산하는 걸 말해요. 가계부를 위에서부터 더해 잔액을 내는 것과 같아요.</dd><dt>상태(State)</dt><dd>지금 이 순간의 값이에요. 잔액 30만원처럼요. 이벤트 소싱에서는 이걸 저장하지 않고 그때그때 계산해요.</dd></dl><aside class="par"><span class="par__badge" aria-hidden="true">파르</span><p class="par__note">저는 이걸 처음 봤을 때 &quot;그래서 잔액은 어디에 저장하는데?&quot; 부터 막혔어요. 답은 &#39;저장 안 해요&#39; 였습니다. 매번 계산하거든요. 이 한 줄만 넘기면 나머지는 술술 풀려요.</p></aside></div><div class="ink-space" data-ink-space="sm"></div></section><section class="sec" id="sec-2" data-section="before_and_need"><h2 class="sec__title"><span class="sec__num">02</span>이것이 생기기 전에는</h2><div class="sec__body"><p class="p">예전 시스템은 잔액 칸 하나를 계속 덮어썼어요. 12,000원이 3,000원이 되면 12,000은 그냥 사라졌습니다. 나중에 &quot;왜 3,000원이죠?&quot; 라고 물어도 답할 방법이 없었어요.</p><div class="callout callout--caution"><p class="callout__label">그때의 불편</p><ul class="list"><li>왜 이 값이 되었는지 알 수 없어요. 덮어쓴 순간 이유가 함께 사라지니까요</li><li>잘못 고친 걸 되돌리려면 백업 전체를 되살리는 수밖에 없어요</li><li>은행이나 병원처럼 기록을 남겨야 하는 곳에서는 따로 기록용 표를 손으로 관리해야 했어요</li></ul></div><p class="h3">그래서 무엇이 필요했나</p><p class="p">그런데 이 문제는 이미 수백 년 전에 풀려 있었어요. 회계 장부예요. 장부는 틀렸다고 지우지 않아요. <strong>반대 내용을 새로 적습니다</strong>. 이벤트 소싱은 그 방식을 프로그램으로 옮겨온 거예요.</p></div><div class="ink-space" data-ink-space="md"></div></section><section class="sec" id="sec-3" data-section="prerequisites"><h2 class="sec__title"><span class="sec__num">03</span>먼저 보면 좋은 학습지</h2><div class="sec__body"><div class="cards"><div class="card"><p class="card__title">불변성(Immutability)</p><p class="card__why">이벤트를 고치지 않는다는 게 이 방식의 전부예요. 이 개념이 없으면 6번 본론에서 &quot;그냥 고치면 되잖아?&quot; 에서 막히실 거예요.</p><p class="card__hint">한 번 만든 값은 바꾸지 않는다는 생각</p></div><div class="card"><p class="card__title">도메인 이벤트</p><p class="card__why">저장할 일들을 어떻게 이름 붙이고 나눌지가 실무에서는 제일 어려운 부분이에요. 미리 보시면 6번이 편해져요.</p><p class="card__hint">업무에서 의미 있는 사건을 과거형 이름으로 적은 것</p></div><div class="card"><p class="card__title">멱등성(Idempotency)</p><p class="card__why">이벤트를 몇 번 다시 훑어도 결과가 같아야 해요. 이 성질이 왜 필요한지 알면 리플레이가 훨씬 자연스럽게 읽혀요.</p><p class="card__hint">같은 일을 여러 번 해도 결과가 같은 성질</p></div></div></div><div class="ink-space" data-ink-space="sm"></div></section><section class="sec" id="sec-4" data-section="origin_story"><h2 class="sec__title"><span class="sec__num">04</span>탄생 배경</h2><div class="sec__body"><ul class="timeline"><li><span class="timeline__when">아주 오래전</span><p class="timeline__what">복식부기라는 회계 방식이 자리를 잡았어요. 틀린 기록을 지우지 않고 반대 기록을 새로 적어서 바로잡는 방식이에요.</p></li><li><span class="timeline__when">2005년 무렵</span><p class="timeline__what">Greg Young 을 비롯한 개발자들이 이 아이디어를 소프트웨어 설계로 정리해 이야기하기 시작했어요.<span class="conf conf--medium">확실하지 않음</span></p></li><li><span class="timeline__when">2010년대</span><p class="timeline__what">Kafka 같은 기술이 널리 쓰이면서 &#39;기록이 곧 진실&#39; 이라는 생각이 자연스러워졌어요.</p></li></ul><p class="p">이벤트 소싱은 누가 딱 발명했다기보다 여러 갈래가 만난 자리에 가까워요. 회계 장부, 데이터베이스가 안에서 쓰는 기록, 개발자들이 쓰는 버전 관리. 전부 같은 생각이에요. 변화를 지우지 말고 쌓아두자는 것이죠.</p><div class="callout callout--caution"><p class="callout__label">확실하지 않은 부분</p><p class="p">&#39;2005년 무렵 Greg Young&#39; 은 개발자들 사이에서 널리 하는 이야기지만, 어느 날 발표된 하나의 논문이 있는 건 아니에요. 여러 사람이 비슷한 시기에 비슷한 이야기를 하면서 개념이 서서히 자리 잡았다고 보는 쪽이 맞아요.</p></div></div><div class="ink-space" data-ink-space="md"></div></section><section class="sec" id="sec-5" data-section="roleplay"><h2 class="sec__title"><span class="sec__num">05</span>상황극 &amp; 예시</h2><div class="sec__body"><p class="scene">은행 고객센터예요. 손님이 잔액이 이상하다며 찾아왔고, 개발자 민아 씨가 불려 나왔어요.</p><div class="dialogue"><div class="dialogue__line"><span class="dialogue__speaker">손님</span><p class="dialogue__text">분명히 50만원 있었는데 지금 30만원이에요. 왜 이렇게 됐죠?</p></div><div class="dialogue__line"><span class="dialogue__speaker">민아</span><p class="dialogue__text">잠시만요... 화면에 잔액 300,000 이라고만 적혀 있네요.</p></div><div class="dialogue__line"><span class="dialogue__speaker">손님</span><p class="dialogue__text">그러니까 왜 그렇게 됐냐고요.</p></div><div class="dialogue__line"><span class="dialogue__speaker">민아</span><p class="dialogue__text">저희 시스템이 지금 얼마인지만 저장하고 있어서요. 어떻게 그렇게 됐는지는 남아 있지 않아요.</p></div><div class="dialogue__line"><span class="dialogue__speaker">손님</span><p class="dialogue__text">은행이 그래도 되나요?</p></div></div><div class="callout callout--story"><p class="callout__label">그래서 무슨 뜻이냐면</p><p class="p">이벤트 소싱이었다면 민아 씨 화면에 이렇게 떴을 거예요. <code>입금 500,000 / 출금 150,000 / 출금 50,000</code>. 잔액은 이 목록을 더한 결과일 뿐이고, 진짜는 목록 쪽이에요. 답할 수 있는 시스템과 그러지 못하는 시스템의 차이가 여기서 갈려요.</p></div><p class="card__hint">실제로 있었던 일은 아니고, 이해를 돕기 위해 만들어 본 상황이에요. 다만 지금 상태만 저장하는 시스템이 이런 질문에 답하지 못하는 문제 자체는 실제로 자주 생겨요.</p></div><div class="ink-space" data-ink-space="md"></div></section><section class="sec" id="sec-6" data-section="main_lesson"><h2 class="sec__title"><span class="sec__num">06</span>본론</h2><div class="sec__body"><p class="h3">이벤트 이름은 과거형으로 지어요</p><p class="p">약속을 잡는 것과 만난 것은 다르죠. 약속은 취소될 수 있지만 이미 만난 건 되돌릴 수 없어요. 이벤트도 그래요. 이미 일어난 일이라서 이름이 과거형이에요. <code>WithdrawMoney</code> 는 &#39;출금해 줘&#39; 라는 부탁이고, <code>MoneyWithdrawn</code> 이 &#39;출금됐다&#39; 는 이벤트예요. 부탁은 거절할 수 있지만 일어난 일은 거절할 수 없어요.</p><div class="example" data-example-kind="code"><p class="example__caption">같은 상황을 부탁과 사실로 나눠 적어 보면</p><pre class="ex-code"><code class="lang-javascript">// 부탁 — 거절될 수 있어요
+<section class="sec" id="sec-1" data-section="what_we_learn"><h2 class="sec__title"><span class="sec__num">01</span><span class="sec__ico"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M22 12C22 17.5228 17.5228 22 12 22M22 12C22 6.47715 17.5228 2 12 2M22 12H18M12 22C6.47715 22 2 17.5228 2 12M12 22V18M2 12C2 6.47715 6.47715 2 12 2M2 12H6M12 2V6"/></svg></span>무엇을 배우는가</h2><div class="sec__body"><p class="analogy"><svg class="ico analogy__ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6.5 13L7.28446 14.5689C7.54995 15.0999 7.68269 15.3654 7.86003 15.5954C8.01739 15.7996 8.20041 15.9826 8.40455 16.14C8.63462 16.3173 8.9001 16.4501 9.43108 16.7155L11 17.5L9.43108 18.2845C8.9001 18.5499 8.63462 18.6827 8.40455 18.86C8.20041 19.0174 8.01739 19.2004 7.86003 19.4046C7.68269 19.6346 7.54995 19.9001 7.28446 20.4311L6.5 22L5.71554 20.4311C5.45005 19.9001 5.31731 19.6346 5.13997 19.4046C4.98261 19.2004 4.79959 19.0174 4.59545 18.86C4.36538 18.6827 4.0999 18.5499 3.56892 18.2845L2 17.5L3.56892 16.7155C4.0999 16.4501 4.36538 16.3173 4.59545 16.14C4.79959 15.9826 4.98261 15.7996 5.13997 15.5954C5.31731 15.3654 5.45005 15.0999 5.71554 14.5689L6.5 13Z"/><path d="M15 2L16.1786 5.06442C16.4606 5.79765 16.6016 6.16426 16.8209 6.47264C17.0153 6.74595 17.254 6.98475 17.5274 7.17909C17.8357 7.39836 18.2024 7.53937 18.9356 7.82138L22 9L18.9356 10.1786C18.2024 10.4606 17.8357 10.6016 17.5274 10.8209C17.254 11.0153 17.0153 11.254 16.8209 11.5274C16.6016 11.8357 16.4606 12.2024 16.1786 12.9356L15 16L13.8214 12.9356C13.5394 12.2024 13.3984 11.8357 13.1791 11.5274C12.9847 11.254 12.746 11.0153 12.4726 10.8209C12.1643 10.6016 11.7976 10.4606 11.0644 10.1786L8 9L11.0644 7.82138C11.7976 7.53937 12.1643 7.39836 12.4726 7.17909C12.746 6.98475 12.9847 6.74595 13.1791 6.47264C13.3984 6.16426 13.5394 5.79765 13.8214 5.06442L15 2Z"/></svg><span>가계부를 떠올려 보세요. 남은 돈만 적나요, 쓴 내역을 하나씩 적나요? 대부분 내역을 적을 거예요. 그래야 나중에 &quot;이 돈 어디 갔지?&quot;에 답할 수 있으니까요. 이벤트 소싱은 컴퓨터에 그 방식을 쓰는 거예요.</span></p><p class="p">보통 프로그램은 <strong>지금 상태</strong>를 저장해요. 잔액 12,000원, 주소 서울 어딘가. 이벤트 소싱은 그 대신 <strong>일어난 일들</strong>을 순서대로 저장해요. 지금 상태가 궁금하면 그 목록을 처음부터 더해서 계산합니다.</p><p class="h3">이 학습지를 마치면</p><ul class="list"><li>상태를 저장하는 것과 변화를 저장하는 것의 차이를 예로 들어 설명하기</li><li>이벤트를 왜 고치면 안 되는지 이유 말하기</li><li>이벤트 소싱을 쓰지 말아야 할 상황 하나 이상 대기</li></ul><p class="h3"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 20H5.2C4.07989 20 3.51984 20 3.09202 19.782C2.71569 19.5903 2.40973 19.2843 2.21799 18.908C2 18.4802 2 17.9201 2 16.8V7.2C2 6.07989 2 5.51984 2.21799 5.09202C2.40973 4.71569 2.71569 4.40973 3.09202 4.21799C3.51984 4 4.07989 4 5.2 4H5.6C7.84021 4 8.96031 4 9.81596 4.43597C10.5686 4.81947 11.1805 5.43139 11.564 6.18404C12 7.03968 12 8.15979 12 10.4M12 20V10.4M12 20H18.8C19.9201 20 20.4802 20 20.908 19.782C21.2843 19.5903 21.5903 19.2843 21.782 18.908C22 18.4802 22 17.9201 22 16.8V7.2C22 6.07989 22 5.51984 21.782 5.09202C21.5903 4.71569 21.2843 4.40973 20.908 4.21799C20.4802 4 19.9201 4 18.8 4H18.4C16.1598 4 15.0397 4 14.184 4.43597C13.4314 4.81947 12.8195 5.43139 12.436 6.18404C12 7.03968 12 8.15979 12 10.4"/></svg>먼저 풀고 갈 말들</p><dl class="glossary"><dt>이벤트(Event)</dt><dd>이미 일어난 일 하나를 가리켜요. &#39;5만원 출금됨&#39; 같은 거예요. 앞으로 하겠다는 게 아니라 이미 벌어진 일이라는 게 중요해요.</dd><dt>이벤트 스토어(Event Store)</dt><dd>이벤트를 순서대로 쌓아두는 곳이에요. 이름은 거창하지만 하는 일은 장부와 같아요. 새로 적기만 하고 지우지 않아요.</dd><dt>append-only(어펜드 온리)</dt><dd>&#39;덧붙이기만&#39; 이라는 뜻이에요. 새로 쓰는 건 되고 이미 쓴 걸 고치거나 지우는 건 안 돼요.</dd><dt>리플레이(Replay)</dt><dd>쌓인 이벤트를 처음부터 다시 훑어서 지금 상태를 계산하는 걸 말해요. 가계부를 위에서부터 더해 잔액을 내는 것과 같아요.</dd><dt>상태(State)</dt><dd>지금 이 순간의 값이에요. 잔액 30만원처럼요. 이벤트 소싱에서는 이걸 저장하지 않고 그때그때 계산해요.</dd></dl><aside class="par"><span class="par__badge"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 15L6.92474 18.1137C6.49579 18.548 6.28131 18.7652 6.09695 18.7805C5.93701 18.7938 5.78042 18.7295 5.67596 18.6076C5.55556 18.4672 5.55556 18.162 5.55556 17.5515V15.9916C5.55556 15.444 5.10707 15.0477 4.5652 14.9683V14.9683C3.25374 14.7762 2.22378 13.7463 2.03168 12.4348C2 12.2186 2 11.9605 2 11.4444V6.8C2 5.11984 2 4.27976 2.32698 3.63803C2.6146 3.07354 3.07354 2.6146 3.63803 2.32698C4.27976 2 5.11984 2 6.8 2H14.2C15.8802 2 16.7202 2 17.362 2.32698C17.9265 2.6146 18.3854 3.07354 18.673 3.63803C19 4.27976 19 5.11984 19 6.8V11M19 22L16.8236 20.4869C16.5177 20.2742 16.3647 20.1678 16.1982 20.0924C16.0504 20.0255 15.8951 19.9768 15.7356 19.9474C15.5558 19.9143 15.3695 19.9143 14.9969 19.9143H13.2C12.0799 19.9143 11.5198 19.9143 11.092 19.6963C10.7157 19.5046 10.4097 19.1986 10.218 18.8223C10 18.3944 10 17.8344 10 16.7143V14.2C10 13.0799 10 12.5198 10.218 12.092C10.4097 11.7157 10.7157 11.4097 11.092 11.218C11.5198 11 12.0799 11 13.2 11H18.8C19.9201 11 20.4802 11 20.908 11.218C21.2843 11.4097 21.5903 11.7157 21.782 12.092C22 12.5198 22 13.0799 22 14.2V16.9143C22 17.8462 22 18.3121 21.8478 18.6797C21.6448 19.1697 21.2554 19.5591 20.7654 19.762C20.3978 19.9143 19.9319 19.9143 19 19.9143V22Z"/></svg><span>파르</span></span><p class="par__note">저는 이걸 처음 봤을 때 &quot;그래서 잔액은 어디에 저장하는데?&quot; 부터 막혔어요. 답은 &#39;저장 안 해요&#39; 였습니다. 매번 계산하거든요. 이 한 줄만 넘기면 나머지는 술술 풀려요.</p></aside></div><div class="ink-space" data-ink-space="sm"></div></section><section class="sec" id="sec-2" data-section="before_and_need"><h2 class="sec__title"><span class="sec__num">02</span><span class="sec__ico"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M22.7 13.5L20.7005 11.5L18.7 13.5M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C15.3019 3 18.1885 4.77814 19.7545 7.42909M12 7V12L15 14"/></svg></span>이것이 생기기 전에는</h2><div class="sec__body"><p class="p">예전 시스템은 잔액 칸 하나를 계속 덮어썼어요. 12,000원이 3,000원이 되면 12,000은 그냥 사라졌습니다. 나중에 &quot;왜 3,000원이죠?&quot; 라고 물어도 답할 방법이 없었어요.</p><div class="callout callout--caution"><p class="callout__label">그때의 불편</p><ul class="list"><li>왜 이 값이 되었는지 알 수 없어요. 덮어쓴 순간 이유가 함께 사라지니까요</li><li>잘못 고친 걸 되돌리려면 백업 전체를 되살리는 수밖에 없어요</li><li>은행이나 병원처럼 기록을 남겨야 하는 곳에서는 따로 기록용 표를 손으로 관리해야 했어요</li></ul></div><p class="h3">그래서 무엇이 필요했나</p><p class="p">그런데 이 문제는 이미 수백 년 전에 풀려 있었어요. 회계 장부예요. 장부는 틀렸다고 지우지 않아요. <strong>반대 내용을 새로 적습니다</strong>. 이벤트 소싱은 그 방식을 프로그램으로 옮겨온 거예요.</p></div><div class="ink-space" data-ink-space="md"></div></section><section class="sec" id="sec-3" data-section="prerequisites"><h2 class="sec__title"><span class="sec__num">03</span><span class="sec__ico"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 21L11.8999 20.8499C11.2053 19.808 10.858 19.287 10.3991 18.9098C9.99286 18.5759 9.52476 18.3254 9.02161 18.1726C8.45325 18 7.82711 18 6.57482 18H5.2C4.07989 18 3.51984 18 3.09202 17.782C2.71569 17.5903 2.40973 17.2843 2.21799 16.908C2 16.4802 2 15.9201 2 14.8V6.2C2 5.07989 2 4.51984 2.21799 4.09202C2.40973 3.71569 2.71569 3.40973 3.09202 3.21799C3.51984 3 4.07989 3 5.2 3H5.6C7.84021 3 8.96031 3 9.81596 3.43597C10.5686 3.81947 11.1805 4.43139 11.564 5.18404C12 6.03968 12 7.15979 12 9.4M12 21V9.4M12 21L12.1001 20.8499C12.7947 19.808 13.142 19.287 13.6009 18.9098C14.0071 18.5759 14.4752 18.3254 14.9784 18.1726C15.5467 18 16.1729 18 17.4252 18H18.8C19.9201 18 20.4802 18 20.908 17.782C21.2843 17.5903 21.5903 17.2843 21.782 16.908C22 16.4802 22 15.9201 22 14.8V6.2C22 5.07989 22 4.51984 21.782 4.09202C21.5903 3.71569 21.2843 3.40973 20.908 3.21799C20.4802 3 19.9201 3 18.8 3H18.4C16.1598 3 15.0397 3 14.184 3.43597C13.4314 3.81947 12.8195 4.43139 12.436 5.18404C12 6.03968 12 7.15979 12 9.4"/></svg></span>먼저 보면 좋은 학습지</h2><div class="sec__body"><div class="cards"><div class="card"><p class="card__title">불변성(Immutability)</p><p class="card__why">이벤트를 고치지 않는다는 게 이 방식의 전부예요. 이 개념이 없으면 6번 본론에서 &quot;그냥 고치면 되잖아?&quot; 에서 막히실 거예요.</p><p class="card__hint">한 번 만든 값은 바꾸지 않는다는 생각</p></div><div class="card"><p class="card__title">도메인 이벤트</p><p class="card__why">저장할 일들을 어떻게 이름 붙이고 나눌지가 실무에서는 제일 어려운 부분이에요. 미리 보시면 6번이 편해져요.</p><p class="card__hint">업무에서 의미 있는 사건을 과거형 이름으로 적은 것</p></div><div class="card"><p class="card__title">멱등성(Idempotency)</p><p class="card__why">이벤트를 몇 번 다시 훑어도 결과가 같아야 해요. 이 성질이 왜 필요한지 알면 리플레이가 훨씬 자연스럽게 읽혀요.</p><p class="card__hint">같은 일을 여러 번 해도 결과가 같은 성질</p></div></div></div><div class="ink-space" data-ink-space="sm"></div></section><section class="sec" id="sec-4" data-section="origin_story"><h2 class="sec__title"><span class="sec__num">04</span><span class="sec__ico"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 12L7.72711 8.43926C7.09226 7.91022 6.77484 7.6457 6.54664 7.32144C6.34444 7.03413 6.19429 6.71354 6.10301 6.37428C6 5.99139 6 5.57819 6 4.7518V2M12 12L16.2729 8.43926C16.9077 7.91022 17.2252 7.6457 17.4534 7.32144C17.6556 7.03413 17.8057 6.71354 17.897 6.37428C18 5.99139 18 5.57819 18 4.7518V2M12 12L7.72711 15.5607C7.09226 16.0898 6.77484 16.3543 6.54664 16.6786C6.34444 16.9659 6.19429 17.2865 6.10301 17.6257C6 18.0086 6 18.4218 6 19.2482V22M12 12L16.2729 15.5607C16.9077 16.0898 17.2252 16.3543 17.4534 16.6786C17.6556 16.9659 17.8057 17.2865 17.897 17.6257C18 18.0086 18 18.4218 18 19.2482V22M4 2H20M4 22H20"/></svg></span>탄생 배경</h2><div class="sec__body"><ul class="timeline"><li><span class="timeline__when">아주 오래전</span><p class="timeline__what">복식부기라는 회계 방식이 자리를 잡았어요. 틀린 기록을 지우지 않고 반대 기록을 새로 적어서 바로잡는 방식이에요.</p></li><li><span class="timeline__when">2005년 무렵</span><p class="timeline__what">Greg Young 을 비롯한 개발자들이 이 아이디어를 소프트웨어 설계로 정리해 이야기하기 시작했어요.<span class="conf conf--medium">확실하지 않음</span></p></li><li><span class="timeline__when">2010년대</span><p class="timeline__what">Kafka 같은 기술이 널리 쓰이면서 &#39;기록이 곧 진실&#39; 이라는 생각이 자연스러워졌어요.</p></li></ul><p class="p">이벤트 소싱은 누가 딱 발명했다기보다 여러 갈래가 만난 자리에 가까워요. 회계 장부, 데이터베이스가 안에서 쓰는 기록, 개발자들이 쓰는 버전 관리. 전부 같은 생각이에요. 변화를 지우지 말고 쌓아두자는 것이죠.</p><div class="callout callout--caution"><p class="callout__label">확실하지 않은 부분</p><p class="p">&#39;2005년 무렵 Greg Young&#39; 은 개발자들 사이에서 널리 하는 이야기지만, 어느 날 발표된 하나의 논문이 있는 건 아니에요. 여러 사람이 비슷한 시기에 비슷한 이야기를 하면서 개념이 서서히 자리 잡았다고 보는 쪽이 맞아요.</p></div></div><div class="ink-space" data-ink-space="md"></div></section><section class="sec" id="sec-5" data-section="roleplay"><h2 class="sec__title"><span class="sec__num">05</span><span class="sec__ico"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6.09436 11.2288C6.03221 10.8282 5.99996 10.4179 5.99996 10C5.99996 5.58172 9.60525 2 14.0526 2C18.4999 2 22.1052 5.58172 22.1052 10C22.1052 10.9981 21.9213 11.9535 21.5852 12.8345C21.5154 13.0175 21.4804 13.109 21.4646 13.1804C21.4489 13.2512 21.4428 13.301 21.4411 13.3735C21.4394 13.4466 21.4493 13.5272 21.4692 13.6883L21.8717 16.9585C21.9153 17.3125 21.9371 17.4895 21.8782 17.6182C21.8266 17.731 21.735 17.8205 21.6211 17.8695C21.4911 17.9254 21.3146 17.8995 20.9617 17.8478L17.7765 17.3809C17.6101 17.3565 17.527 17.3443 17.4512 17.3448C17.3763 17.3452 17.3245 17.3507 17.2511 17.3661C17.177 17.3817 17.0823 17.4172 16.893 17.4881C16.0097 17.819 15.0524 18 14.0526 18C13.6344 18 13.2237 17.9683 12.8227 17.9073M7.63158 22C10.5965 22 13 19.5376 13 16.5C13 13.4624 10.5965 11 7.63158 11C4.66668 11 2.26316 13.4624 2.26316 16.5C2.26316 17.1106 2.36028 17.6979 2.53955 18.2467C2.61533 18.4787 2.65322 18.5947 2.66566 18.6739C2.67864 18.7567 2.68091 18.8031 2.67608 18.8867C2.67145 18.9668 2.65141 19.0573 2.61134 19.2383L2 22L4.9948 21.591C5.15827 21.5687 5.24 21.5575 5.31137 21.558C5.38652 21.5585 5.42641 21.5626 5.50011 21.5773C5.5701 21.5912 5.67416 21.6279 5.88227 21.7014C6.43059 21.8949 7.01911 22 7.63158 22Z"/></svg></span>상황극 &amp; 예시</h2><div class="sec__body"><p class="scene">은행 고객센터예요. 손님이 잔액이 이상하다며 찾아왔고, 개발자 민아 씨가 불려 나왔어요.</p><div class="dialogue"><div class="dialogue__line"><span class="dialogue__speaker">손님</span><p class="dialogue__text">분명히 50만원 있었는데 지금 30만원이에요. 왜 이렇게 됐죠?</p></div><div class="dialogue__line"><span class="dialogue__speaker">민아</span><p class="dialogue__text">잠시만요... 화면에 잔액 300,000 이라고만 적혀 있네요.</p></div><div class="dialogue__line"><span class="dialogue__speaker">손님</span><p class="dialogue__text">그러니까 왜 그렇게 됐냐고요.</p></div><div class="dialogue__line"><span class="dialogue__speaker">민아</span><p class="dialogue__text">저희 시스템이 지금 얼마인지만 저장하고 있어서요. 어떻게 그렇게 됐는지는 남아 있지 않아요.</p></div><div class="dialogue__line"><span class="dialogue__speaker">손님</span><p class="dialogue__text">은행이 그래도 되나요?</p></div></div><div class="callout callout--story"><p class="callout__label">그래서 무슨 뜻이냐면</p><p class="p">이벤트 소싱이었다면 민아 씨 화면에 이렇게 떴을 거예요. <code>입금 500,000 / 출금 150,000 / 출금 50,000</code>. 잔액은 이 목록을 더한 결과일 뿐이고, 진짜는 목록 쪽이에요. 답할 수 있는 시스템과 그러지 못하는 시스템의 차이가 여기서 갈려요.</p></div><p class="card__hint">실제로 있었던 일은 아니고, 이해를 돕기 위해 만들어 본 상황이에요. 다만 지금 상태만 저장하는 시스템이 이런 질문에 답하지 못하는 문제 자체는 실제로 자주 생겨요.</p></div><div class="ink-space" data-ink-space="md"></div></section><section class="sec" id="sec-6" data-section="main_lesson"><h2 class="sec__title"><span class="sec__num">06</span><span class="sec__ico"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 10.0001V16.0112C5 16.3702 5 16.5496 5.05465 16.7081C5.10299 16.8482 5.18187 16.9759 5.28558 17.0817C5.40287 17.2015 5.5634 17.2818 5.88446 17.4423L11.2845 20.1423C11.5468 20.2735 11.678 20.3391 11.8156 20.3649C11.9375 20.3877 12.0625 20.3877 12.1844 20.3649C12.322 20.3391 12.4532 20.2735 12.7155 20.1423L18.1155 17.4423C18.4366 17.2818 18.5971 17.2015 18.7144 17.0817C18.8181 16.9759 18.897 16.8482 18.9453 16.7081C19 16.5496 19 16.3702 19 16.0112V10.0001M2 8.50006L11.6422 3.67895C11.7734 3.61336 11.839 3.58056 11.9078 3.56766C11.9687 3.55622 12.0313 3.55622 12.0922 3.56766C12.161 3.58056 12.2266 3.61336 12.3578 3.67895L22 8.50006L12.3578 13.3212C12.2266 13.3868 12.161 13.4196 12.0922 13.4325C12.0313 13.4439 11.9687 13.4439 11.9078 13.4325C11.839 13.4196 11.7734 13.3868 11.6422 13.3212L2 8.50006Z"/></svg></span>본론</h2><div class="sec__body"><p class="h3">이벤트 이름은 과거형으로 지어요</p><p class="p">약속을 잡는 것과 만난 것은 다르죠. 약속은 취소될 수 있지만 이미 만난 건 되돌릴 수 없어요. 이벤트도 그래요. 이미 일어난 일이라서 이름이 과거형이에요. <code>WithdrawMoney</code> 는 &#39;출금해 줘&#39; 라는 부탁이고, <code>MoneyWithdrawn</code> 이 &#39;출금됐다&#39; 는 이벤트예요. 부탁은 거절할 수 있지만 일어난 일은 거절할 수 없어요.</p><div class="example" data-example-kind="code"><p class="example__caption">같은 상황을 부탁과 사실로 나눠 적어 보면</p><pre class="ex-code"><code class="lang-javascript">// 부탁 — 거절될 수 있어요
 { type: &#39;WithdrawMoney&#39;, accountId: &#39;A1&#39;, amount: 50000 } // 이벤트 — 이미 일어난 일이라 되돌릴 수 없어요
 { type: &#39;MoneyWithdrawn&#39;, accountId: &#39;A1&#39;, amount: 50000, at: &#39;2026-09-06T10:00:00Z&#39; }</code></pre></div><div class="callout callout--caution"><p class="callout__label">흔한 실수</p><p class="p">이름을 현재형으로 짓는 거예요. 그러면 팀이 부탁과 사실을 섞어 쓰게 되고, 이벤트 스토어에 &#39;하려다 실패한 일&#39; 까지 들어가 버려요.</p></div><p class="h3">상태는 저장하지 않고 그때그때 계산해요</p><p class="p">잔액이 필요하면 그 계좌의 이벤트를 위에서부터 하나씩 더해요. 가계부 잔액을 손으로 더하는 것과 똑같아요. 이걸 <strong>리플레이</strong> 라고 불러요. 어려운 말 같지만 하는 일은 그냥 더하기예요.</p><div class="example" data-example-kind="code"><p class="example__caption">이벤트 목록을 더해서 잔액을 만들어요</p><pre class="ex-code"><code class="lang-javascript">const balance = events.reduce((sum, e) =&gt; e.type === &#39;MoneyDeposited&#39; ? sum + e.amount : e.type === &#39;MoneyWithdrawn&#39; ? sum - e.amount : sum
-, 0)</code></pre></div><div class="callout callout--caution"><p class="callout__label">흔한 실수</p><p class="p">이벤트가 수만 개 쌓인 뒤에도 매번 처음부터 더하는 거예요. 중간 결산을 하나 저장해 두고 그 뒤부터만 더하면 돼요.</p></div><p class="h3">한 번 적은 이벤트는 고치지 않아요</p><p class="p">잘못 적었으면 어떻게 할까요. 지우는 게 아니라 <strong>바로잡는 이벤트를 새로 적어요</strong>. 장부에서 지우개를 쓰지 않는 것과 같아요. 이 규칙을 한 번이라도 어기면 &#39;기록이 진실&#39; 이라는 약속이 깨지고, 이 방식의 장점이 통째로 사라져요.</p><div class="callout callout--caution"><p class="callout__label">흔한 실수</p><p class="p">&quot;이번 한 번만 데이터베이스에서 직접 고치자&quot; 는 유혹이에요. 그 순간부터 다시 계산한 값과 실제가 어긋나고, 원인을 찾는 데 며칠이 걸려요.</p></div><p class="h3">그래서 언제 쓰면 안 될까요</p><p class="p">이 방식은 공짜가 아니에요. 조회가 번거로워지고, 팀 전체가 이 개념을 알아야 해요. 판단 기준은 하나예요. <strong>&#39;어쩌다 이렇게 됐는지&#39; 를 아무도 묻지 않는 곳이라면 쓰지 않는 게 좋아요.</strong> 사내 공지 게시판에 이걸 얹는 건 짐만 늘리는 일이에요.</p><div class="callout callout--caution"><p class="callout__label">흔한 실수</p><p class="p">멋져 보인다는 이유로 시스템 전체에 적용하는 거예요. 보통은 계좌나 주문처럼 기록이 중요한 일부에만 써요.</p></div><aside class="par"><span class="par__badge" aria-hidden="true">파르</span><p class="par__note">여기서 한 번에 다 이해하려고 하지 않으셔도 돼요. 저도 &#39;이벤트는 과거형&#39; 이거 하나만 며칠 붙잡고 있었어요. 그거 하나만 확실해져도 나머지가 따라옵니다.</p></aside></div><div class="ink-space" data-ink-space="lg"></div></section><section class="sec" id="sec-7" data-section="pro_tips"><h2 class="sec__title"><span class="sec__num">07</span>꿀팁</h2><div class="sec__body"><div class="callout callout--tip"><p class="callout__label">이벤트 이름은 현업에서 쓰는 말 그대로</p><p class="p">&#39;주문완료됨&#39; 을 개발자가 &#39;OrderStatusUpdated&#39; 로 바꾸는 순간 코드와 대화가 어긋나요. 기획자와 상담원이 알아듣는 이름이 좋은 이름이에요.</p></div><div class="callout callout--tip"><p class="callout__label">계산한 값은 이벤트에 넣지 않기</p><p class="p">&#39;출금 5만원&#39; 만 적고 &#39;남은 잔액 30만원&#39; 은 적지 마세요. 나중에 계산 방식이 바뀌면 과거 기록이 전부 틀린 말이 되어 버려요.</p></div><div class="callout callout--tip"><p class="callout__label">중간 결산은 느려진 다음에</p><p class="p">처음부터 넣으면 복잡해지기만 해요. 저는 이벤트 몇 백 개짜리에 중간 결산을 넣었다가 괜히 버그만 만들었어요. 수천 개까지는 그냥 더해도 빨라요.</p></div><div class="callout callout--tip"><p class="callout__label">이벤트에 버전 번호를 미리 넣어두기</p><p class="p">저장하는 모양은 언젠가 바뀌어요. 버전이 없으면 예전 이벤트를 어떻게 읽어야 할지 알 방법이 없어요. 저는 이거 안 넣었다가 나중에 고생했어요.</p></div></div><div class="ink-space" data-ink-space="md"></div></section><section class="sec" id="sec-8" data-section="quiz"><h2 class="sec__title"><span class="sec__num">08</span>질의 5개</h2><div class="sec__body"><ol class="quiz"><li class="quiz__item" data-quiz-id="q0"><p class="quiz__q">이벤트 스토어에 저장하는 것은 &#39;지금 상태&#39; 인가요, &#39;일어난 일&#39; 인가요?</p><div class="ink-space" data-ink-space="sm"></div><details class="quiz__a"><summary>정답 보기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span> 일어난 일(이벤트)이에요. 지금 상태는 그 일들을 처음부터 더해서 계산해요.</p><p>이게 이벤트 소싱의 정의예요. 상태는 저장하는 대상이 아니라 계산한 결과예요.</p></div></details></li><li class="quiz__item" data-quiz-id="q1"><p class="quiz__q">다음 중 이벤트 이름으로 알맞은 것은 무엇일까요?</p><ul class="quiz__choices"><li>WithdrawMoney</li><li>MoneyWithdrawn</li><li>WithdrawingMoney</li><li>MoneyWithdrawRequest</li></ul><div class="ink-space" data-ink-space="sm"></div><details class="quiz__a"><summary>정답 보기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span> MoneyWithdrawn</p><p>이벤트는 이미 일어난 일이라 과거형이에요. WithdrawMoney 는 거절될 수 있는 부탁이고, Request 는 아직 일어나지 않은 요청이에요.</p></div></details></li><li class="quiz__item" data-quiz-id="q2"><p class="quiz__q">잘못 저장된 이벤트를 발견했어요. 어떻게 바로잡을까요?</p><div class="ink-space" data-ink-space="sm"></div><details class="quiz__a"><summary>정답 보기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span> 고치지 않고, 바로잡는 이벤트를 새로 적어요.</p><p>이벤트 스토어는 덧붙이기만 해요. 장부에서 틀린 걸 지우지 않고 반대 내용을 새로 적는 것과 같아요. 직접 고치면 다시 계산한 값과 실제가 영영 어긋나요.</p></div></details></li><li class="quiz__item" data-quiz-id="q3"><p class="quiz__q">이벤트에 &#39;남은 잔액 30만원&#39; 처럼 계산한 값을 함께 넣으면 왜 위험할까요?</p><div class="ink-space" data-ink-space="sm"></div><details class="quiz__a"><summary>정답 보기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span> 나중에 계산 방식이 바뀌면 과거 이벤트에 적힌 값이 전부 틀린 기록이 되기 때문이에요.</p><p>이벤트에는 &#39;일어난 일&#39; 만 담아요. 계산해서 나오는 값은 필요할 때 그때 계산하면 돼요.</p></div></details></li><li class="quiz__item" data-quiz-id="q4"><p class="quiz__q">사내 공지 게시판을 이벤트 소싱으로 만들자는 제안이 나왔어요. 반대한다면 어떤 이유를 들 수 있을까요?</p><div class="ink-space" data-ink-space="md"></div><details class="quiz__a"><summary>정답 보기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span> &#39;어쩌다 이렇게 됐는지&#39; 를 아무도 묻지 않는 곳이기 때문이에요.</p><p>이 방식은 기록을 되짚어야 하는 곳에서 값을 해요. 공지 게시판은 최신 내용만 중요하고, 조회는 번거로워지고 배울 것만 늘어나요.</p></div></details></li></ol><aside class="par"><span class="par__badge" aria-hidden="true">파르</span><p class="par__note">막히면 본론으로 돌아가서 다시 읽어도 괜찮아요. 외워서 맞히는 것보다 왜 그런지 떠올려 보는 게 훨씬 오래 남아요.</p></aside></div></section><section class="sec" id="sec-9" data-section="homework"><h2 class="sec__title"><span class="sec__num">09</span>숙제 &amp; 과제</h2><div class="sec__body"><div class="card"><p class="card__title">내 통장을 이벤트로 옮겨 적어 보기</p><p class="card__why">최근 거래 내역 10건을 종이에 적어 보세요. 한 줄에 하나씩, &#39;무슨 일 / 얼마 / 언제&#39; 이렇게요. 그다음 위에서부터 더해서 지금 잔액을 손으로 계산하고, 실제 잔액과 맞는지 확인해 보세요.</p><p class="card__hint">예상 20분</p></div><div class="card"><p class="card__title">바로잡는 이벤트 만들어 보기</p><p class="card__why">위에서 적은 것 중 하나가 금액을 잘못 적었다고 해봐요. 그 줄을 지우지 않은 채로 바로잡으려면 무엇을 새로 적어야 할까요. 이름은 과거형으로 지어 보세요.</p><p class="card__hint">예상 15분</p></div><p class="card__hint">정답은 없어요. 두 가지만 스스로 확인해 보시면 돼요. 이미 적은 줄을 고치지 않았는지, 그리고 새로 적은 이름이 과거형인지요.</p></div><div class="ink-space" data-ink-space="lg"></div></section><section class="sec" id="sec-10" data-section="wrap_up"><h2 class="sec__title"><span class="sec__num">10</span>마무리 팁</h2><div class="sec__body"><p class="h3">이렇게 씁니다</p><ul class="list"><li>주문이 왜 취소됐는지 상담원이 직접 확인할 수 있게 만들 때</li><li>은행이나 병원처럼 기록을 남겨야 하는 시스템을 만들 때</li><li>같이 쓰는 문서에서 되돌리기와 편집 기록을 만들 때</li></ul><p class="h3">일상에 붙이기</p><p class="p">코드 밖에서도 써먹을 수 있어요. 가계부를 &#39;남은 돈&#39; 이 아니라 <strong>&#39;쓴 내역&#39;</strong> 으로 적는 것, 일기를 &#39;요즘 힘들다&#39; 가 아니라 &#39;오늘 무슨 일이 있었다&#39; 로 적는 것이요. 결론 말고 사건을 남겨두면 나중에 다른 결론도 꺼낼 수 있어요. 오늘 일기부터 한번 그렇게 써보셔도 좋겠어요.</p><p class="h3">스스로 점검</p><ul class="checklist"><li>부탁과 이벤트의 차이를 예를 들어 말할 수 있어요</li><li>이미 적은 이벤트를 고치면 무슨 일이 생기는지 말할 수 있어요</li><li>이 방식을 쓰지 말아야 할 상황을 하나 댈 수 있어요</li></ul></div><div class="ink-space" data-ink-space="md"></div></section><section class="sec" id="sec-11" data-section="next_steps"><h2 class="sec__title"><span class="sec__num">11</span>다음 단계 제안</h2><div class="sec__body"><div class="cards"><div class="card"><p class="card__title">CQRS</p><p class="card__why">이 방식을 쓰면 조회가 번거로워지는데, 거기까지 왔으면 자연스럽게 궁금해지실 거예요. 그 문제를 정면으로 다루는 이야기예요.</p><p class="card__hint">한 단계 더 깊게</p></div><div class="card"><p class="card__title">중간 결산과 읽기용 표</p><p class="card__why">이벤트가 쌓였을 때 느려지는 문제와, 조회 전용 표를 따로 만드는 방법을 다뤄요.</p><p class="card__hint">한 단계 더 깊게</p></div><div class="card"><p class="card__title">이벤트를 어느 단위로 묶을까</p><p class="card__why">실무에서 제일 자주 막히는 지점이에요. 여기를 잡으면 이벤트 설계가 한결 수월해져요.</p><p class="card__hint">같은 난이도</p></div></div></div><div class="ink-space" data-ink-space="sm"></div></section>
+, 0)</code></pre></div><div class="callout callout--caution"><p class="callout__label">흔한 실수</p><p class="p">이벤트가 수만 개 쌓인 뒤에도 매번 처음부터 더하는 거예요. 중간 결산을 하나 저장해 두고 그 뒤부터만 더하면 돼요.</p></div><p class="h3">한 번 적은 이벤트는 고치지 않아요</p><p class="p">잘못 적었으면 어떻게 할까요. 지우는 게 아니라 <strong>바로잡는 이벤트를 새로 적어요</strong>. 장부에서 지우개를 쓰지 않는 것과 같아요. 이 규칙을 한 번이라도 어기면 &#39;기록이 진실&#39; 이라는 약속이 깨지고, 이 방식의 장점이 통째로 사라져요.</p><div class="callout callout--caution"><p class="callout__label">흔한 실수</p><p class="p">&quot;이번 한 번만 데이터베이스에서 직접 고치자&quot; 는 유혹이에요. 그 순간부터 다시 계산한 값과 실제가 어긋나고, 원인을 찾는 데 며칠이 걸려요.</p></div><p class="h3">그래서 언제 쓰면 안 될까요</p><p class="p">이 방식은 공짜가 아니에요. 조회가 번거로워지고, 팀 전체가 이 개념을 알아야 해요. 판단 기준은 하나예요. <strong>&#39;어쩌다 이렇게 됐는지&#39; 를 아무도 묻지 않는 곳이라면 쓰지 않는 게 좋아요.</strong> 사내 공지 게시판에 이걸 얹는 건 짐만 늘리는 일이에요.</p><div class="callout callout--caution"><p class="callout__label">흔한 실수</p><p class="p">멋져 보인다는 이유로 시스템 전체에 적용하는 거예요. 보통은 계좌나 주문처럼 기록이 중요한 일부에만 써요.</p></div><aside class="par"><span class="par__badge"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 15L6.92474 18.1137C6.49579 18.548 6.28131 18.7652 6.09695 18.7805C5.93701 18.7938 5.78042 18.7295 5.67596 18.6076C5.55556 18.4672 5.55556 18.162 5.55556 17.5515V15.9916C5.55556 15.444 5.10707 15.0477 4.5652 14.9683V14.9683C3.25374 14.7762 2.22378 13.7463 2.03168 12.4348C2 12.2186 2 11.9605 2 11.4444V6.8C2 5.11984 2 4.27976 2.32698 3.63803C2.6146 3.07354 3.07354 2.6146 3.63803 2.32698C4.27976 2 5.11984 2 6.8 2H14.2C15.8802 2 16.7202 2 17.362 2.32698C17.9265 2.6146 18.3854 3.07354 18.673 3.63803C19 4.27976 19 5.11984 19 6.8V11M19 22L16.8236 20.4869C16.5177 20.2742 16.3647 20.1678 16.1982 20.0924C16.0504 20.0255 15.8951 19.9768 15.7356 19.9474C15.5558 19.9143 15.3695 19.9143 14.9969 19.9143H13.2C12.0799 19.9143 11.5198 19.9143 11.092 19.6963C10.7157 19.5046 10.4097 19.1986 10.218 18.8223C10 18.3944 10 17.8344 10 16.7143V14.2C10 13.0799 10 12.5198 10.218 12.092C10.4097 11.7157 10.7157 11.4097 11.092 11.218C11.5198 11 12.0799 11 13.2 11H18.8C19.9201 11 20.4802 11 20.908 11.218C21.2843 11.4097 21.5903 11.7157 21.782 12.092C22 12.5198 22 13.0799 22 14.2V16.9143C22 17.8462 22 18.3121 21.8478 18.6797C21.6448 19.1697 21.2554 19.5591 20.7654 19.762C20.3978 19.9143 19.9319 19.9143 19 19.9143V22Z"/></svg><span>파르</span></span><p class="par__note">여기서 한 번에 다 이해하려고 하지 않으셔도 돼요. 저도 &#39;이벤트는 과거형&#39; 이거 하나만 며칠 붙잡고 있었어요. 그거 하나만 확실해져도 나머지가 따라옵니다.</p></aside></div><div class="ink-space" data-ink-space="lg"></div></section><section class="sec" id="sec-7" data-section="pro_tips"><h2 class="sec__title"><span class="sec__num">07</span><span class="sec__ico"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 17.6586V20C10 21.1046 10.8954 22 12 22C13.1046 22 14 21.1046 14 20V17.6586M12 2V3M3 12H2M5.5 5.5L4.8999 4.8999M18.5 5.5L19.1002 4.8999M22 12H21M18 12C18 15.3137 15.3137 18 12 18C8.68629 18 6 15.3137 6 12C6 8.68629 8.68629 6 12 6C15.3137 6 18 8.68629 18 12Z"/></svg></span>꿀팁</h2><div class="sec__body"><div class="callout callout--tip"><p class="callout__label">이벤트 이름은 현업에서 쓰는 말 그대로</p><p class="p">&#39;주문완료됨&#39; 을 개발자가 &#39;OrderStatusUpdated&#39; 로 바꾸는 순간 코드와 대화가 어긋나요. 기획자와 상담원이 알아듣는 이름이 좋은 이름이에요.</p></div><div class="callout callout--tip"><p class="callout__label">계산한 값은 이벤트에 넣지 않기</p><p class="p">&#39;출금 5만원&#39; 만 적고 &#39;남은 잔액 30만원&#39; 은 적지 마세요. 나중에 계산 방식이 바뀌면 과거 기록이 전부 틀린 말이 되어 버려요.</p></div><div class="callout callout--tip"><p class="callout__label">중간 결산은 느려진 다음에</p><p class="p">처음부터 넣으면 복잡해지기만 해요. 저는 이벤트 몇 백 개짜리에 중간 결산을 넣었다가 괜히 버그만 만들었어요. 수천 개까지는 그냥 더해도 빨라요.</p></div><div class="callout callout--tip"><p class="callout__label">이벤트에 버전 번호를 미리 넣어두기</p><p class="p">저장하는 모양은 언젠가 바뀌어요. 버전이 없으면 예전 이벤트를 어떻게 읽어야 할지 알 방법이 없어요. 저는 이거 안 넣었다가 나중에 고생했어요.</p></div></div><div class="ink-space" data-ink-space="md"></div></section><section class="sec" id="sec-8" data-section="quiz"><h2 class="sec__title"><span class="sec__num">08</span><span class="sec__ico"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg></span>질의 5개</h2><div class="sec__body"><ol class="quiz"><li class="quiz__item" data-quiz-id="q0"><p class="quiz__q">이벤트 스토어에 저장하는 것은 &#39;지금 상태&#39; 인가요, &#39;일어난 일&#39; 인가요?</p><div class="ink-space" data-ink-space="sm"></div><details class="quiz__a"><summary>정답 보기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span> 일어난 일(이벤트)이에요. 지금 상태는 그 일들을 처음부터 더해서 계산해요.</p><p>이게 이벤트 소싱의 정의예요. 상태는 저장하는 대상이 아니라 계산한 결과예요.</p></div></details></li><li class="quiz__item" data-quiz-id="q1"><p class="quiz__q">다음 중 이벤트 이름으로 알맞은 것은 무엇일까요?</p><ul class="quiz__choices"><li>WithdrawMoney</li><li>MoneyWithdrawn</li><li>WithdrawingMoney</li><li>MoneyWithdrawRequest</li></ul><div class="ink-space" data-ink-space="sm"></div><details class="quiz__a"><summary>정답 보기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span> MoneyWithdrawn</p><p>이벤트는 이미 일어난 일이라 과거형이에요. WithdrawMoney 는 거절될 수 있는 부탁이고, Request 는 아직 일어나지 않은 요청이에요.</p></div></details></li><li class="quiz__item" data-quiz-id="q2"><p class="quiz__q">잘못 저장된 이벤트를 발견했어요. 어떻게 바로잡을까요?</p><div class="ink-space" data-ink-space="sm"></div><details class="quiz__a"><summary>정답 보기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span> 고치지 않고, 바로잡는 이벤트를 새로 적어요.</p><p>이벤트 스토어는 덧붙이기만 해요. 장부에서 틀린 걸 지우지 않고 반대 내용을 새로 적는 것과 같아요. 직접 고치면 다시 계산한 값과 실제가 영영 어긋나요.</p></div></details></li><li class="quiz__item" data-quiz-id="q3"><p class="quiz__q">이벤트에 &#39;남은 잔액 30만원&#39; 처럼 계산한 값을 함께 넣으면 왜 위험할까요?</p><div class="ink-space" data-ink-space="sm"></div><details class="quiz__a"><summary>정답 보기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span> 나중에 계산 방식이 바뀌면 과거 이벤트에 적힌 값이 전부 틀린 기록이 되기 때문이에요.</p><p>이벤트에는 &#39;일어난 일&#39; 만 담아요. 계산해서 나오는 값은 필요할 때 그때 계산하면 돼요.</p></div></details></li><li class="quiz__item" data-quiz-id="q4"><p class="quiz__q">사내 공지 게시판을 이벤트 소싱으로 만들자는 제안이 나왔어요. 반대한다면 어떤 이유를 들 수 있을까요?</p><div class="ink-space" data-ink-space="md"></div><details class="quiz__a"><summary>정답 보기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span> &#39;어쩌다 이렇게 됐는지&#39; 를 아무도 묻지 않는 곳이기 때문이에요.</p><p>이 방식은 기록을 되짚어야 하는 곳에서 값을 해요. 공지 게시판은 최신 내용만 중요하고, 조회는 번거로워지고 배울 것만 늘어나요.</p></div></details></li></ol><aside class="par"><span class="par__badge"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 15L6.92474 18.1137C6.49579 18.548 6.28131 18.7652 6.09695 18.7805C5.93701 18.7938 5.78042 18.7295 5.67596 18.6076C5.55556 18.4672 5.55556 18.162 5.55556 17.5515V15.9916C5.55556 15.444 5.10707 15.0477 4.5652 14.9683V14.9683C3.25374 14.7762 2.22378 13.7463 2.03168 12.4348C2 12.2186 2 11.9605 2 11.4444V6.8C2 5.11984 2 4.27976 2.32698 3.63803C2.6146 3.07354 3.07354 2.6146 3.63803 2.32698C4.27976 2 5.11984 2 6.8 2H14.2C15.8802 2 16.7202 2 17.362 2.32698C17.9265 2.6146 18.3854 3.07354 18.673 3.63803C19 4.27976 19 5.11984 19 6.8V11M19 22L16.8236 20.4869C16.5177 20.2742 16.3647 20.1678 16.1982 20.0924C16.0504 20.0255 15.8951 19.9768 15.7356 19.9474C15.5558 19.9143 15.3695 19.9143 14.9969 19.9143H13.2C12.0799 19.9143 11.5198 19.9143 11.092 19.6963C10.7157 19.5046 10.4097 19.1986 10.218 18.8223C10 18.3944 10 17.8344 10 16.7143V14.2C10 13.0799 10 12.5198 10.218 12.092C10.4097 11.7157 10.7157 11.4097 11.092 11.218C11.5198 11 12.0799 11 13.2 11H18.8C19.9201 11 20.4802 11 20.908 11.218C21.2843 11.4097 21.5903 11.7157 21.782 12.092C22 12.5198 22 13.0799 22 14.2V16.9143C22 17.8462 22 18.3121 21.8478 18.6797C21.6448 19.1697 21.2554 19.5591 20.7654 19.762C20.3978 19.9143 19.9319 19.9143 19 19.9143V22Z"/></svg><span>파르</span></span><p class="par__note">막히면 본론으로 돌아가서 다시 읽어도 괜찮아요. 외워서 맞히는 것보다 왜 그런지 떠올려 보는 게 훨씬 오래 남아요.</p></aside></div></section><section class="sec" id="sec-9" data-section="homework"><h2 class="sec__title"><span class="sec__num">09</span><span class="sec__ico"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7.5 12L10.5 15L16.5 9M7.8 21H16.2C17.8802 21 18.7202 21 19.362 20.673C19.9265 20.3854 20.3854 19.9265 20.673 19.362C21 18.7202 21 17.8802 21 16.2V7.8C21 6.11984 21 5.27976 20.673 4.63803C20.3854 4.07354 19.9265 3.6146 19.362 3.32698C18.7202 3 17.8802 3 16.2 3H7.8C6.11984 3 5.27976 3 4.63803 3.32698C4.07354 3.6146 3.6146 4.07354 3.32698 4.63803C3 5.27976 3 6.11984 3 7.8V16.2C3 17.8802 3 18.7202 3.32698 19.362C3.6146 19.9265 4.07354 20.3854 4.63803 20.673C5.27976 21 6.11984 21 7.8 21Z"/></svg></span>숙제 &amp; 과제</h2><div class="sec__body"><div class="card"><p class="card__title">내 통장을 이벤트로 옮겨 적어 보기</p><p class="card__why">최근 거래 내역 10건을 종이에 적어 보세요. 한 줄에 하나씩, &#39;무슨 일 / 얼마 / 언제&#39; 이렇게요. 그다음 위에서부터 더해서 지금 잔액을 손으로 계산하고, 실제 잔액과 맞는지 확인해 보세요.</p><p class="card__hint">예상 20분</p></div><div class="card"><p class="card__title">바로잡는 이벤트 만들어 보기</p><p class="card__why">위에서 적은 것 중 하나가 금액을 잘못 적었다고 해봐요. 그 줄을 지우지 않은 채로 바로잡으려면 무엇을 새로 적어야 할까요. 이름은 과거형으로 지어 보세요.</p><p class="card__hint">예상 15분</p></div><p class="card__hint">정답은 없어요. 두 가지만 스스로 확인해 보시면 돼요. 이미 적은 줄을 고치지 않았는지, 그리고 새로 적은 이름이 과거형인지요.</p></div><div class="ink-space" data-ink-space="lg"></div></section><section class="sec" id="sec-10" data-section="wrap_up"><h2 class="sec__title"><span class="sec__num">10</span><span class="sec__ico"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 15C4 15 5 14 8 14C11 14 13 16 16 16C19 16 20 15 20 15V3C20 3 19 4 16 4C13 4 11 2 8 2C5 2 4 3 4 3L4 22"/></svg></span>마무리 팁</h2><div class="sec__body"><p class="h3">이렇게 씁니다</p><ul class="list"><li>주문이 왜 취소됐는지 상담원이 직접 확인할 수 있게 만들 때</li><li>은행이나 병원처럼 기록을 남겨야 하는 시스템을 만들 때</li><li>같이 쓰는 문서에서 되돌리기와 편집 기록을 만들 때</li></ul><p class="h3">일상에 붙이기</p><p class="p">코드 밖에서도 써먹을 수 있어요. 가계부를 &#39;남은 돈&#39; 이 아니라 <strong>&#39;쓴 내역&#39;</strong> 으로 적는 것, 일기를 &#39;요즘 힘들다&#39; 가 아니라 &#39;오늘 무슨 일이 있었다&#39; 로 적는 것이요. 결론 말고 사건을 남겨두면 나중에 다른 결론도 꺼낼 수 있어요. 오늘 일기부터 한번 그렇게 써보셔도 좋겠어요.</p><p class="h3">스스로 점검</p><ul class="checklist"><li>부탁과 이벤트의 차이를 예를 들어 말할 수 있어요</li><li>이미 적은 이벤트를 고치면 무슨 일이 생기는지 말할 수 있어요</li><li>이 방식을 쓰지 말아야 할 상황을 하나 댈 수 있어요</li></ul></div><div class="ink-space" data-ink-space="md"></div></section><section class="sec" id="sec-11" data-section="next_steps"><h2 class="sec__title"><span class="sec__num">11</span><span class="sec__ico"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12.9996 10.9999L3.49964 20.4999M14.0181 3.53838C15.2361 4.34658 16.4068 5.29941 17.5008 6.3934C18.6042 7.49683 19.564 8.67831 20.3767 9.90766M9.2546 7.89605L6.37973 6.93776C6.04865 6.8274 5.68398 6.89763 5.41756 7.12306L2.56041 9.54065C1.97548 10.0356 2.14166 10.9775 2.86064 11.2424L5.56784 12.2398M11.6807 18.3524L12.6781 21.0596C12.943 21.7786 13.8849 21.9448 14.3798 21.3599L16.7974 18.5027C17.0228 18.2363 17.0931 17.8716 16.9827 17.5405L16.0244 14.6657M19.3482 2.27063L14.4418 3.08838C13.9119 3.17668 13.426 3.43709 13.0591 3.82932L6.446 10.8985C4.73185 12.7308 4.77953 15.5924 6.55378 17.3667C8.32803 19.1409 11.1896 19.1886 13.022 17.4744L20.0911 10.8614C20.4834 10.4944 20.7438 10.0085 20.8321 9.47869L21.6498 4.57222C21.8754 3.21858 20.7019 2.04503 19.3482 2.27063Z"/></svg></span>다음 단계 제안</h2><div class="sec__body"><div class="cards"><div class="card"><p class="card__title">CQRS</p><p class="card__why">이 방식을 쓰면 조회가 번거로워지는데, 거기까지 왔으면 자연스럽게 궁금해지실 거예요. 그 문제를 정면으로 다루는 이야기예요.</p><p class="card__hint">한 단계 더 깊게</p></div><div class="card"><p class="card__title">중간 결산과 읽기용 표</p><p class="card__why">이벤트가 쌓였을 때 느려지는 문제와, 조회 전용 표를 따로 만드는 방법을 다뤄요.</p><p class="card__hint">한 단계 더 깊게</p></div><div class="card"><p class="card__title">이벤트를 어느 단위로 묶을까</p><p class="card__why">실무에서 제일 자주 막히는 지점이에요. 여기를 잡으면 이벤트 설계가 한결 수월해져요.</p><p class="card__hint">같은 난이도</p></div></div></div><div class="ink-space" data-ink-space="sm"></div></section>
 <footer class="sheet__footer">이벤트 소싱(Event Sourcing) · ONPAR</footer>
 <canvas class="ink-layer" id="ink-layer" aria-hidden="true"></canvas>
 </article>

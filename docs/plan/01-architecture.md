@@ -10,7 +10,7 @@
 │  │ 인증/홈/생성  │  │ 학습지 뷰어   │  │ 복습 큐         │  │
 │  │              │  │ WebView+필기 │  │ 로컬 알림 스케줄 │  │
 │  └──────────────┘  └──────────────┘  └─────────────────┘  │
-│  packages/design_system  ← Orca 토큰 (교체 가능)             │
+│  packages/design_system  ← Seed 토큰 + Untitled UI (교체 가능) │
 │  로컬 DB(Drift) : 학습지 캐시 · 필기 스트로크 · 복습 일정    │
 └──────────┬─────────────────────────────┬──────────────────┘
            │ PostgREST (RLS)             │ HTTPS + JWT
@@ -112,7 +112,7 @@ LLM이 HTML을 직접 뱉으면 (a) 태그가 깨지고 (b) 디자인 시스템 
 │  ├─ assets/webview/                # 필기 런타임 JS/CSS (worksheet_runtime.js)
 │  └─ test/
 ├─ packages/
-│  └─ design_system/                 # Orca 토큰 + 공용 위젯 (02번 문서)
+│  └─ design_system/                 # Seed 토큰 + Untitled UI (02번 문서)
 │     ├─ lib/src/tokens/             # 생성물 (design_tokens.json → dart)
 │     └─ lib/src/components/
 ├─ server/

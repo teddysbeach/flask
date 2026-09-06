@@ -19,21 +19,19 @@
   붙여쓰기 `ONPAR` + 로고 결합으로 출원하고, 등록 전 변리사 확인을 권한다.
 - 검색 시 골프 용어 `par` 결과가 섞일 수 있다 (치명적이지는 않음)
 
-### Q2. 디자인 시스템 — ✅ 해결
+### Q2. 디자인 시스템 — ✅ 해결 (Seed 로 교체)
 
-**결정: [Orca Design System](https://github.com/stablyai/orca) (MIT) 기반. 디자인은 마지막에 교체 가능.**
+**결정: [SEED Design System](https://github.com/daangn/seed-design) (당근, Apache 2.0)
++ [Untitled UI Icons](https://www.npmjs.com/package/untitledui-js) (MIT).**
 
-- Orca ADE 소스(`src/renderer/src/assets/main.css`)에서 실제 토큰 값을 추출해
-  `design/design_tokens.json` 을 채웠다. Tailwind v4 + shadcn/ui 계열 중립 팔레트, Geist Variable, `--radius: 0.625rem`.
-- Orca 가 자체 플러그인 패널에 노출하는 **20개 토큰 화이트리스트**를 불변 코어로 채택했다.
-- 우리가 추가한 것: 브랜드 보라 액센트, 한글 폴백(Pretendard), 잉크 팔레트, 타이포 스케일, 학습지 문서 계층.
-- **교체 지점은 `design/design_tokens.json` 하나.** 값만 바꾸고 재생성하면 앱과 학습지 HTML이 동시에 바뀐다.
-  코드에는 색·간격·서체 리터럴이 존재하지 않는다(CI가 강제).
+Seed 저장소의 시맨틱 토큰을 참조까지 풀어서 가져왔고, 아이콘은 쓰는 것만 35개 추출했다.
+**교체에 앱 코드와 학습지 렌더러는 한 줄도 고치지 않았다** — `design_tokens.json` 재작성과
+생성기 실행이 전부였다. 토큰 SSOT 구조가 실제로 작동한 셈이다.
 
-상세는 `02-design-system.md`.
-
-**참고**: 원래 요구였던 `popol.me/designsystem` 은 이 작업 환경의 네트워크 정책에서 차단되어 값을 읽지 못했다.
-나중에 값을 확보하면 위 교체 절차(`02-design-system.md` §3)로 4단계면 갈아끼워진다.
+⚠️ **상표 주의**: `#FF6600` 은 당근의 시그니처 컬러다. Apache 2.0 은 코드 라이선스이고
+상표는 별개라고 Seed 의 NOTICE 가 명시한다. **상용 출시 전 `brand.*` 를 ONPAR 고유 색으로
+교체해야 한다.** 여섯 줄이면 되고, 나머지 Seed 토큰은 기능적 설계라 그대로 써도 된다.
+상세는 `02-design-system.md` §8.
 
 ### Q3. 무료 2장 소진 후 — ✅ 해결
 

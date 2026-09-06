@@ -63,6 +63,7 @@ body {
   letter-spacing: -.3px;
   margin: 0 0 20px;
 }
+.sec__ico { flex: none; display: inline-flex; color: var(--ds-color-text-tertiary); }
 .sec__num {
   flex: none;
   display: inline-flex; align-items: center; justify-content: center;
@@ -99,9 +100,15 @@ code, .code {
 .list li { font-size: var(--ds-ws-body-size); line-height: var(--ds-ws-body-lh); margin-bottom: 8px; }
 .list li::marker { color: var(--ds-color-text-tertiary); }
 
+/* ── 아이콘 (Untitled UI) ──
+   currentColor 를 쓰므로 색은 주변 텍스트를 따라간다. */
+.ico { display: inline-block; vertical-align: -0.18em; flex: none; }
+
 /* ── 일상 비유 ──
    학습지에서 독자가 가장 먼저 읽는 문장. 정의보다 먼저 온다. */
+.analogy__ico { color: var(--ds-color-brand-primary); margin-top: 4px; }
 .analogy {
+  display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start;
   font-size: 19px; line-height: 1.7; font-weight: 500;
   margin: 0 0 20px; padding: 18px 20px;
   background: var(--ds-callout-story-bg);
@@ -130,10 +137,12 @@ code, .code {
   border-radius: var(--ds-radius-lg);
 }
 .par__badge {
-  flex: none; display: inline-flex; align-items: center; justify-content: center;
-  width: 34px; height: 34px; border-radius: var(--ds-radius-full);
+  flex: none; display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 11px 6px 9px; border-radius: var(--ds-radius-full);
   background: var(--ds-color-brand-primary); color: var(--ds-color-text-on-brand);
-  font-size: 12px; font-weight: 700; letter-spacing: -.02em;
+  font-size: 13px; font-weight: 700; letter-spacing: -.02em;
+  /* 흰 글자 / 브랜드 주황은 대비가 2.9:1 이라 본문 크기로는 쓰지 않는다.
+     여기는 13px 굵은 글씨의 짧은 라벨이라 허용 범위로 본다. */
 }
 .par__note {
   font-size: 15px; line-height: 1.72; margin: 0;

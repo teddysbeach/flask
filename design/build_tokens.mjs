@@ -37,18 +37,27 @@ const camel = (parts) =>
 const kebab = (parts) =>
   parts.join('-').replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase()
 
-/** "#RRGGBB" | "#RGB" | "rgb(r g b / a)" | "rgba(r,g,b,a)" → {r,g,b,a} */
+/**
+ * "#RGB" | "#RGBA" | "#RRGGBB" | "#RRGGBBAA" | "rgb(r g b / a)" | "rgba(r,g,b,a)" → {r,g,b,a}
+ *
+ * 8자리 hex 를 반드시 지원해야 한다. 알파를 담은 색을 이 형식으로 쓰는 디자인 시스템이 흔하고
+ * (Seed 의 stroke.neutral-muted 가 #00000010 이다), 6자리만 받으면 그런 시스템으로 갈아끼울 때
+ * 생성기가 통째로 멈춘다.
+ */
 function parseColor(input) {
   const s = String(input).trim()
-  let m = /^#([0-9a-f]{3})$/i.exec(s)
+  let m = /^#([0-9a-f]{3,4})$/i.exec(s)
   if (m) {
-    const [r, g, b] = [...m[1]].map((c) => parseInt(c + c, 16))
-    return { r, g, b, a: 1 }
+    const [r, g, b, a] = [...m[1]].map((c) => parseInt(c + c, 16))
+    return { r, g, b, a: a === undefined ? 1 : a / 255 }
   }
-  m = /^#([0-9a-f]{6})$/i.exec(s)
+  m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(s)
   if (m) {
     const n = parseInt(m[1], 16)
-    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255, a: 1 }
+    return {
+      r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255,
+      a: m[2] === undefined ? 1 : parseInt(m[2], 16) / 255,
+    }
   }
   m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*(?:[/,]\s*([\d.]+)\s*)?\)$/i.exec(s)
   if (m) {

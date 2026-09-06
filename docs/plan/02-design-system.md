@@ -1,106 +1,84 @@
-# 02. 디자인 시스템 — Orca Design System 기반
+# 02. 디자인 시스템 — SEED Design System (당근)
 
 ## 0. 결정 요약
 
 | 항목 | 내용 |
 |---|---|
-| 베이스 | **Orca Design System** — [github.com/stablyai/orca](https://github.com/stablyai/orca) `src/renderer/src/assets/main.css` |
-| 라이선스 | **MIT** (Copyright (c) 2026 Lovecast Inc.) — 상업적 사용·수정·재배포 가능 |
-| 계보 | Tailwind v4 + shadcn/ui 계열 중립 팔레트. Geist Variable 서체. `--radius: 0.625rem` 배수 체계 |
-| 교체 가능성 | **`design/design_tokens.json` 하나만 갈아끼우면 전체가 바뀐다.** 코드에 색·간격·서체 리터럴 없음 |
+| 베이스 | **SEED Design System** — [github.com/daangn/seed-design](https://github.com/daangn/seed-design) |
+| 라이선스 | **Apache License 2.0** (Copyright 2025 주식회사 당근마켓) — 상업적 사용·수정·재배포 가능 |
+| 아이콘 | **Untitled UI Icons** — [untitledui-js](https://www.npmjs.com/package/untitledui-js) (MIT) |
+| 서체 | Pretendard Variable (OFL-1.1) |
+| 교체 가능성 | **`design/design_tokens.json` 하나만 갈아끼우면 전체가 바뀐다** |
 
-> 이전 계획에 있던 `popol.me/designsystem` 은 이 작업 환경의 네트워크 정책에서 차단되어 값을 읽지 못했다.
-> Orca 를 베이스로 삼되, **나중에 popol.me 든 무엇이든 마지막에 갈아끼울 수 있도록** 토큰 SSOT 구조를 유지한다.
+> 이전 베이스였던 Orca Design System 에서 교체했다. 교체에 든 작업은
+> `design_tokens.json` 재작성과 생성기 실행뿐이고, **앱 코드와 학습지 렌더러는 한 줄도 고치지 않았다.**
+> 이게 토큰 SSOT 구조를 만든 이유다.
 
-## 1. Orca 에서 그대로 가져온 것
+## 1. Seed 에서 그대로 가져온 것
 
-`main.css` 의 `:root` / `.dark` 블록 원본값을 그대로 쓴다.
+`packages/rootage/__generated__` 의 시맨틱 토큰을 참조까지 풀어서 가져왔다.
 
-| 토큰 | 라이트 | 다크 |
-|---|---|---|
-| `--background` | `#FFFFFF` | `#0A0A0A` |
-| `--foreground` | `#0A0A0A` | `#FAFAFA` |
-| `--card` | `#FFFFFF` | `#171717` |
-| `--secondary` / `--muted` | `#F5F5F5` | `#262626` |
-| `--muted-foreground` | `#737373` | `#A1A1A1` |
-| `--primary` / `--primary-foreground` | `#171717` / `#FAFAFA` | `#E5E5E5` / `#171717` |
-| `--destructive` | `#E40014` | `#FF6568` |
-| `--border` / `--input` | `#E5E5E5` | `rgb(255 255 255 / 0.07)` / `0.15` |
-| `--ring` | `#A1A1A1` | `#737373` |
-| `--status-success` | `#15803D` | `#86EFAC` |
-| `--annotation-highlight` | `#F59E0B` | `#F59E0B` |
-| `--radius` | `0.625rem` (10px), 배수 `0.6 / 0.8 / 1.0 / 1.4 / 1.8 / 2.2 / 2.6` | 동일 |
-| `--shadow-floating` | `0 10px 24px rgb(0 0 0 / 0.18)` | 동일 |
-| `--font-sans` | `'Geist', -apple-system, ...` | 동일 |
-
-**행운의 발견**: Orca 에는 이미 `--annotation-highlight: #F59E0B` 라는 **주석/하이라이트 전용 토큰**이 있다.
-우리 형광펜 잉크 색으로 그대로 승격했다. 필기 앱과 궁합이 맞는 베이스라는 신호다.
-
-### Orca 가 스스로 정의한 "공개 토큰 계약"을 그대로 차용
-
-Orca 는 서드파티 플러그인 패널에 노출하는 **큐레이션된 20개 토큰 화이트리스트**를 갖고 있다
-(`src/shared/plugins/plugin-panel-shell.ts` 의 `PANEL_DESIGN_TOKEN_ALLOWLIST`):
-
-```
---background --foreground --card --card-foreground --popover --popover-foreground
---primary --primary-foreground --secondary --secondary-foreground
---muted --muted-foreground --accent --accent-foreground
---destructive --destructive-foreground --border --input --ring --radius
-```
-
-이건 Orca 자신이 내린 **"어떤 토큰이 안정적인 공개 표면인가"** 에 대한 답이다.
-우리도 이 20개를 **불변 코어**로 두고, 디자인 교체 시 이 20개의 값만 바꾸면 되도록 설계한다.
-나머지(브랜드 액센트, 잉크, 학습지 계층)는 이 코어 위의 확장 레이어다.
-
-## 2. 우리가 추가한 것 (그리고 왜)
-
-### ① 브랜드 액센트 — 보라
-
-Orca 는 `--primary` 를 **중립 근사흑(#171717)** 으로 두고, 보라(`--ai-action-accent: violet`)를
-**"AI 동작"에만** 쓴다. 색을 아껴 쓰고 의미가 있을 때만 칠하는 시스템이다.
-
-이 앱은 **AI가 학습지를 만들어주는 앱**이므로 그 보라를 브랜드로 승격했다.
-
-| 토큰 | 라이트 | 다크 | 쓰는 곳 |
+| 우리 토큰 | Seed 토큰 | 라이트 | 다크 |
 |---|---|---|---|
-| `brand.primary` | `#7C5CFF` | `#A78BFA` | 생성 CTA, 섹션 번호 뱃지, 진행 인디케이터, 링크 |
-| `brand.primarySubtle` | `#F1EDFF` | `#241E3D` | 생성 중 배경, 선택 상태 |
-| `neutralPrimary.base` | `#171717` | `#E5E5E5` | 일반 버튼, 강조 텍스트 |
+| `brand.primary` | `bg.brand-solid` | `#FF6600` | `#FF6600` |
+| `brand.primaryPressed` | `bg.brand-solid-pressed` | `#E14D00` | `#FF9E65` |
+| `brand.primarySubtle` | `bg.brand-weak` | `#FFF2EC` | `#31241F` |
+| `surface.base` | `bg.layer-basement` | `#F3F4F5` | `#000000` |
+| `surface.raised` | `bg.layer-default` | `#FFFFFF` | `#16171B` |
+| `surface.sunken` | `bg.layer-fill` | `#F7F8F9` | `#1D2025` |
+| `text.primary` | `fg.neutral` | `#1A1C20` | `#F3F4F5` |
+| `text.secondary` | `fg.neutral-muted` | `#555D6D` | `#DCDEE3` |
+| `border.default` | `stroke.neutral-muted` | `#00000010` | — |
+| `status.danger` | `fg.critical` | `#FA342C` | `#FF6E60` |
+| radius | `$radius.r1~r6` | 4·6·8·12·16·20·24 | 동일 |
+| shadow | `$shadow.s1~s3` | `0 1px 4px #00000014` 외 | 동일 |
+| 타입 스케일 | `$font-size.t1~t14` | 11~48px, line-height 쌍 | 동일 |
+| 모션 | `$duration.d1~d6` | 50~300ms | 동일 |
 
-**규칙: 보라는 "만들어지는 순간"에만.** 주제 입력 → 생성 버튼 → 로딩 → 완성 애니메이션까지가 보라 구간이고,
-그 뒤 학습지를 읽고 쓰는 시간은 중립 크롬으로 돌아온다. 학습 중에는 UI가 조용해야 한다.
+### 매핑에서 조심한 세 가지
 
-### ② 한글 서체 — Pretendard 폴백 (필수 추가)
+1. **`fg.brand-contrast` 는 solid 위 글자가 아니다.** 이름만 보면 브랜드색 배경 위 글자 같지만
+   실제 값은 `#E14D00`(진한 주황)이고, `bg.brand-weak`(연한 살구) 위에 쓰는 색이다.
+   solid 주황 버튼 위 글자로 쓰면 주황 위에 주황이 된다. → `brand.textOnSubtle` 로 이름을 바꿔 담았다.
+2. **`surface.base` 와 `sunken` 이 겹치면 안 된다.** 처음에 `bg.neutral-weak` 를 sunken 으로 잡았더니
+   `layer-basement` 와 같은 `#F3F4F5` 가 나와 층이 무너졌다. `bg.layer-fill`(`#F7F8F9`)이 맞다.
+3. **Seed 에는 hover 가 없다.** 모바일 우선 시스템이라 pressed 만 있다. 웹/데스크톱에서는
+   `primaryPressed` 를 hover 로 함께 쓴다.
 
-**Geist 에는 한글 글리프가 없다.** 이 앱은 한국어가 본문이므로 그대로 쓸 수 없다.
+## 2. 우리가 얹은 것
+
+| 추가 | 내용 |
+|---|---|
+| `ink.*` | 필기 잉크 — Seed 팔레트의 gray-1000 / blue-600 / red-600 / yellow-400 에서 가져왔다 |
+| `worksheet.*` | 학습지 문서 계층. 본문은 Seed 의 t4(14px)가 아니라 **t6(18px) + 행간 1.78** |
+| `icon.*` | Untitled UI 규격 (선 굵기 2, 24×24 뷰박스, 16/20/24/32) |
+| `brand.onPrimary` | Seed 에 solid 위 글자 토큰이 없어 `#FFFFFF` 로 직접 지정 (§6 접근성 주의) |
+
+**학습지 본문을 키운 이유**: Seed 는 손안의 화면을 위한 시스템이라 본문이 14px 다.
+학습지는 아이패드에서 **읽고 그 위에 쓰는** 문서라서, 글자 크기와 행간이 앱 UI 기준보다 커야 한다.
+
+## 3. 아이콘 — Untitled UI
+
+`untitledui-js`(MIT, Untitled UI Icons 의 MIT 포팅)에서 **쓰는 것만 35개** 뽑아 쓴다.
+1,172개를 전부 담지 않는 이유는 학습지 HTML 에 인라인으로 들어가서 파일 크기가 곧 비용이기 때문이다.
 
 ```
-'Geist', 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', sans-serif
+node design/build_icons.mjs         # 생성
+node design/build_icons.mjs --check # 드리프트 검사 (CI)
 ```
 
-라틴·숫자는 Geist, 한글은 Pretendard 가 받는다. 둘 다 OFL-1.1 이라 임베드에 문제없다.
-Geist 와 Pretendard 는 둘 다 기하학적 산세리프 계열이라 섞어도 이질감이 적다.
+| 쓰임 | 아이콘 |
+|---|---|
+| 학습지 11개 섹션 | Target01 · ClockRewind · BookOpen01 · Hourglass01 · MessageChatCircle · GraduationHat01 · Lightbulb02 · HelpCircle · CheckSquare · Flag01 · Rocket01 |
+| 문서 요소 | Stars01(비유) · BookOpen02(용어) · MessageChatSquare(파르) |
+| 필기 툴바 | PenTool02 · Brush01 · Eraser · FlipBackward · FlipForward · Trash01 · ZoomIn |
+| 내비게이션 | Home01 · BookOpen01 · RefreshCcw01 · Settings01 · User01 |
+| 동작·상태 | Plus · SearchLg · ChevronLeft · XClose · DotsVertical · CheckCircle · AlertTriangle · AlertCircle · InfoCircle |
 
-**학습지 HTML 폰트 임베드 전략**
-- Geist Variable: 69KB → 통째로 base64 임베드
-- Pretendard: 전체 1MB+ → **학습지별 동적 서브셋**. 서버가 학습지를 렌더할 때 실제 등장하는 글리프만
-  추려 서브셋하면 30~60KB로 떨어진다. 학습지마다 쓰는 한자·한글이 다르므로 이게 맞는 방법이다.
+아이콘은 `stroke="currentColor"` 로 넣어 색을 주변 텍스트에서 상속한다.
+학습지 HTML 은 여전히 **외부 요청 0회**다.
 
-### ③ 잉크 팔레트 (필기 전용)
-
-| 토큰 | 값 | 출처 |
-|---|---|---|
-| `ink.pen` | `#111111` / 다크 `#FAFAFA` | own |
-| `ink.penBlue` | `#2563EB` | Orca `--terminal-pane-locate` (blue-600) |
-| `ink.penRed` | `#E40014` | Orca `--destructive` |
-| `ink.highlighter` | `#F59E0B` | **Orca `--annotation-highlight` 원본** |
-
-### ④ 타이포 스케일 · 모션 · 학습지 문서 계층
-
-Orca 는 타이포를 Tailwind 유틸리티로 처리해서 별도 스케일 토큰이 없다. 그래서 이 셋은 우리가 정의했다.
-(`design/design_tokens.json` 의 `typography.scale`, `motion`, `worksheet`)
-
-## 3. 토큰 SSOT — 교체 지점은 여기 하나
+## 4. 토큰 SSOT — 교체 지점은 여기 하나
 
 ```
 design/design_tokens.json          ← 유일한 교체 지점
@@ -129,7 +107,7 @@ Flutter SDK 없이도 CI 에서 토큰 드리프트를 검사할 수 있기 때�
 
 앱 코드도 학습지 렌더러도 **한 줄도 안 고친다.**
 
-## 4. `packages/design_system` 구조
+## 5. `packages/design_system` 구조
 
 ```
 packages/design_system/lib/
@@ -158,7 +136,7 @@ packages/design_system/lib/
 - 새 화면은 `design_system` 컴포넌트 조합으로만. 없으면 컴포넌트를 먼저 추가한다
 - Widgetbook 카탈로그로 컴포넌트 전수 시각 검수
 
-## 5. 학습지 HTML 매핑
+## 6. 학습지 HTML 매핑
 
 학습지는 "디지털 종이"다. 앱 토큰을 상속하되 `worksheet.*` 로 덮어쓴다.
 
@@ -181,20 +159,53 @@ packages/design_system/lib/
 문서 폭이 바뀌면 리플로우가 일어나 기존 필기가 전부 어긋난다.
 화면 맞춤은 `transform: scale()` 로만. 상세는 `06-annotation.md` §2.
 
-## 6. 접근성
+## 7. 접근성
 
-- Orca 팔레트 기준 본문 대비비: `#0A0A0A` on `#FFFFFF` ≈ 20:1, `#737373` on `#FFFFFF` ≈ 4.7:1 — 둘 다 WCAG AA 통과.
-- 주의 지점: `brand.primary #7C5CFF` on `#FFFFFF` 는 약 4.0:1 로 **본문 텍스트에는 미달**.
-  → 보라는 **큰 텍스트(18px+ / 14px+ bold)와 면(배경) 용도로만** 쓰고, 작은 본문 텍스트에는 쓰지 않는다.
-  링크는 보라 + 밑줄로 색 의존을 피한다.
+- 본문 대비: `#1A1C20` on `#FFFFFF` ≈ 17:1, `#555D6D` on `#FFFFFF` ≈ 7.2:1 — 둘 다 AA 통과.
+- ⚠️ **흰 글자 / 브랜드 주황(`#FF6600`) 대비는 약 2.9:1 로 WCAG AA(4.5:1) 미달이다.**
+  → 큰 글자(18px+), 굵은 짧은 라벨, 아이콘에만 쓰고 **본문 텍스트에는 쓰지 않는다.**
+  연한 배경 위 브랜드 텍스트가 필요하면 `brand.textOnSubtle`(`#E14D00`)을 쓴다.
 - 터치 타깃 최소 44×44pt.
-- 학습지 HTML 은 시맨틱 태그(`<section>`, `<h2>`, `<ol>`) 사용 → VoiceOver 대응.
-- 학습지는 고정 폭이므로 Dynamic Type 대신 **자체 확대 슬라이더**(`transform: scale`)를 제공한다.
+- 아이콘은 전부 `aria-hidden="true"` — 의미는 옆 텍스트가 전달한다.
+- 학습지는 고정 폭이므로 Dynamic Type 대신 자체 확대 슬라이더를 제공한다.
 
-## 7. 라이선스 준수
+## 8. 라이선스와 상표 ⚠️
 
-- Orca: MIT. 저작권 고지 유지 필요 → 앱 "오픈소스 라이선스" 화면에 Orca(Lovecast Inc.) MIT 전문 포함.
-- Geist: OFL-1.1 → 동일 화면에 고지.
-- Pretendard: OFL-1.1 → 동일 화면에 고지.
-- 우리는 Orca 의 **토큰 값과 팔레트 구조**를 참조하는 것이고 Orca 의 UI 코드를 복사하지 않는다
-  (Orca 는 Electron/React, 우리는 Flutter). 컴포넌트는 Flutter 로 새로 구현한다.
+### 코드는 문제없다
+
+Seed 는 Apache License 2.0 이라 **상업적 사용·수정·재배포가 자유롭다.**
+재배포 시 라이선스 사본과 귀속 고지를 전달하면 된다(Apache 2.0 제4조).
+
+앱 "오픈소스 라이선스" 화면에 포함할 것:
+- SEED Design System — Apache 2.0, Copyright 2025 주식회사 당근마켓
+- untitledui-js — MIT, Copyright (c) 2025 Emmanuel C. Alozie
+- Pretendard — SIL Open Font License 1.1
+
+### 브랜드 색은 별개 문제다 🚨
+
+Seed 의 NOTICE 는 이렇게 말한다.
+
+> 이 저장소에서 제공하는 "브랜드 리소스"는 주식회사 당근마켓의 자산으로 대한민국 상표법의 보호를 받습니다.
+> 브랜드 리소스란 로고, 상호명, 캐릭터 등 **당근마켓이나 당근마켓의 제품으로 식별될 수 있는 모든 요소**를 의미합니다.
+> (…) 당근마켓의 제품 또는 서비스와 제휴, 후원, 보증, 그 밖의 관련이 있는 것처럼 오인하게 하는 사용은 할 수 없습니다.
+
+**`#FF6600` 은 당근의 시그니처 컬러다.** 이걸 ONPAR 의 주 브랜드 색으로 쓰면
+사용자가 당근 계열 서비스로 오인할 여지가 생긴다. Apache 2.0 은 코드에 대한 허가이고,
+상표는 그 라이선스가 다루지 않는 별개 영역이라는 점을 NOTICE 가 명시하고 있다.
+
+**권고: 상용 출시 전 `brand.*` 를 ONPAR 고유 색으로 교체한다.**
+
+교체는 `design/design_tokens.json` 의 `color.brand` / `colorDark.brand` 여섯 줄이면 끝난다.
+Seed 의 나머지(중립 팔레트·타입 스케일·radius·shadow·모션)는 기능적 설계라 그대로 써도 무방하다.
+
+```jsonc
+// design/design_tokens.json — 이 부분만 바꾸면 된다
+"brand": {
+  "primary": "#FF6600",        // ← ONPAR 고유 색으로
+  "primaryPressed": "#E14D00", // ← 그보다 어둡게
+  "primarySubtle": "#FFF2EC",  // ← 아주 연하게
+  ...
+}
+```
+
+법적 판단이 필요한 사안이므로, 출시 전 변호사·변리사 확인을 권한다.

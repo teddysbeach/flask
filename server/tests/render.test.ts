@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { validateWorksheet, ValidationError } from '../supabase/functions/_shared/validate.ts'
 import { renderWorksheet, esc, inlineToHtml } from '../supabase/functions/_shared/render.ts'
 import { SECTIONS } from '../supabase/functions/_shared/worksheet-types.ts'
+import { ICON_PATHS } from '../supabase/functions/_shared/icons.g.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const FIXTURE = resolve(HERE, 'fixtures/worksheet-event-sourcing.json')
@@ -129,11 +130,19 @@ test('XSS: 모든 문자열 필드에 공격 문자열을 넣어도 태그가 �
   const ALLOWED = new Set([
     'html', 'head', 'meta', 'title', 'style', 'body', 'div', 'article', 'header', 'footer',
     'section', 'h1', 'h2', 'p', 'span', 'ul', 'ol', 'li', 'strong', 'em', 'code', 'pre',
-    'details', 'summary', 'canvas', 'dl', 'dt', 'dd', 'aside',
+    'details', 'summary', 'canvas', 'dl', 'dt', 'dd', 'aside', 'svg', 'path',
   ])
   const found = new Set([...body.matchAll(/<\/?([a-zA-Z][\w-]*)/g)].map((m) => m[1].toLowerCase()))
   const injected = [...found].filter((t) => !ALLOWED.has(t))
   assert(injected.length === 0, `주입된 태그가 있다: ${injected.join(', ')}`)
+
+  // svg/path 를 허용 목록에 넣었으므로, 문서의 모든 path 가 실제로 우리 아이콘에서
+  // 온 것인지까지 확인한다. 허용만 하고 넘어가면 주입된 path 를 놓친다.
+  const known = new Set(Object.values(ICON_PATHS).flat())
+  const docPaths = [...body.matchAll(/<path d="([^"]*)"/g)].map((m) => m[1])
+  assert(docPaths.length > 0, '아이콘이 하나도 안 들어갔다')
+  const foreign = docPaths.filter((d) => !known.has(d))
+  assert(foreign.length === 0, `아이콘 상수에 없는 path 가 있다: ${foreign[0]?.slice(0, 40)}`)
 
   // 속성 문맥 탈출도 막혀야 한다
   assert(!body.includes('<img'), 'img 엘리먼트가 생겼다')
@@ -187,6 +196,12 @@ test('필기 런타임이 인라인으로 박혀 있다', () => {
   assert(html.includes('ONPAR_INK'), '필기 런타임이 없다')
   assert(html.includes('getCoalescedEvents'), 'ProMotion 샘플 수집이 빠졌다')
   assert(html.includes("pointerType === 'pen'"), '팜 리젝션이 빠졌다')
+})
+
+test('섹션마다 아이콘이 붙는다 (Untitled UI)', () => {
+  const svgs = (html.match(/class="ico"/g) ?? []).length
+  assert(svgs >= 11 + 3, `아이콘이 ${svgs}개뿐이다 (섹션 11 + 문서요소 3 이상)`)
+  assert(html.includes('stroke="currentColor"'), '아이콘이 색을 상속하지 않는다')
 })
 
 test('일상 비유가 정의보다 먼저 나온다 (설명 사다리 ①단)', () => {

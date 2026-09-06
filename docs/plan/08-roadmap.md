@@ -25,7 +25,7 @@
       Pointer Events가 `pressure` / `getCoalescedEvents()` / `touch-action:none` 을 제대로 주는지 확인.
       → 최소 재현 HTML + Flutter 껍데기로 30분 안에 판정 가능. **결과가 M3 아키텍처를 확정한다.**
       실패 시 대안: PencilKit 네이티브 플랫폼 뷰. (`06-annotation.md` §7)
-- [x] **[리스크2] 디자인 토큰 확보** — Orca Design System(MIT) 기반으로 `design/design_tokens.json` 작성 완료.
+- [x] **[리스크2] 디자인 토큰 확보** — SEED Design System(Apache 2.0) + Untitled UI Icons(MIT) 로 작성 완료.
       나중에 다른 시스템으로 교체 가능한 구조. (`02-design-system.md`)
 - [ ] Flutter 프로젝트 생성 (`app/`), 멀티 플레이버(dev/prod), `--dart-define-from-file`
 - [ ] `packages/design_system` 스켈레톤 + `design/build_tokens.mjs` 코드 생성기
@@ -128,7 +128,8 @@
 - [ ] 온보딩 3화면 (가치 제안 → 주제 예시 → 첫 생성)
 - [ ] 빈 상태 / 에러 / 로딩 스켈레톤 전수 점검
 - [ ] 접근성: 대비비, 터치 타깃, VoiceOver (`02-design-system.md` §6)
-- [ ] Widgetbook 카탈로그로 컴포넌트 전수 시각 검수 (Orca 팔레트 정합성 확인)
+- [ ] Widgetbook 카탈로그로 컴포넌트 전수 시각 검수 (Seed 팔레트 정합성 확인)
+- [ ] **브랜드 색을 ONPAR 고유 색으로 교체** (`02-design-system.md` §8 상표 주의)
 - [ ] 앱 아이콘 / 스플래시 / 스토어 스크린샷
 - [ ] 개인정보처리방침 · 이용약관 (LLM 사용 및 데이터 처리 고지 포함)
 - [ ] 전자상거래 표시사항 (사업자 정보, 청약철회 안내 — 소모성 상품 특성 명시)
@@ -152,6 +153,6 @@ M0 ──┬── M1 (인증·쿼터) ──┬── M4.5 (결제) ──┐
 
 ## 착수 전 필수 확인 (블로커)
 
-1. ~~디자인 토큰~~ — ✅ 해결 (Orca Design System)
+1. ~~디자인 토큰~~ — ✅ 해결 (SEED Design System)
 2. **Pencil 필압 spike** — 결과에 따라 M3 아키텍처가 바뀐다. (M0 리스크1)
 3. **Supabase 프로젝트 / Anthropic API 키** — 없으면 M2 착수 불가. (Q5)

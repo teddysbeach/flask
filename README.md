@@ -13,7 +13,7 @@
 | 항목 | 내용 |
 |---|---|
 | 앱 | Flutter (iPadOS 우선 → iOS → Android) |
-| 디자인 | **[Orca Design System](https://github.com/stablyai/orca)** (MIT) 기반 — 토큰 SSOT 하나로 앱 UI와 학습지 HTML 동시 적용, 언제든 교체 가능 |
+| 디자인 | **[SEED Design System](https://github.com/daangn/seed-design)** (Apache 2.0) + **Untitled UI Icons** (MIT) — 토큰 SSOT 하나로 앱 UI와 학습지 HTML 동시 적용 |
 | 백엔드 | Supabase (Auth · Postgres + RLS · Storage · Realtime) |
 | 학습지 생성 | Edge Functions에서 2단계 호출 — 설계 `claude-opus-5` → 집필 `claude-sonnet-5`. **API 키는 서버에만** |
 | 필기 | WebView 내부 Canvas + Pointer Events (Apple Pencil 필압) |
@@ -33,7 +33,7 @@
 |---|---|
 | [00. 제품 개요](docs/plan/00-overview.md) | 문제 정의, 가설, 스코프, 성공 지표, **유닛 이코노믹스** |
 | [01. 아키텍처](docs/plan/01-architecture.md) | 시스템 구성, 기술 선택 근거, 폴더 구조 |
-| [02. 디자인 시스템](docs/plan/02-design-system.md) | Orca 토큰, 브랜드 액센트, 교체 절차 |
+| [02. 디자인 시스템](docs/plan/02-design-system.md) | Seed 토큰, Untitled UI 아이콘, 교체 절차, 상표 주의 |
 | [03. 데이터 모델](docs/plan/03-data-model.md) | Supabase 스키마, RLS, 쿼터 원자성, 결제 원장 |
 | [04. 학습지 규격](docs/plan/04-worksheet-spec.md) | 11섹션 JSON 스키마, HTML 규격, 2단계 LLM 호출·비용 예산 |
 | [05. API 규격](docs/plan/05-api-spec.md) | Edge Function / PostgREST 경계, 영수증 검증, 오류 코드 |
@@ -77,5 +77,10 @@
 
 ## 라이선스 고지
 
-Orca Design System — MIT, Copyright (c) 2026 Lovecast Inc.
-Geist / Pretendard — SIL Open Font License 1.1.
+- **SEED Design System** — Apache License 2.0, Copyright 2025 주식회사 당근마켓
+- **untitledui-js** (Untitled UI Icons) — MIT, Copyright (c) 2025 Emmanuel C. Alozie
+- **Pretendard** — SIL Open Font License 1.1
+
+⚠️ Seed 의 브랜드 색(`#FF6600`)은 당근마켓의 상표적 자산이다.
+Apache 2.0 은 코드 라이선스이고 상표는 별개다 — **상용 출시 전 `brand.*` 를 ONPAR 고유 색으로 교체할 것.**
+([02. 디자인 시스템 §8](docs/plan/02-design-system.md))

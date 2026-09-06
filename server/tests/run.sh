@@ -6,6 +6,7 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 
 echo "▸ 생성물 드리프트 검사"
 node "$ROOT/design/build_tokens.mjs" --check
+node "$ROOT/design/build_icons.mjs" --check
 node "$ROOT/server/build-runtime.mjs" --check
 
 echo "▸ 필기 코어"
