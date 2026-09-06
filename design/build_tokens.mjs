@@ -139,6 +139,7 @@ function buildDart(t) {
     .map(([k, v]) => `  static const ${k} = Duration(milliseconds: ${v});`).join('\n')
 
   const ink = Object.entries(t.worksheet.inkSpace).map(([k, v]) => `  static const ink${k[0].toUpperCase()}${k.slice(1)} = ${Number(v).toFixed(1)};`).join('\n')
+  const wsExtra = ['blockGap', 'ruleWidth'].map((k) => `  static const ${k} = ${Number(t.worksheet[k]).toFixed(1)};`).join('\n')
 
   return `${BANNER('design/design_tokens.json')}
 // 원본: ${t.meta.base} (${t.meta.license})
@@ -216,6 +217,7 @@ class DsWorksheet {
   static const sheetWidth = ${Number(t.worksheet.sheetWidth).toFixed(1)};
   static const pagePadding = ${Number(t.worksheet.pagePadding).toFixed(1)};
   static const sectionGap = ${Number(t.worksheet.sectionGap).toFixed(1)};
+${wsExtra}
 ${ink}
 ${wsType}
 }
@@ -247,11 +249,11 @@ function buildCss(t) {
       decl(`ws-${kebab([k])}-lh`, String(v.lineHeight)),
       decl(`ws-${kebab([k])}-weight`, String(v.weight)),
     ]),
-    ...Object.entries(t.worksheet.callout).filter(([, v]) => v && v.bar).flatMap(([k, v]) => [
-      decl(`callout-${k}-bar`, toCssColor(v.bar)),
+    ...Object.entries(t.worksheet.callout).flatMap(([k, v]) => [
+      decl(`callout-${k}-accent`, toCssColor(v.accent)),
       decl(`callout-${k}-bg`, toCssColor(v.bg)),
     ]),
-    decl('callout-bar-width', `${t.worksheet.callout.barWidth}px`),
+    decl('sheet-block-gap', `${t.worksheet.blockGap}px`),
     decl('paper', toCssColor(t.worksheet.paper.light)),
   ].join('\n')
 

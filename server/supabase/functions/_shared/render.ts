@@ -43,13 +43,17 @@ const ul = (items: string[], cls = 'list') =>
 const inkSpace = (size: 'sm' | 'md' | 'lg') =>
   `<div class="ink-space" data-ink-space="${size}"></div>`
 
+const CALLOUT_ICON = { story: 'secRoleplay', tip: 'secProTips', caution: 'warning' } as const
+
 const callout = (kind: 'story' | 'tip' | 'caution', label: string, body: string) =>
-  `<div class="callout callout--${kind}"><p class="callout__label">${esc(label)}</p>${body}</div>`
+  `<div class="callout callout--${kind}">` +
+  `<p class="callout__label">${icon(CALLOUT_ICON[kind], 16)}${esc(label)}</p>${body}</div>`
 
 /** 파르(먼저 헤맨 사람)의 한마디. 선생이 아니라 옆자리 사람의 목소리다. */
 const guideNote = (note: string) =>
-  `<aside class="par"><span class="par__badge">${icon('guide', 18)}<span>파르</span></span>` +
-  `<p class="par__note">${esc(note)}</p></aside>`
+  `<aside class="par"><span class="par__badge">${icon('guide', 20)}</span>` +
+  `<div><span class="par__name">파르</span>` +
+  `<p class="par__note">${esc(note)}</p></div></aside>`
 
 /**
  * 예시는 분야마다 모양이 다르다. 전부 코드 블록으로 그리면
@@ -102,7 +106,7 @@ const CONF_LABEL: Record<string, string> = {
 const RENDERERS: ((c: WorksheetContent, ctx: RenderContext) => string)[] = [
   // ① 무엇을 배우는가 — 비유가 정의보다 먼저 온다 (설명 사다리 ①단)
   (c) => [
-    `<p class="analogy">${icon('analogy', 20, 'analogy__ico')}<span>${esc(c.what_we_learn.analogy)}</span></p>`,
+    `<p class="analogy">${esc(c.what_we_learn.analogy)}</p>`,
     p(c.what_we_learn.summary),
     `<p class="h3">이 학습지를 마치면</p>`,
     ul(c.what_we_learn.objectives),
@@ -180,9 +184,9 @@ const RENDERERS: ((c: WorksheetContent, ctx: RenderContext) => string)[] = [
       ${q.choices ? `<ul class="quiz__choices">${q.choices.map((ch) => `<li>${esc(ch)}</li>`).join('')}</ul>` : ''}
       ${inkSpace(q.kind === 'explain' ? 'md' : 'sm')}
       <details class="quiz__a">
-        <summary>정답 보기</summary>
+        <summary>${icon('info', 15)}정답 보기</summary>
         <div class="quiz__a-body">
-          <p><span class="quiz__a-label">정답</span> ${esc(q.answer)}</p>
+          <p><span class="quiz__a-label">정답</span>${esc(q.answer)}</p>
           <p>${esc(q.explanation)}</p>
         </div>
       </details>
@@ -250,8 +254,9 @@ export function renderWorksheet(c: WorksheetContent, ctx: RenderContext): string
     // 문제 섹션은 문제마다 필기 칸이 이미 있으므로 섹션 끝 여백을 붙이지 않는다.
     const trailing = s.key === 'quiz' ? '' : inkSpace(s.ink)
     return `<section class="sec" id="sec-${i + 1}" data-section="${s.key}">` +
-      `<h2 class="sec__title"><span class="sec__num">${num}</span>` +
-      `<span class="sec__ico">${icon(SECTION_ICON[s.key], 20)}</span>${esc(s.title)}</h2>` +
+      `<header class="sec__head">` +
+      `<p class="sec__label">${icon(SECTION_ICON[s.key], 17)}<span class="sec__num">${num}</span></p>` +
+      `<h2 class="sec__title">${esc(s.title)}</h2></header>` +
       `<div class="sec__body">${body}${notes}</div>${trailing}</section>`
   }).join('')
 
@@ -259,7 +264,8 @@ export function renderWorksheet(c: WorksheetContent, ctx: RenderContext): string
     LEVEL_LABEL[c.level] ?? c.level,
     `약 ${c.estimated_minutes}분`,
     `문제 ${c.quiz.length}개`,
-  ].map((m) => `<span class="meta-chip">${esc(m)}</span>`).join('')
+    `복습 ${c.quiz.length}회`,
+  ].map((m) => `<span>${esc(m)}</span>`).join('')
 
   return `<!doctype html>
 <html lang="ko" data-theme="${ctx.theme ?? 'light'}">
@@ -273,13 +279,13 @@ export function renderWorksheet(c: WorksheetContent, ctx: RenderContext): string
 <div class="sheet-scaler">
 <article class="sheet" data-worksheet-id="${esc(ctx.worksheetId)}" data-schema-version="${c.schema_version}">
 <header class="sheet__header">
-<p class="sheet__eyebrow">ONPAR 학습지</p>
+<p class="sheet__eyebrow">${icon('secMainLesson', 16)}ONPAR 학습지</p>
 <h1 class="sheet__title">${esc(c.title)}</h1>
 <p class="sheet__one-liner">${esc(c.what_we_learn.one_liner)}</p>
 <div class="sheet__meta">${meta}</div>
 </header>
 ${sections}
-<footer class="sheet__footer">${esc(c.topic_normalized)} · ONPAR</footer>
+<footer class="sheet__footer"><span>${esc(c.topic_normalized)}</span><span>ONPAR</span></footer>
 <canvas class="ink-layer" id="ink-layer" aria-hidden="true"></canvas>
 </article>
 </div>

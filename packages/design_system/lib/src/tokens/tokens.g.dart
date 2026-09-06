@@ -253,14 +253,17 @@ class DsFont {
 class DsWorksheet {
   const DsWorksheet._();
   static const sheetWidth = 820.0;
-  static const pagePadding = 56.0;
-  static const sectionGap = 32.0;
+  static const pagePadding = 80.0;
+  static const sectionGap = 72.0;
+  static const blockGap = 28.0;
+  static const ruleWidth = 1.0;
   static const inkSm = 96.0;
   static const inkMd = 160.0;
   static const inkLg = 240.0;
   static const body = DsTypeStyle(size: 18.0, lineHeight: 1.78, weight: 400, letterSpacing: 0.00);
-  static const sectionTitle = DsTypeStyle(size: 22.0, lineHeight: 1.40, weight: 700, letterSpacing: 0.00);
-  static const sectionNum = DsTypeStyle(size: 12.0, lineHeight: 1.00, weight: 700, letterSpacing: 0.00);
+  static const sectionTitle = DsTypeStyle(size: 26.0, lineHeight: 1.35, weight: 700, letterSpacing: 0.00);
+  static const sectionNum = DsTypeStyle(size: 13.0, lineHeight: 1.00, weight: 700, letterSpacing: 0.00);
   static const quizQuestion = DsTypeStyle(size: 18.0, lineHeight: 1.70, weight: 500, letterSpacing: 0.00);
   static const caption = DsTypeStyle(size: 14.0, lineHeight: 1.60, weight: 400, letterSpacing: 0.00);
+  static const lead = DsTypeStyle(size: 21.0, lineHeight: 1.72, weight: 500, letterSpacing: 0.00);
 }

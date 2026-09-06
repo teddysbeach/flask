@@ -251,11 +251,12 @@
   "worksheet": {
     "_note": [
       "학습지 문서 계층. sheetWidth 는 필기 좌표계 기준이라 확정 후 변경 금지.",
-      "본문은 Seed 의 t4(14px)보다 키운다. 읽고 '쓰는' 문서이기 때문이다."
+      "여백은 Seed 의 앱 스페이싱(최대 64px)을 따르지 않고 문서용으로 따로 잡는다.",
+      "앱 화면은 손안에서 훑는 것이고 학습지는 책상에 펴놓고 읽으며 쓰는 것이라 필요한 숨이 다르다."
     ],
     "sheetWidth": 820,
-    "pagePadding": 56,
-    "sectionGap": 32,
+    "pagePadding": 80,
+    "sectionGap": 72,
     "paper": {
       "light": "#ffffff",
       "dark": "#16171b"
@@ -267,12 +268,12 @@
         "weight": 400
       },
       "sectionTitle": {
-        "size": 22,
-        "lineHeight": 1.4,
+        "size": 26,
+        "lineHeight": 1.35,
         "weight": 700
       },
       "sectionNum": {
-        "size": 12,
+        "size": 13,
         "lineHeight": 1.0,
         "weight": 700
       },
@@ -285,6 +286,11 @@
         "size": 14,
         "lineHeight": 1.6,
         "weight": 400
+      },
+      "lead": {
+        "size": 21,
+        "lineHeight": 1.72,
+        "weight": 500
       }
     },
     "inkSpace": {
@@ -293,19 +299,20 @@
       "lg": 240
     },
     "callout": {
-      "barWidth": 4,
       "story": {
-        "bar": "#ff6600",
+        "accent": "#ff6600",
         "bg": "#fff2ec"
       },
       "tip": {
-        "bar": "#9b7821",
+        "accent": "#9b7821",
         "bg": "#fff7de"
       },
       "caution": {
-        "bar": "#fa342c",
+        "accent": "#fa342c",
         "bg": "#fdf0f0"
       }
-    }
+    },
+    "blockGap": 28,
+    "ruleWidth": 1
   }
 }
