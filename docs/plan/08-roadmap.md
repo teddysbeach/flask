@@ -11,8 +11,8 @@
 | M4 | 복습 & 알림 | 망각곡선 로컬 알림 | M2 |
 | M5 | 다듬기 & 베타 | TestFlight 배포 | M1~M4 |
 
-**M2는 디자인 토큰 없이도 진행 가능하다** (JSON 생성이 본질). 토큰 확보와 병렬로 간다.
-반대로 **M3는 토큰이 없으면 시작하지 않는다** (`02-design-system.md` 참조).
+디자인 토큰은 확보되었으므로 M2·M3 를 병렬로 진행할 수 있다.
+디자인 교체는 언제든 `design/design_tokens.json` 값만 바꾸면 되므로 마일스톤을 막지 않는다.
 
 ---
 
@@ -24,7 +24,8 @@
       Pointer Events가 `pressure` / `getCoalescedEvents()` / `touch-action:none` 을 제대로 주는지 확인.
       → 최소 재현 HTML + Flutter 껍데기로 30분 안에 판정 가능. **결과가 M3 아키텍처를 확정한다.**
       실패 시 대안: PencilKit 네이티브 플랫폼 뷰. (`06-annotation.md` §7)
-- [ ] **[리스크2] popol.me 디자인 토큰 확보** — `design/design_tokens.json` 채우기. (`02-design-system.md` §3)
+- [x] **[리스크2] 디자인 토큰 확보** — Orca Design System(MIT) 기반으로 `design/design_tokens.json` 작성 완료.
+      나중에 다른 시스템으로 교체 가능한 구조. (`02-design-system.md`)
 - [ ] Flutter 프로젝트 생성 (`app/`), 멀티 플레이버(dev/prod), `--dart-define-from-file`
 - [ ] `packages/design_system` 스켈레톤 + `design/build_tokens.dart` 코드 생성기
 - [ ] Supabase 프로젝트 생성, 로컬 개발 스택(`supabase start`)
@@ -47,12 +48,14 @@
 ## M2 — 생성 파이프라인 ⭐ 제품의 심장
 
 - [ ] `WorksheetContent` Zod 스키마 + JSON Schema 생성 (`04-worksheet-spec.md` §3)
-- [ ] `server/prompts/worksheet.v1.md` 시스템 프롬프트 (정직성 규칙 포함, §5)
+- [ ] `WorksheetOutline` Zod 스키마 (설계 단계 출력)
+- [ ] `server/prompts/plan.v1.md` (설계·정직성 판단) / `server/prompts/draft.v1.md` (집필)
 - [ ] `generate-worksheet` Edge Function
   - [ ] JWT 검증 → `consume_quota` → 202 즉시 반환
   - [ ] `EdgeRuntime.waitUntil` 백그라운드 생성
-  - [ ] Claude API 스트리밍 + structured output + 프롬프트 캐싱
-  - [ ] 스키마 실패 시 1회 재요청, 잡 재시도 2회(지수 백오프)
+  - [ ] ① 설계 `claude-opus-5` → ② 집필 `claude-sonnet-5` (스트리밍 + structured output + 캐싱)
+  - [ ] 집필 결과가 설계도의 `confidence`/`mode`/문제 대상을 뒤집었는지 대조 검증
+  - [ ] 스키마 실패 시 해당 단계만 1회 재요청, 잡 재시도 2회(지수 백오프)
   - [ ] 실패 시 `refund_quota` + `error_code` 기록
 - [ ] `quiz_items` / `prerequisite_suggestions` 분해 INSERT
 - [ ] **HTML 렌더러** (순수 함수, 인라인 CSS·폰트) + 골든 파일 테스트
@@ -61,7 +64,9 @@
 - [ ] 앱: 주제 입력 화면 → 생성 대기 화면(진행 문구 회전) → Realtime 구독 → 완료 전환
 - [ ] 앱: 실패 화면 + 재시도
 - [ ] 프롬프트 회귀 테스트 10주제 (`04-worksheet-spec.md` §7)
-- [ ] 비용 계측: `tokens_in/out`, 캐시 히트율 → `generation_jobs`
+- [ ] 비용 계측: 단계별 `tokens_in/out`, 캐시 히트율 → `generation_jobs`
+- [ ] **30건 실측으로 장당 실비 확정** → `effort`·`max_tokens` 캡 고정 (목표 $0.105, 경보 $0.12)
+- [ ] 이동평균 초과 시 자동 다운시프트 로직
 
 ## M3 — 뷰어 & 필기 ⭐ 제품의 차별점
 
@@ -99,7 +104,7 @@
 - [ ] 온보딩 3화면 (가치 제안 → 주제 예시 → 첫 생성)
 - [ ] 빈 상태 / 에러 / 로딩 스켈레톤 전수 점검
 - [ ] 접근성: 대비비, 터치 타깃, VoiceOver (`02-design-system.md` §6)
-- [ ] popol.me 원본 대조 (Widgetbook 카탈로그 vs 원본)
+- [ ] Widgetbook 카탈로그로 컴포넌트 전수 시각 검수 (Orca 팔레트 정합성 확인)
 - [ ] 앱 아이콘 / 스플래시 / 스토어 스크린샷
 - [ ] 개인정보처리방침 · 이용약관 (LLM 사용 및 데이터 처리 고지 포함)
 - [ ] 계정 삭제 기능 (App Store 심사 필수 요건)
@@ -115,11 +120,11 @@
 M0 ──┬── M1 (인증·쿼터) ──┐
      ├── M2 (생성) ───────┼── M5 (베타)
      ├── M3 (필기) ───────┤     ↑
-     └── M4 (복습·알림) ──┘   M3는 M0 spike + 토큰 확보 후에만 착수
+     └── M4 (복습·알림) ──┘   M3는 M0 spike 결과 확인 후 착수
 ```
 
 ## 착수 전 필수 확인 (블로커)
 
-1. **디자인 토큰** — 없으면 M3/M5 착수 불가. (Q2)
+1. ~~디자인 토큰~~ — ✅ 해결 (Orca Design System)
 2. **Pencil 필압 spike** — 결과에 따라 M3 아키텍처가 바뀐다. (M0 리스크1)
 3. **Supabase 프로젝트 / Anthropic API 키** — 없으면 M2 착수 불가. (Q5)

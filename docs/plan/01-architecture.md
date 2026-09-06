@@ -10,7 +10,7 @@
 │  │ 인증/홈/생성  │  │ 학습지 뷰어   │  │ 복습 큐         │  │
 │  │              │  │ WebView+필기 │  │ 로컬 알림 스케줄 │  │
 │  └──────────────┘  └──────────────┘  └─────────────────┘  │
-│  packages/design_system  ← popol.me 토큰                   │
+│  packages/design_system  ← Orca 토큰 (교체 가능)             │
 │  로컬 DB(Drift) : 학습지 캐시 · 필기 스트로크 · 복습 일정    │
 └──────────┬─────────────────────────────┬──────────────────┘
            │ PostgREST (RLS)             │ HTTPS + JWT
@@ -44,7 +44,7 @@
 | 로컬 DB | **Drift (SQLite)** | 필기 스트로크·복습 일정의 오프라인 소스. 쿼리 필요 | Isar: 유지보수 리스크. Hive: 쿼리 약함 |
 | 백엔드 | **Supabase** | 요구사항. Auth + Postgres + RLS + Storage + Realtime 한 벌 | — |
 | 서버 로직 | **Supabase Edge Functions (Deno/TS)** | LLM 키를 클라이언트에 두지 않는다는 요구를 최소 인프라로 충족. Auth JWT 검증 내장 | 별도 Node 서버: 인프라·배포·비용 추가. v1엔 과함 |
-| LLM | **Claude API, `claude-opus-5`** | 학습지 품질이 곧 제품. 무료 2장의 품질이 전환율 | 저가 모델은 "탄생 배경/상황극" 섹션에서 뻔해짐. `05-api-spec.md` 비용 분석 참조 |
+| LLM | **Claude API 2단계 하이브리드** — 설계 `claude-opus-5`, 집필 `claude-sonnet-5` | 판단(무엇을·어떤 순서로·무엇이 사실인지)은 Opus, 분량이 많은 문장화는 Sonnet. 장당 150원 예산 충족 | 전부 Opus: 320원(예산 2배 초과). 전부 Sonnet: 싸지만 탄생 배경·문제 설계의 판단 품질이 떨어짐. `04-worksheet-spec.md` §4 |
 | 필기 | **WebView 내부 Canvas + Pointer Events** | HTML 본문과 필기가 **같은 좌표계**를 공유 → 스크롤 동기화 문제가 원천 소멸 | Flutter CustomPaint 오버레이: WebView 스크롤 offset 브리지 필요, 지연·틀어짐 |
 | 알림 | **flutter_local_notifications + timezone** | 요구사항이 로컬 알림. 서버 푸시 인프라 불필요 | FCM/APNs: v1 과잉 |
 
@@ -66,7 +66,7 @@ Edge Function은 벽시계 시간 제한이 있고, Opus 5로 8K 토큰짜리 �
 3. Fn   → worksheets(status='queued') INSERT, generation_jobs INSERT
 4. Fn   → 202 {worksheet_id} 즉시 반환          ← 앱은 여기서 로딩 화면
 5. Fn   → EdgeRuntime.waitUntil(generate())     ← 응답 후에도 계속 실행
-6.        Claude API 스트리밍 호출 (structured output)
+6.        ① 설계: claude-opus-5 → outline / ② 집필: claude-sonnet-5 → content
 7.        JSON 검증 → quiz_items / prerequisite_suggestions 분해 INSERT
 8.        결정론적 렌더러로 HTML 조립 → Storage 업로드
 9.        review_schedules 5회차 생성
@@ -77,6 +77,8 @@ Edge Function은 벽시계 시간 제한이 있고, Opus 5로 8K 토큰짜리 �
 **실패 시**: `status='failed'` + `error_code` 기록 → `refund_quota()` 호출로 쿼터 원복 →
 앱은 "다시 시도" 버튼 노출 (재시도는 쿼터를 다시 차감).
 잡 최대 재시도 2회, 지수 백오프. `generation_jobs.attempt` 로 추적.
+
+생성은 2단계다 — 설계(Opus 5) → 집필(Sonnet 5). 상세와 비용 예산은 `04-worksheet-spec.md` §4.
 
 ### 왜 LLM에게 HTML을 만들게 하지 않는가
 
@@ -110,7 +112,7 @@ LLM이 HTML을 직접 뱉으면 (a) 태그가 깨지고 (b) 디자인 시스템 
 │  ├─ assets/webview/                # 필기 런타임 JS/CSS (worksheet_runtime.js)
 │  └─ test/
 ├─ packages/
-│  └─ design_system/                 # popol.me 토큰 + 공용 위젯 (02번 문서)
+│  └─ design_system/                 # Orca 토큰 + 공용 위젯 (02번 문서)
 │     ├─ lib/src/tokens/             # 생성물 (design_tokens.json → dart)
 │     └─ lib/src/components/
 ├─ server/
@@ -135,7 +137,8 @@ LLM이 HTML을 직접 뱉으면 (a) 태그가 깨지고 (b) 디자인 시스템 
 | `SUPABASE_URL`, `SUPABASE_ANON_KEY` | 앱 (`--dart-define`) | 공개 가능. RLS가 방어선 |
 | `SUPABASE_SERVICE_ROLE_KEY` | Edge Function secret | **앱에 절대 넣지 않음** |
 | `ANTHROPIC_API_KEY` | Edge Function secret | **앱에 절대 넣지 않음** |
-| `WORKSHEET_MODEL` | Edge Function secret | 기본 `claude-opus-5` |
+| `WORKSHEET_PLAN_MODEL` | Edge Function secret | 기본 `claude-opus-5` (설계 단계) |
+| `WORKSHEET_DRAFT_MODEL` | Edge Function secret | 기본 `claude-sonnet-5` (집필 단계) |
 
 `.env`, `*.secrets.json`, `supabase/.env` 는 `.gitignore`에 추가한다.
 앱 빌드는 `--dart-define-from-file=env/dev.json` 방식으로 dev/prod 분리.

@@ -70,7 +70,7 @@ Baewoom은 이 넷의 교집합을 노린다: **개인화된 주제 + 고정된 
 | 문서 | 내용 |
 |---|---|
 | `01-architecture.md` | 시스템 구성, 기술 선택과 근거, 폴더 구조 |
-| `02-design-system.md` | popol.me 디자인 시스템 적용 규약 (토큰 계약) |
+| `02-design-system.md` | Orca Design System 기반 토큰 SSOT 와 교체 절차 |
 | `03-data-model.md` | Supabase 스키마, RLS, 쿼터 정책 |
 | `04-worksheet-spec.md` | 학습지 11섹션 JSON 스키마 + HTML 규격 |
 | `05-api-spec.md` | Edge Function API / PostgREST 경계 |

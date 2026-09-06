@@ -1,28 +1,109 @@
-# 02. 디자인 시스템 — popol.me/designsystem 준수
+# 02. 디자인 시스템 — Orca Design System 기반
 
-## ⚠️ 현재 상태: 토큰 값 미확보
+## 0. 결정 요약
 
-`https://popol.me/designsystem` 은 **이 작업 세션의 네트워크 egress 정책에서 차단**되어 있어
-(도메인 차단 — 일시적 오류가 아님) 실제 토큰 값을 읽어오지 못했다.
+| 항목 | 내용 |
+|---|---|
+| 베이스 | **Orca Design System** — [github.com/stablyai/orca](https://github.com/stablyai/orca) `src/renderer/src/assets/main.css` |
+| 라이선스 | **MIT** (Copyright (c) 2026 Lovecast Inc.) — 상업적 사용·수정·재배포 가능 |
+| 계보 | Tailwind v4 + shadcn/ui 계열 중립 팔레트. Geist Variable 서체. `--radius: 0.625rem` 배수 체계 |
+| 교체 가능성 | **`design/design_tokens.json` 하나만 갈아끼우면 전체가 바뀐다.** 코드에 색·간격·서체 리터럴 없음 |
 
-따라서 이 문서는 **값이 아니라 계약(contract)** 을 정의한다.
-아래 §3 표의 `TBD` 칸만 채우면 앱·학습지 HTML 양쪽에 자동 반영되도록 구조를 잡아 둔다.
+> 이전 계획에 있던 `popol.me/designsystem` 은 이 작업 환경의 네트워크 정책에서 차단되어 값을 읽지 못했다.
+> Orca 를 베이스로 삼되, **나중에 popol.me 든 무엇이든 마지막에 갈아끼울 수 있도록** 토큰 SSOT 구조를 유지한다.
 
-**토큰 확보 방법 (택 1)** — `09-open-questions.md` Q2:
-1. popol.me/designsystem 의 토큰 표를 그대로 붙여넣기 (가장 빠름)
-2. Figma Variables / Tokens Studio JSON export 제공
-3. 사이트 접근이 허용된 환경에서 `design/design_tokens.json` 을 채워 커밋
+## 1. Orca 에서 그대로 가져온 것
 
-**토큰이 채워지기 전까지는 UI 구현을 시작하지 않는다.** 하드코딩된 임시 색상은
-나중에 전수 치환이 불가능해지고, "반드시 popol.me 디자인을 따를 것"이라는 요구를 위반한다.
-M0~M2(백엔드·생성 파이프라인)는 토큰 없이도 진행 가능하므로 병렬로 간다. (`08-roadmap.md`)
+`main.css` 의 `:root` / `.dark` 블록 원본값을 그대로 쓴다.
 
-## 1. 핵심 원칙: 토큰 SSOT 하나로 앱과 학습지를 동시에 지배
+| 토큰 | 라이트 | 다크 |
+|---|---|---|
+| `--background` | `#FFFFFF` | `#0A0A0A` |
+| `--foreground` | `#0A0A0A` | `#FAFAFA` |
+| `--card` | `#FFFFFF` | `#171717` |
+| `--secondary` / `--muted` | `#F5F5F5` | `#262626` |
+| `--muted-foreground` | `#737373` | `#A1A1A1` |
+| `--primary` / `--primary-foreground` | `#171717` / `#FAFAFA` | `#E5E5E5` / `#171717` |
+| `--destructive` | `#E40014` | `#FF6568` |
+| `--border` / `--input` | `#E5E5E5` | `rgb(255 255 255 / 0.07)` / `0.15` |
+| `--ring` | `#A1A1A1` | `#737373` |
+| `--status-success` | `#15803D` | `#86EFAC` |
+| `--annotation-highlight` | `#F59E0B` | `#F59E0B` |
+| `--radius` | `0.625rem` (10px), 배수 `0.6 / 0.8 / 1.0 / 1.4 / 1.8 / 2.2 / 2.6` | 동일 |
+| `--shadow-floating` | `0 10px 24px rgb(0 0 0 / 0.18)` | 동일 |
+| `--font-sans` | `'Geist', -apple-system, ...` | 동일 |
 
-학습지는 HTML이고 앱은 Flutter다. 두 곳에 색을 각각 적으면 100% 어긋난다.
+**행운의 발견**: Orca 에는 이미 `--annotation-highlight: #F59E0B` 라는 **주석/하이라이트 전용 토큰**이 있다.
+우리 형광펜 잉크 색으로 그대로 승격했다. 필기 앱과 궁합이 맞는 베이스라는 신호다.
+
+### Orca 가 스스로 정의한 "공개 토큰 계약"을 그대로 차용
+
+Orca 는 서드파티 플러그인 패널에 노출하는 **큐레이션된 20개 토큰 화이트리스트**를 갖고 있다
+(`src/shared/plugins/plugin-panel-shell.ts` 의 `PANEL_DESIGN_TOKEN_ALLOWLIST`):
 
 ```
-design/design_tokens.json          ← 단일 진실 공급원 (popol.me 값)
+--background --foreground --card --card-foreground --popover --popover-foreground
+--primary --primary-foreground --secondary --secondary-foreground
+--muted --muted-foreground --accent --accent-foreground
+--destructive --destructive-foreground --border --input --ring --radius
+```
+
+이건 Orca 자신이 내린 **"어떤 토큰이 안정적인 공개 표면인가"** 에 대한 답이다.
+우리도 이 20개를 **불변 코어**로 두고, 디자인 교체 시 이 20개의 값만 바꾸면 되도록 설계한다.
+나머지(브랜드 액센트, 잉크, 학습지 계층)는 이 코어 위의 확장 레이어다.
+
+## 2. 우리가 추가한 것 (그리고 왜)
+
+### ① 브랜드 액센트 — 보라
+
+Orca 는 `--primary` 를 **중립 근사흑(#171717)** 으로 두고, 보라(`--ai-action-accent: violet`)를
+**"AI 동작"에만** 쓴다. 색을 아껴 쓰고 의미가 있을 때만 칠하는 시스템이다.
+
+이 앱은 **AI가 학습지를 만들어주는 앱**이므로 그 보라를 브랜드로 승격했다.
+
+| 토큰 | 라이트 | 다크 | 쓰는 곳 |
+|---|---|---|---|
+| `brand.primary` | `#7C5CFF` | `#A78BFA` | 생성 CTA, 섹션 번호 뱃지, 진행 인디케이터, 링크 |
+| `brand.primarySubtle` | `#F1EDFF` | `#241E3D` | 생성 중 배경, 선택 상태 |
+| `neutralPrimary.base` | `#171717` | `#E5E5E5` | 일반 버튼, 강조 텍스트 |
+
+**규칙: 보라는 "만들어지는 순간"에만.** 주제 입력 → 생성 버튼 → 로딩 → 완성 애니메이션까지가 보라 구간이고,
+그 뒤 학습지를 읽고 쓰는 시간은 중립 크롬으로 돌아온다. 학습 중에는 UI가 조용해야 한다.
+
+### ② 한글 서체 — Pretendard 폴백 (필수 추가)
+
+**Geist 에는 한글 글리프가 없다.** 이 앱은 한국어가 본문이므로 그대로 쓸 수 없다.
+
+```
+'Geist', 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', sans-serif
+```
+
+라틴·숫자는 Geist, 한글은 Pretendard 가 받는다. 둘 다 OFL-1.1 이라 임베드에 문제없다.
+Geist 와 Pretendard 는 둘 다 기하학적 산세리프 계열이라 섞어도 이질감이 적다.
+
+**학습지 HTML 폰트 임베드 전략**
+- Geist Variable: 69KB → 통째로 base64 임베드
+- Pretendard: 전체 1MB+ → **학습지별 동적 서브셋**. 서버가 학습지를 렌더할 때 실제 등장하는 글리프만
+  추려 서브셋하면 30~60KB로 떨어진다. 학습지마다 쓰는 한자·한글이 다르므로 이게 맞는 방법이다.
+
+### ③ 잉크 팔레트 (필기 전용)
+
+| 토큰 | 값 | 출처 |
+|---|---|---|
+| `ink.pen` | `#111111` / 다크 `#FAFAFA` | own |
+| `ink.penBlue` | `#2563EB` | Orca `--terminal-pane-locate` (blue-600) |
+| `ink.penRed` | `#E40014` | Orca `--destructive` |
+| `ink.highlighter` | `#F59E0B` | **Orca `--annotation-highlight` 원본** |
+
+### ④ 타이포 스케일 · 모션 · 학습지 문서 계층
+
+Orca 는 타이포를 Tailwind 유틸리티로 처리해서 별도 스케일 토큰이 없다. 그래서 이 셋은 우리가 정의했다.
+(`design/design_tokens.json` 의 `typography.scale`, `motion`, `worksheet`)
+
+## 3. 토큰 SSOT — 교체 지점은 여기 하나
+
+```
+design/design_tokens.json          ← 유일한 교체 지점
         │
         ├─ dart run design/build_tokens.dart
         │
@@ -30,111 +111,84 @@ design/design_tokens.json          ← 단일 진실 공급원 (popol.me 값)
         └──► server/supabase/functions/_shared/worksheet.css.ts    (학습지 HTML)
 ```
 
-- `tokens.g.dart` / `worksheet.css.ts` 는 **생성물이며 직접 편집 금지** (파일 상단에 `// GENERATED` 배너).
-- CI에서 `build_tokens.dart` 재실행 후 diff가 있으면 빌드 실패 → 토큰 드리프트 차단.
-- 학습지 HTML은 **CSS를 인라인으로 임베드**한다 (외부 CSS 요청 없이 오프라인·WebView에서 즉시 렌더).
+- 생성물은 `// GENERATED` 배너를 달고 **직접 편집 금지**.
+- CI 에서 `build_tokens.dart` 재실행 후 diff 가 있으면 빌드 실패 → 토큰 드리프트 차단.
+- **코드 어디에도 색·간격·서체 리터럴이 없어야 한다.** 이게 "마지막에 갈아끼우기"의 전제다.
 
-## 2. `design_tokens.json` 스키마
+**나중에 디자인을 교체할 때 하는 일** (예: popol.me 값 확보 시)
+1. `design_tokens.json` 의 `color` / `colorDark` / `typography` / `radius` / `shadow` 값 교체
+2. `meta.base` 갱신
+3. `dart run design/build_tokens.dart`
+4. Widgetbook 카탈로그로 눈 검수
 
-```jsonc
-{
-  "$schema": "./design_tokens.schema.json",
-  "meta": { "source": "https://popol.me/designsystem", "version": "TBD", "fetchedAt": "TBD" },
-  "color": {
-    "brand":   { "primary": "TBD", "primaryHover": "TBD", "onPrimary": "TBD" },
-    "surface": { "base": "TBD", "raised": "TBD", "sunken": "TBD", "overlay": "TBD" },
-    "text":    { "primary": "TBD", "secondary": "TBD", "tertiary": "TBD", "onBrand": "TBD" },
-    "border":  { "subtle": "TBD", "default": "TBD", "strong": "TBD" },
-    "status":  { "success": "TBD", "warning": "TBD", "danger": "TBD", "info": "TBD" },
-    "ink":     { "pen": "TBD", "highlighter": "TBD" }   // 필기 기본 색 (§5)
-  },
-  "typography": {
-    "fontFamily": { "sans": "TBD", "mono": "TBD" },
-    "scale": {
-      "display": { "size": "TBD", "lineHeight": "TBD", "weight": "TBD", "letterSpacing": "TBD" },
-      "h1": {}, "h2": {}, "h3": {}, "bodyLg": {}, "body": {}, "caption": {}, "code": {}
-    }
-  },
-  "space":  { "0": 0, "1": "TBD", "2": "TBD", "3": "TBD", "4": "TBD", "6": "TBD", "8": "TBD", "12": "TBD", "16": "TBD" },
-  "radius": { "sm": "TBD", "md": "TBD", "lg": "TBD", "full": 9999 },
-  "shadow": { "sm": "TBD", "md": "TBD", "lg": "TBD" },
-  "motion": { "durationFast": "TBD", "durationBase": "TBD", "easingStandard": "TBD" },
-  "breakpoint": { "phone": 0, "tablet": 768, "desktop": 1200 }
-}
-```
-
-## 3. popol.me 에서 추출해야 할 항목 체크리스트
-
-| # | 항목 | 세부 | 상태 |
-|---|---|---|---|
-| 1 | 컬러 팔레트 | primary/surface/text/border/status 전체 hex, 라이트·다크 각각 | ☐ TBD |
-| 2 | 다크 모드 지원 여부 | 지원 시 각 토큰의 다크 대응값 | ☐ TBD |
-| 3 | 서체 | 한글 본문 서체 + 웹폰트 라이선스/CDN 여부 (학습지 HTML에 임베드 필요) | ☐ TBD |
-| 4 | 타이포 스케일 | size / line-height / weight / letter-spacing | ☐ TBD |
-| 5 | 스페이싱 스케일 | 4pt 그리드인지 8pt 그리드인지 | ☐ TBD |
-| 6 | 라운딩 · 그림자 | 카드/버튼 반경, elevation 단계 | ☐ TBD |
-| 7 | 컴포넌트 스펙 | Button(variant/size/state), Input, Card, Chip, Tab, BottomSheet, Toast, Dialog | ☐ TBD |
-| 8 | 아이콘 세트 | 아이콘 라이브러리 이름/굵기 | ☐ TBD |
-| 9 | 모션 | duration / easing 커브 | ☐ TBD |
-| 10 | 그리드·레이아웃 | 컨테이너 최대폭, 거터, 브레이크포인트 | ☐ TBD |
+앱 코드도 학습지 렌더러도 **한 줄도 안 고친다.**
 
 ## 4. `packages/design_system` 구조
 
 ```
 packages/design_system/lib/
-├─ design_system.dart              # 배럴 export
+├─ design_system.dart
 └─ src/
    ├─ tokens/
-   │  ├─ tokens.g.dart             # GENERATED — 원시 값
+   │  ├─ tokens.g.dart             # GENERATED
    │  └─ app_theme.dart            # 토큰 → ThemeData (라이트/다크)
    └─ components/
-      ├─ ds_button.dart            # primary / secondary / ghost / danger × sm/md/lg
+      ├─ ds_button.dart            # brand / neutral / ghost / danger × sm·md·lg
       ├─ ds_text_field.dart
-      ├─ ds_card.dart
+      ├─ ds_card.dart              # radius.xl(14) + shadow.sm
       ├─ ds_chip.dart
       ├─ ds_app_bar.dart
-      ├─ ds_bottom_sheet.dart
+      ├─ ds_bottom_sheet.dart      # radius.3xl(22) 상단
       ├─ ds_dialog.dart
       ├─ ds_toast.dart
       ├─ ds_empty_state.dart
-      ├─ ds_progress.dart          # 생성 대기 화면용
-      └─ ds_skeleton.dart
+      ├─ ds_progress.dart          # 생성 대기 — brand 구간
+      ├─ ds_skeleton.dart
+      └─ ds_ink_toolbar.dart       # 필기 툴바
 ```
 
-**강제 규칙 (린트로 잡는다)**
+**강제 규칙 (CI 로 잡는다)**
+- `features/` 아래에서 `Color(0x...)`, `Colors.*`, 하드코딩 `TextStyle`, 생 `EdgeInsets` 숫자 금지
+- 새 화면은 `design_system` 컴포넌트 조합으로만. 없으면 컴포넌트를 먼저 추가한다
+- Widgetbook 카탈로그로 컴포넌트 전수 시각 검수
 
-- `features/` 아래 코드에서 `Color(0x...)`, `Colors.*`, 하드코딩 `TextStyle`, 생 `EdgeInsets` 숫자 금지
-  → `custom_lint` 규칙 또는 최소한 CI grep 스크립트로 차단.
-- 새 화면은 `design_system` 컴포넌트 조합으로만 만든다. 없으면 컴포넌트를 먼저 추가한다.
-- 위젯북(`widgetbook` 패키지)으로 컴포넌트 카탈로그를 만들어 popol.me 원본과 눈으로 대조한다.
+## 5. 학습지 HTML 매핑
 
-## 5. 학습지 HTML의 디자인 시스템 매핑
+학습지는 "디지털 종이"다. 앱 토큰을 상속하되 `worksheet.*` 로 덮어쓴다.
 
-학습지는 "디지털 종이"다. 앱 UI 토큰을 그대로 쓰되, **문서용 오버라이드**를 얹는다.
+| 학습지 요소 | 토큰 |
+|---|---|
+| 페이지 배경 | `worksheet.paper` (라이트 `#FFFFFF` / 다크 `#141414`) |
+| 섹션 카드 | `surface.raised` + `radius.xl` + `shadow.sm` |
+| 섹션 번호 뱃지 | `brand.primary` + `text.onBrand`, `radius.full` |
+| 본문 | `worksheet.typography.body` — 17px / **행간 1.78** |
+| 상황극 블록 | `worksheet.callout.story` — 좌측 보라 바 4px + `#F7F5FF` |
+| 꿀팁 블록 | `worksheet.callout.tip` — 좌측 앰버 바 + `#FFFBEB` |
+| 문제 | `worksheet.typography.quizQuestion` — 18px / 600 |
+| 필기 여백 | `worksheet.inkSpace` — sm 96 / md 160 / lg 240 px |
+| 형광펜 | `ink.highlighter` + `mix-blend-mode: multiply` |
 
-| 학습지 요소 | 사용 토큰 | 비고 |
-|---|---|---|
-| 페이지 배경 | `color.surface.base` | 종이 느낌. 다크모드에서도 필기 대비 확보 필요 |
-| 섹션 카드 | `color.surface.raised` + `radius.lg` + `shadow.sm` | 11개 섹션 각각 |
-| 섹션 번호 뱃지 | `color.brand.primary` / `color.text.onBrand` | |
-| 본문 | `typography.scale.body` | 한글 가독성 위해 line-height ≥ 1.7 권장 |
-| 인용/상황극 블록 | `color.surface.sunken` + 좌측 `border.strong` 4px | |
-| 문제 번호 | `typography.scale.h3` | |
-| 필기 여백 | 각 섹션 하단 `space.16` 확보 | 펜으로 쓸 자리 (§6) |
-| 펜 잉크 | `color.ink.pen` | 기본 잉크 색 |
-| 형광펜 | `color.ink.highlighter` + `mix-blend-mode: multiply` | |
+**행간 1.78의 이유**: 펜으로 줄 사이에 메모를 끼워 넣을 물리적 여지를 남긴다.
+읽기만 하는 문서면 1.6이면 충분하지만, 이건 쓰는 문서다.
 
-**필기용 레이아웃 제약**
-
-- 학습지 본문은 **고정 폭 문서**로 렌더한다 (기본 `--sheet-width: 820px`, iPad 세로 기준).
-  가변 리플로우를 허용하면 회전/분할뷰 시 문서 좌표가 바뀌어 **기존 필기가 어긋난다.**
-  화면 폭에 맞추는 것은 CSS `transform: scale()` 로만 처리하고, 문서 좌표계는 불변으로 유지한다.
-  → 이 결정은 `06-annotation.md` §2 의 좌표계 계약과 직결된다.
-- 폰트도 문서에 임베드(base64 WOFF2)해서 오프라인 렌더 시 줄바꿈이 달라지지 않게 한다.
+**필기 좌표계 제약** — `worksheet.sheetWidth: 820` 은 **확정 후 변경 금지**.
+문서 폭이 바뀌면 리플로우가 일어나 기존 필기가 전부 어긋난다.
+화면 맞춤은 `transform: scale()` 로만. 상세는 `06-annotation.md` §2.
 
 ## 6. 접근성
 
-- 본문 대비비 WCAG AA (4.5:1) 이상. popol.me 토큰이 미달하면 **문서용 텍스트 색만** 예외 토큰으로 승격.
+- Orca 팔레트 기준 본문 대비비: `#0A0A0A` on `#FFFFFF` ≈ 20:1, `#737373` on `#FFFFFF` ≈ 4.7:1 — 둘 다 WCAG AA 통과.
+- 주의 지점: `brand.primary #7C5CFF` on `#FFFFFF` 는 약 4.0:1 로 **본문 텍스트에는 미달**.
+  → 보라는 **큰 텍스트(18px+ / 14px+ bold)와 면(배경) 용도로만** 쓰고, 작은 본문 텍스트에는 쓰지 않는다.
+  링크는 보라 + 밑줄로 색 의존을 피한다.
 - 터치 타깃 최소 44×44pt.
-- 학습지 HTML에 시맨틱 태그(`<section>`, `<h2>`, `<ol>`) 사용 → VoiceOver 대응.
-- 동적 타입(iOS Dynamic Type) 대응: 앱 UI는 대응, 학습지 문서는 고정 폭 유지를 위해 자체 확대 슬라이더 제공.
+- 학습지 HTML 은 시맨틱 태그(`<section>`, `<h2>`, `<ol>`) 사용 → VoiceOver 대응.
+- 학습지는 고정 폭이므로 Dynamic Type 대신 **자체 확대 슬라이더**(`transform: scale`)를 제공한다.
+
+## 7. 라이선스 준수
+
+- Orca: MIT. 저작권 고지 유지 필요 → 앱 "오픈소스 라이선스" 화면에 Orca(Lovecast Inc.) MIT 전문 포함.
+- Geist: OFL-1.1 → 동일 화면에 고지.
+- Pretendard: OFL-1.1 → 동일 화면에 고지.
+- 우리는 Orca 의 **토큰 값과 팔레트 구조**를 참조하는 것이고 Orca 의 UI 코드를 복사하지 않는다
+  (Orca 는 Electron/React, 우리는 Flutter). 컴포넌트는 Flutter 로 새로 구현한다.

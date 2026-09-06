@@ -105,8 +105,10 @@ supabase.channel('ws:$worksheetId')
 | `quota_exhausted` | 402 | 무료 2장 소진 | "곧 제공" 화면 |
 | `invalid_topic` | 400 | 주제 형식 위반 | 입력창 인라인 오류 |
 | `generation_in_progress` | 429 | 이미 생성 중 | 진행 중 학습지로 이동 |
-| `llm_schema_invalid` | — (잡 실패) | 재요청 후에도 스키마 위반 | 재시도 버튼 + 쿼터 환불됨 |
-| `llm_upstream_error` | — (잡 실패) | Claude API 5xx/429 | 자동 재시도 2회 후 실패 |
+| `plan_schema_invalid` | — (잡 실패) | 설계 단계 스키마 위반 (재요청 후에도) | 재시도 버튼 + 쿼터 환불됨 |
+| `draft_schema_invalid` | — (잡 실패) | 집필 단계 스키마 위반 (재요청 후에도) | 재시도 버튼 + 쿼터 환불됨 |
+| `draft_contradicts_plan` | — (잡 실패) | 집필이 설계도의 사실 판단을 뒤집음 | 집필만 1회 재시도 |
+| `llm_upstream_error` | — (잡 실패) | Claude API 5xx/429 | 해당 단계만 자동 재시도 2회 후 실패 |
 | `llm_refused` | — (잡 실패) | 안전 정책상 거절 | "다른 주제로 시도" 안내 |
 | `render_failed` | — (잡 실패) | 렌더러 예외 | 내부 알람 + 재시도 |
 | `unauthorized` | 401 | JWT 무효 | 재로그인 |
@@ -114,8 +116,10 @@ supabase.channel('ws:$worksheetId')
 ## 5. 관측 & 한도
 
 - 모든 Edge Function 호출에 `request_id` (UUID) 부여, 로그·`generation_jobs` 에 기록.
-- **비용 알람**: 일일 LLM 지출이 임계치를 넘으면 `generate-worksheet` 를 소프트 차단(503 + 안내).
-  `generation_jobs.tokens_in/out` 합산으로 계산.
+- **비용 알람**: 장당 실비 목표 `$0.105`, 경보 `$0.12` (150원 = $0.107 @1,400원/USD).
+  최근 100건 이동평균이 경보를 넘으면 자동 다운시프트(집필 분량 15% 축소 → `effort: "low"`).
+  일일 총 LLM 지출이 임계치를 넘으면 `generate-worksheet` 를 소프트 차단(503 + 안내).
+  단계별(`plan` / `draft`) `tokens_in/out` 을 각각 기록해 어느 쪽이 예산을 먹는지 분리 추적한다.
 - 레이트리밋: 사용자당 진행 중 생성 잡 1개, 시간당 생성 시도 5회 (429).
 - `usage.cache_read_input_tokens` 를 잡 로그에 남겨 프롬프트 캐시 히트율을 모니터링한다
   (0이 계속 나오면 시스템 프롬프트에 변동 값이 섞인 것 — `04-worksheet-spec.md` §4).

@@ -20,8 +20,9 @@
 
 ```
 사용자 입력(topic, level)
-   → Claude API (claude-opus-5, structured output)
-   → WorksheetContent JSON  ── 스키마 검증(Zod) 실패 시 1회 재요청
+   → ① 설계: claude-opus-5  → WorksheetOutline JSON (판단)
+   → ② 집필: claude-sonnet-5 → WorksheetContent JSON (문장화)
+   → 스키마 검증(Zod) 실패 시 해당 단계만 1회 재요청
    → 결정론적 렌더러 renderWorksheet(json, tokens) 
    → 완결형 HTML 1파일 (CSS·폰트 인라인)
    → Storage 업로드
@@ -118,59 +119,127 @@ LLM 출력 문자열은 **전부 HTML 이스케이프** 후 삽입한다. 예외
 **검증 규칙 (Zod)**: 배열 길이 제약(prerequisites=3, quiz=5, objectives=3)은 스키마에서 강제한다.
 LLM이 4개를 주면 스키마 실패 → 오류 메시지를 붙여 1회 재요청 → 그래도 실패면 잡 실패 처리.
 
-## 4. Claude API 호출 설계
+## 4. LLM 호출 설계 — 2단계 하이브리드
 
-```ts
-// server/supabase/functions/generate-worksheet/claude.ts
-import Anthropic from "npm:@anthropic-ai/sdk";
+**결정 (Q4): 설계는 `claude-opus-5`, 집필은 `claude-sonnet-5`. 학습지 1장 예산 150원 이내.**
 
-const client = new Anthropic();  // ANTHROPIC_API_KEY 는 Edge Function secret
-
-const stream = client.messages.stream({
-  model: Deno.env.get("WORKSHEET_MODEL") ?? "claude-opus-5",
-  max_tokens: 32000,
-  thinking: { type: "adaptive" },
-  output_config: {
-    effort: "high",
-    format: { type: "json_schema", schema: WORKSHEET_JSON_SCHEMA },  // 구조화 출력
-  },
-  system: [
-    { type: "text", text: WORKSHEET_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
-  ],
-  messages: [{ role: "user", content: buildUserPrompt(topic, level, locale) }],
-});
-const message = await stream.finalMessage();
+```
+주제 입력
+   │
+   ├─ ① 설계 (claude-opus-5)  ─────────────────────────
+   │     무엇을 · 어떤 순서로 · 무엇이 사실인지 판단
+   │     출력: 설계도(outline) JSON — 작다 (~900 tokens)
+   │
+   ├─ ② 집필 (claude-sonnet-5) ────────────────────────
+   │     설계도를 받아 문장으로 채운다
+   │     출력: WorksheetContent JSON — 크다 (~6,000 tokens)
+   │
+   └─ 스키마 검증 → 렌더러 → HTML
 ```
 
-**설계 근거**
+### 왜 이렇게 나누는가
 
-- `messages.stream()` — `max_tokens` 가 크면 논스트리밍은 HTTP 타임아웃 위험. 스트림 + `finalMessage()`.
+학습지 품질을 결정하는 것은 **분량이 아니라 판단**이다.
+"무엇을 가르칠지, 어떤 순서로 쌓을지, 이 연도가 사실인지, 이 문제가 본문을 제대로 물어보는지" —
+이건 Opus 5 가 해야 한다. 하지만 이 판단의 **출력량은 작다**.
+
+반대로 토큰의 90%를 먹는 것은 본문 문장화이고, **설계도가 이미 정확하면 문장화는 Sonnet 5 로 충분하다.**
+
+비싼 모델을 비싼 구간(판단)에만 쓰고, 싼 모델을 양이 많은 구간(집필)에 쓴다.
+
+### ① 설계 단계 — `claude-opus-5`
+
+`WorksheetOutline` 출력:
+- 11개 섹션 각각의 **요지 bullet** (문장이 아니라 뼈대)
+- 4번 탄생 배경의 **연도·인물 + `confidence` 확정** ← 이 판단은 여기서 끝난다
+- 5번 상황극의 `mode`(사실/가상) 결정
+- 8번 문제 5개의 **골격**(무엇을 묻는지 + 정답 요지 + 어느 본문 블록에 근거하는지)
+- 3번 사전학습 3개, 11번 다음 단계 3개
+- 섹션별 **목표 분량(토큰)** 배분
+
+### ② 집필 단계 — `claude-sonnet-5`
+
+설계도를 입력으로 받아 `WorksheetContent` 전체를 채운다.
+
+**Sonnet 이 뒤집을 수 없는 것** (프롬프트로 고정):
+- `confidence`, `mode`, `disclaimer` — 사실성 판단은 ①에서 확정된 것을 **그대로 옮긴다**
+- 문제 5개가 묻는 대상 — 새 문제를 지어내지 않는다
+- 섹션 개수와 순서
+
+집필 단계가 사실 판단을 다시 하지 않게 막는 것이 이 구조의 핵심 안전장치다.
+
+### 호출 코드
+
+```ts
+// ① 설계 — claude-opus-5
+const plan = await opus.messages.stream({
+  model: "claude-opus-5",
+  max_tokens: 1000,                       // 하드캡 (비용 상한)
+  thinking: { type: "adaptive" },
+  output_config: { effort: "medium", format: { type: "json_schema", schema: OUTLINE_SCHEMA } },
+  system: [{ type: "text", text: PLAN_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+  messages: [{ role: "user", content: buildPlanPrompt(topic, level) }],
+}).finalMessage();
+
+// ② 집필 — claude-sonnet-5
+const draft = await sonnet.messages.stream({
+  model: "claude-sonnet-5",
+  max_tokens: 6000,                       // 하드캡
+  thinking: { type: "adaptive" },
+  output_config: { effort: "medium", format: { type: "json_schema", schema: WORKSHEET_SCHEMA } },
+  system: [{ type: "text", text: DRAFT_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+  messages: [{ role: "user", content: buildDraftPrompt(outline) }],
+}).finalMessage();
+```
+
+- `messages.stream()` + `finalMessage()` — `max_tokens` 가 크면 논스트리밍은 HTTP 타임아웃 위험.
 - `output_config.format` (structured outputs) — 구식 `output_format` 파라미터가 아니라 이쪽.
-  스키마 위반 응답 자체를 줄여서 재시도 비용을 낮춘다.
-- `thinking: {type:"adaptive"}` + `effort: "high"` — 4번(탄생 배경), 5번(상황극) 섹션의 품질 차이가
-  여기서 갈린다. `budget_tokens` 는 이 모델에서 400 오류이므로 쓰지 않는다.
-- **프롬프트 캐싱** — 시스템 프롬프트(스키마 설명 + 스타일 가이드, 약 3~5K 토큰)는 모든 요청에서 동일하므로
-  `cache_control` 을 건다. 캐시 히트는 `usage.cache_read_input_tokens` 로 검증한다.
-- 사용자 입력은 **캐시 브레이크포인트 뒤**(messages)에 둔다. 앞에 두면 캐시가 매번 깨진다.
+- `budget_tokens` 는 두 모델 모두 400 오류이므로 쓰지 않는다. 깊이는 `effort` 로 조절.
+- **프롬프트 캐싱** — 두 단계의 시스템 프롬프트는 매 요청 동일하므로 `cache_control` 을 건다.
+  사용자 입력은 반드시 캐시 브레이크포인트 **뒤**(messages)에 둔다. 앞에 두면 캐시가 매번 깨진다.
 
-### 비용 추정 (`claude-opus-5`: 입력 $5 / 출력 $25 per 1M)
+### 비용 예산 — 학습지 1장
 
-| 항목 | 토큰 | 비용 |
-|---|---|---|
-| 입력 (시스템 캐시 히트 + 사용자 입력) | ~4,500 | ~$0.008 |
-| 출력 (학습지 JSON, thinking 포함) | ~9,000 | ~$0.225 |
-| **학습지 1장 합계** | | **≈ $0.23 (약 320원)** |
-| 무료 사용자 1명 (2장) | | ≈ $0.46 |
+**환율 1 USD = 1,400 KRW 가정. 150원 = $0.107.**
+아래는 **프롬프트 캐시 히트를 계산에 넣지 않은 보수적 상한**이다(캐시가 먹으면 더 내려간다).
 
-- 신규 가입 1,000명 = 약 $460. 무료 티어의 실비이므로 예산 상한과 알람을 반드시 건다.
-- 참고로 `claude-sonnet-5`($2/$10)로 내리면 1장 ≈ $0.10 이지만,
-  **무료 2장은 전환율을 결정하므로 v1에서는 품질을 우선한다.** 
-  섹션별 분리 생성 시 3·11번(단순 제안 목록)만 `claude-haiku-4-5`($1/$5)로 내리는 것은 검토 가치 있음 → Q4.
-- Batch API(50% 할인)는 최대 24시간 지연이라 대화형 UX에 부적합. 사용하지 않음.
+| 단계 | 모델 | 단가 (in/out per 1M) | 입력 | 출력 상한 | 비용 |
+|---|---|---|---|---|---|
+| ① 설계 | `claude-opus-5` | $5 / $25 | 2,600 | 1,000 | $0.0380 |
+| ② 집필 | `claude-sonnet-5` | $2 / $10 | 4,400 | 6,000 | $0.0688 |
+| **합계 (최악)** | | | | | **$0.1068 ≈ 149원** |
+| 합계 (평균 실측 예상) | | | | | ≈ $0.095 ≈ 133원 |
 
-## 5. 프롬프트 원칙 (`server/prompts/worksheet.v1.md`)
+무료 사용자 1명(2장) ≈ 300원. 신규 1,000명 ≈ 30만원.
 
-시스템 프롬프트에 반드시 포함할 규칙:
+### 솔직하게 짚을 두 가지 리스크
+
+1. **Opus 5 의 thinking 토큰은 출력으로 과금된다.** adaptive thinking 이라 양이 요청마다 다르고,
+   설계 단계 비용이 계산대로 나오지 않을 수 있다. → `max_tokens: 1000` 하드캡이 최후 방어선이고,
+   **M2 에서 30건 실측한 뒤 `effort` 와 캡을 확정한다.** 예산이 초과하면 `effort: "low"` 로 내린다.
+2. **150원은 환율에 종속된다.** 1,450원/USD 가 되면 같은 $0.1068 이 155원이 된다.
+   → 예산은 **달러로 관리**한다: 목표 `$0.105/장`, 경보 `$0.12/장`.
+
+### 런타임 가드
+
+- `generation_jobs` 에 단계별 `tokens_in/out` 과 실비를 기록한다.
+- 최근 100건 이동평균이 `$0.12/장` 을 넘으면 자동 다운시프트:
+  집필 단계 섹션별 목표 분량을 15% 축소 → 그래도 안 되면 `effort: "low"`.
+- 일일 총 지출 상한 초과 시 `generate-worksheet` 소프트 차단 (503 + 안내). `05-api-spec.md` §5.
+
+### 채택하지 않은 대안
+
+- **전부 Opus 5** (1장 ≈ $0.23 ≈ 320원): 예산 2배 초과.
+- **전부 Sonnet 5** (1장 ≈ $0.09 ≈ 126원): 더 싸지만 4번(탄생 배경)·8번(문제 설계)의 판단 품질이 떨어진다.
+  무료 2장이 곧 전환율이므로 판단 구간에는 Opus 를 쓴다.
+- **Batch API** (50% 할인): 최대 24시간 지연이라 대화형 UX 에 부적합.
+- **섹션별 병렬 분할 호출**: 지연은 줄지만 시스템 프롬프트가 호출 수만큼 중복 과금된다.
+  캐시로 상쇄되더라도 섹션 간 문맥 일관성이 깨져서 채택하지 않는다.
+
+## 5. 프롬프트 원칙
+
+프롬프트는 단계별로 나뉜다: `server/prompts/plan.v1.md`(설계) / `server/prompts/draft.v1.md`(집필).
+아래 규칙 중 1·3은 **설계 단계**가 책임지고, 2·4·5·6·7은 **집필 단계**가 지킨다.
 
 1. **정직성** — 확실하지 않은 연도·인물·수치는 단정하지 말고 `confidence: "low"` 또는
    `uncertainty_note` 에 적는다. 그럴듯한 거짓 일화를 만들지 않는다.
@@ -183,7 +252,7 @@ const message = await stream.finalMessage();
 6. **길이 예산** — 섹션별 최대 길이를 명시해 특정 섹션이 문서를 잡아먹지 않게 한다.
 7. **언어** — 한국어. 기술 용어는 `한국어(English)` 병기 1회.
 
-프롬프트는 `prompt_version` 으로 버전을 찍고 `worksheets` 행에 기록 → 품질 회귀 추적.
+두 프롬프트는 각각 버전을 찍어 `worksheets.prompt_version` 에 `plan.v1+draft.v1` 형태로 기록한다 → 품질 회귀 추적.
 
 ## 6. HTML 출력 규격
 
@@ -248,3 +317,5 @@ const message = await stream.finalMessage();
 | 렌더러 골든 테스트 | 픽스처 JSON → HTML 스냅샷 비교 (결정론성 보장) |
 | XSS | `<script>`, `" onload=` 등을 모든 문자열 필드에 넣어 이스케이프 확인 |
 | 프롬프트 회귀 | 고정 주제 10개에 대해 생성 → 섹션 누락·길이 초과·정직성 위반 자동 체크 |
+| 단계 간 정합성 | 집필 결과가 설계도의 `confidence` / `mode` / 문제 대상을 **뒤집지 않았는지** 자동 대조 |
+| 비용 회귀 | 30건 실측으로 장당 실비가 `$0.105` 목표·`$0.12` 경보 안에 드는지 확인 |
