@@ -10,6 +10,7 @@ import * as rev from '../supabase/functions/_shared/review-schedule.ts'
 import { validateWorksheet } from '../supabase/functions/_shared/validate.ts'
 import { validateTopic, validateLevel } from '../supabase/functions/_shared/http.ts'
 import { voiceLint } from '../supabase/functions/_shared/voice-lint.ts'
+import { pedagogyLint } from '../supabase/functions/_shared/pedagogy-lint.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 let passed = 0
@@ -80,10 +81,12 @@ test('설계대로 쓴 학습지는 통과한다', () => {
 })
 
 test('집필이 사실성 등급을 올리면 잡는다', () => {
-  const bad = structuredClone(content)
-  bad.origin_story.timeline[1].confidence = 'high'   // medium 이었던 것을 확신으로 바꿈
-  const r = crossCheck(outline, bad)
-  assert.equal(r.ok, false)
+  // 새 정책에서 픽스처의 사실은 전부 high 다(미검증은 빠진다). 그래서 설계도 쪽을 medium 으로 낮춰
+  // "설계는 medium 이라 했는데 집필이 high 로 올린" 상황을 만든다.
+  const cautiousOutline = structuredClone(outline)
+  cautiousOutline.facts[1].confidence = 'medium'
+  const r = crossCheck(cautiousOutline, content)
+  assert.equal(r.ok, false, '집필이 설계의 사실성 판단을 올렸는데 통과했다')
   assert.ok(r.violations.some((v) => v.includes('confidence')), r.violations.join(' / '))
 })
 
@@ -95,10 +98,22 @@ test('집필이 가상 시나리오를 사실로 바꾸면 잡는다', () => {
   assert.ok(r.violations.some((v) => v.includes('roleplay.mode')))
 })
 
-test('불확실한 사실이 있는데 고지가 없으면 잡는다', () => {
+test('설계가 불확실하다고 본 사실을 집필이 고지 없이 내보내면 잡는다', () => {
+  const cautiousOutline = structuredClone(outline)
+  cautiousOutline.facts[1].confidence = 'medium'
   const bad = structuredClone(content)
-  bad.origin_story.uncertainty_note = null
-  assert.equal(crossCheck(outline, bad).ok, false)
+  bad.origin_story.timeline[1].confidence = 'medium'   // 등급은 따랐지만
+  bad.origin_story.uncertainty_note = null              // 고지를 뺐다
+  const r = crossCheck(cautiousOutline, bad)
+  assert.equal(r.ok, false)
+  assert.ok(r.violations.some((v) => v.includes('uncertainty_note')), r.violations.join(' / '))
+})
+
+test('미검증 사실은 배지를 달아 내보내지 않고 거부한다 (학습설계 린트)', () => {
+  const bad = structuredClone(content)
+  bad.origin_story.timeline[1].confidence = 'medium'
+  const r = pedagogyLint(bad)
+  assert.ok(r.errors.some((e) => e.rule === '미검증 사실'), '확실하지 않은 역사 정보가 배지만 달고 통과했다')
 })
 
 test('집필이 문제 난이도를 바꾸면 잡는다', () => {

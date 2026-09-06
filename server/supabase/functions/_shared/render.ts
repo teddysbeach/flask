@@ -11,6 +11,7 @@ import { WORKSHEET_CSS } from './worksheet-css.ts'
 import { INK_RUNTIME_JS } from './ink-runtime.g.ts'
 import { SECTIONS } from './worksheet-types.ts'
 import { icon } from './icons.g.ts'
+import { renderFigure, FIGURE_CSS } from './figures.ts'
 import type { WorksheetContent, InlineNode, RenderContext } from './worksheet-types.ts'
 
 /** HTML 텍스트 이스케이프. 속성값까지 안전하도록 따옴표도 처리한다. */
@@ -161,15 +162,20 @@ const RENDERERS: ((c: WorksheetContent, ctx: RenderContext) => string)[] = [
       : '',
   ].join(''),
 
-  // ⑥ 본론
-  (c) => c.main_lesson.blocks.map((b) => [
-    `<p class="h3">${esc(b.heading)}</p>`,
-    p(b.body),
-    b.example ? renderExample(b.example) : '',
-    b.common_mistake
-      ? callout('caution', '흔한 실수', `<p class="p">${esc(b.common_mistake)}</p>`)
-      : '',
-  ].join('')).join(''),
+  // ⑥ 본론 — 설명 → 표상 → 예시 → 활동 → 흔한 실수. 활동 없는 설명은 절반을 넘지 못한다(검증기).
+  (c) => {
+    const figById = new Map(c.figures.map((f) => [f.id, f]))
+    return c.main_lesson.blocks.map((b) => [
+      `<p class="h3">${esc(b.heading)}</p>`,
+      p(b.body),
+      b.figure && figById.has(b.figure) ? renderFigure(figById.get(b.figure)!) : '',
+      b.example ? renderExample(b.example) : '',
+      b.activity ? renderActivity(b.activity) : '',
+      b.common_mistake
+        ? callout('caution', '흔한 실수', `<p class="p">${esc(b.common_mistake)}</p>`)
+        : '',
+    ].join('')).join('')
+  },
 
   // ⑦ 꿀팁
   (c) => c.pro_tips.map((t) =>
@@ -188,6 +194,8 @@ const RENDERERS: ((c: WorksheetContent, ctx: RenderContext) => string)[] = [
         <div class="quiz__a-body">
           <p><span class="quiz__a-label">정답</span>${esc(q.answer)}</p>
           <p>${esc(q.explanation)}</p>
+          ${q.misconceptions.length ? `<div class="quiz__mis"><p class="quiz__a-label">이렇게 답했다면</p><ul>${
+            q.misconceptions.map((m) => `<li><strong>${esc(m.wrong)}</strong> — ${esc(m.why)}</li>`).join('')}</ul></div>` : ''}
         </div>
       </details>
     </li>`
@@ -222,6 +230,29 @@ const RENDERERS: ((c: WorksheetContent, ctx: RenderContext) => string)[] = [
       <p class="card__hint">${n.difficulty_delta === 'harder' ? '한 단계 더 깊게' : '같은 난이도'}</p>
     </div>`).join('')}</div>`,
 ]
+
+const ACTIVITY_LABEL: Record<string, string> = {
+  predict: '먼저 예측해 보세요', decide: '골라 보세요', compute: '직접 계산해 보세요',
+  draw: '그림에 표시해 보세요', explain: '한 문장으로 써 보세요',
+}
+
+/**
+ * 활동. 설명 뒤에 학생이 결정·예측·계산·표시하게 만든다.
+ * reveal 은 접어 둔다 — 답하기 전에 열면 활동이 아니다.
+ */
+function renderActivity(a: NonNullable<WorksheetContent['main_lesson']['blocks'][number]['activity']>): string {
+  const opts = a.options
+    ? `<ol class="act__options">${a.options.map((o, i) =>
+        `<li><span class="act__key">${String.fromCharCode(9312 + i)}</span>${esc(o)}</li>`).join('')}</ol>`
+    : ''
+  const ink = a.kind === 'compute' || a.kind === 'draw' || a.kind === 'explain'
+    ? inkSpace(a.kind === 'explain' ? 'sm' : 'md') : ''
+  return `<div class="act act--${a.kind}">` +
+    `<p class="act__label">${icon('secQuiz', 15)}${esc(ACTIVITY_LABEL[a.kind])}</p>` +
+    `<p class="act__prompt">${esc(a.prompt)}</p>${opts}${ink}` +
+    `<details class="act__reveal"><summary>${icon('info', 14)}답하고 나서 열기</summary>` +
+    `<div class="act__reveal-body">${esc(a.reveal)}</div></details></div>`
+}
 
 /** 섹션 키 → 아이콘 이름. Untitled UI 아이콘을 섹션 제목 앞에 놓는다. */
 const SECTION_ICON: Record<string, string> = {
@@ -262,18 +293,20 @@ export function renderWorksheet(c: WorksheetContent, ctx: RenderContext): string
 
   const meta = [
     LEVEL_LABEL[c.level] ?? c.level,
-    `약 ${c.estimated_minutes}분`,
-    `문제 ${c.quiz.length}개`,
-    `복습 ${c.quiz.length}회`,
+    `본학습 ${c.time.core}분`,
+    `연습 ${c.time.practice}분`,
+    `선택 과제 ${c.time.optional}분`,
   ].map((m) => `<span>${esc(m)}</span>`).join('')
+  const assumes = `<p class="sheet__assumes"><span class="sheet__assumes-label">이 학습지는 이걸 안다고 봐요</span>${
+    c.assumes.map((a) => `<span>${esc(a)}</span>`).join('')}</p>`
 
   return `<!doctype html>
 <html lang="ko" data-theme="${ctx.theme ?? 'light'}">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(c.title)}</title>
-<style>${TOKENS_CSS}${WORKSHEET_CSS}</style>
+<style>${TOKENS_CSS}${WORKSHEET_CSS}${FIGURE_CSS}</style>
 </head>
 <body>
 <div class="sheet-scaler">
@@ -283,6 +316,7 @@ export function renderWorksheet(c: WorksheetContent, ctx: RenderContext): string
 <h1 class="sheet__title">${esc(c.title)}</h1>
 <p class="sheet__one-liner">${esc(c.what_we_learn.one_liner)}</p>
 <div class="sheet__meta">${meta}</div>
+${assumes}
 </header>
 ${sections}
 <footer class="sheet__footer"><span>${esc(c.topic_normalized)}</span><span>ONPAR</span></footer>

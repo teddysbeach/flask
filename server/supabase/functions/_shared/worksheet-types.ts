@@ -31,6 +31,45 @@ export const CATEGORIES: readonly Category[] = [
  * 이걸 code 하나로만 두면 수학 학습지에 미분 계산이 코드 블록으로 들어간다.
  */
 export type ExampleKind = 'code' | 'calc' | 'steps' | 'compare' | 'scene'
+
+/**
+ * 도형. LLM 이 SVG 를 직접 쓰게 두면 렌더가 깨지고 XSS 가 열린다.
+ * 구조화된 스펙만 받고 figures.ts 가 결정론적으로 SVG 를 만든다.
+ *
+ *   plot          함수 그래프 + 점·할선·접선 (수학·경제)
+ *   distribution  나란한 분포/세기 패턴 (물리 — 간섭무늬, 통계)
+ *   tonecurve     톤 커브 + 히스토그램 (미술 — 색보정)
+ *   swatches      색 견본 비교 (미술)
+ */
+export type FigureSpec =
+  | { kind: 'plot'; fn: 'x^2' | 'x^3' | 'sin' | 'exp' | 'linear'; xRange: [number, number]
+      points?: number[]; secant?: [number, number]; tangentAt?: number; label?: string }
+  | { kind: 'distribution'; panels: { title: string; profile: 'two-humps' | 'fringes' | 'fringes-weak' | 'single' }[] }
+  | { kind: 'tonecurve'; curve: 'linear' | 's-mild' | 's-strong' | 'inverse-s'; clipHighlights?: boolean }
+  | { kind: 'swatches'; rows: { label: string; colors: string[] }[] }
+
+export interface Figure {
+  id: string
+  title: string
+  /** 스크린리더용. 그림이 무엇을 보여주는지 문장으로. */
+  alt: string
+  spec: FigureSpec
+  /** 학생이 그림에 직접 표시해야 하는 것. 있으면 그림 위에 필기 여백을 겹친다. */
+  drawTask: string | null
+}
+
+/**
+ * 활동. 설명 한 단위마다 학생이 무언가를 결정·예측·계산·표시하게 만든다.
+ * 읽기만 하면 이해했다고 착각한다. 이 슬롯이 그 착각을 막는다.
+ */
+export interface Activity {
+  kind: 'predict' | 'decide' | 'compute' | 'draw' | 'explain'
+  prompt: string
+  /** decide/predict 일 때 고를 것들 */
+  options: string[] | null
+  /** 학생이 답한 뒤에 보여주는 것. 정답이 아니라 '왜'. */
+  reveal: string
+}
 export const EXAMPLE_KINDS: readonly ExampleKind[] = ['code', 'calc', 'steps', 'compare', 'scene']
 
 export type InlineNode = {
@@ -60,7 +99,13 @@ export interface WorksheetContent {
   topic_normalized: string
   level: Level
   category: Category
-  estimated_minutes: number
+  /**
+   * 시간은 장식이 아니다. 학습자가 계획을 세우는 데 쓴다.
+   * core 는 본문+문제, practice 는 활동, optional 은 숙제(homework 합계와 같아야 한다).
+   */
+  time: { core: number; practice: number; optional: number }
+  /** 이 학습지가 전제하는 것. '입문' 이 무엇에 대한 입문인지 밝힌다. */
+  assumes: string[]
 
   what_we_learn: {
     /** 일상 비유. 설명 사다리 ①단이고 학습지 맨 앞에 온다. 이게 없으면 독자는 걸어둘 못이 없다. */
@@ -110,9 +155,16 @@ export interface WorksheetContent {
         /** kind 가 'code' 일 때만 쓴다. */
         language: string | null
       } | null
+      /** 이 블록에서 보여줄 도형 id (figures[] 참조) */
+      figure: string | null
+      /** 설명 뒤에 학생이 할 일. 블록의 절반 이상에 있어야 한다. */
+      activity: Activity | null
       common_mistake: string | null
     }[]
   }
+
+  /** 과목 특유의 표상. 수학·과학·미술은 최소 1개. */
+  figures: Figure[]
 
   pro_tips: { tip: string; why: string }[]   // 3~5개
 
@@ -121,8 +173,16 @@ export interface WorksheetContent {
     question: string
     choices: string[] | null
     answer: string
+    /** 왜 그 답인지. "본론 N번에서 말했어요" 는 해설이 아니다. */
     explanation: string
     difficulty: number
+    /**
+     * near: 본문의 예를 숫자만 바꾼 것. far: 새 상황·반례·오류 분석.
+     * 5개 중 far 가 2개 이상이어야 한다. 전부 near 면 점수와 실력이 분리된다.
+     */
+    transfer: 'near' | 'far'
+    /** 자주 나오는 오답과 그 이유. 학생 답을 진단하는 데 쓴다. */
+    misconceptions: { wrong: string; why: string }[]
   }[]
 
   homework: {

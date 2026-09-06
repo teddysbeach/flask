@@ -9,6 +9,7 @@ import { dirname, resolve, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { validateWorksheet, ValidationError } from '../supabase/functions/_shared/validate.ts'
 import { voiceLint } from '../supabase/functions/_shared/voice-lint.ts'
+import { pedagogyLint } from '../supabase/functions/_shared/pedagogy-lint.ts'
 import { renderWorksheet } from '../supabase/functions/_shared/render.ts'
 import { CATEGORIES } from '../supabase/functions/_shared/worksheet-types.ts'
 
@@ -44,6 +45,9 @@ interface Row {
   ok: boolean
   errors: string[]
   warnings: number
+  activity: number
+  far: number
+  figures: number
   avgSentence: number
   glossary: number
   guideNotes: number
@@ -68,19 +72,23 @@ for (const file of readdirSync(DIR).filter((f) => f.endsWith('.json')).sort()) {
     rows.push({
       ...(row as Row), category: raw.category ?? '?', title: raw.title ?? '?',
       ok: false, errors: e instanceof ValidationError ? e.issues.slice(0, 5) : [String(e)],
-      warnings: 0, avgSentence: 0, glossary: 0, guideNotes: 0, hasAnalogy: false,
+      warnings: 0, activity: 0, far: 0, figures: 0, avgSentence: 0, glossary: 0, guideNotes: 0, hasAnalogy: false,
       exampleKinds: [], unnaturalExample: [], quizCount: 0, htmlKb: 0, inkSpaces: 0,
     })
     continue
   }
 
   const voice = voiceLint(content)
+  const ped = pedagogyLint(content)
   const kinds = content.main_lesson.blocks.map((b: any) => b.example?.kind).filter(Boolean)
   const natural = NATURAL_EXAMPLE[content.category] ?? []
   const unnatural = [...new Set(kinds.filter((k: string) => !natural.includes(k)))] as string[]
 
   let html = ''
-  const errors: string[] = voice.errors.map((e) => `[말투] ${e.path}: ${e.detail}`)
+  const errors: string[] = [
+    ...voice.errors.map((e) => `[말투] ${e.path}: ${e.detail}`),
+    ...ped.errors.map((e) => `[학습설계] ${e.path}: ${e.detail}`),
+  ]
   try {
     html = renderWorksheet(content, {
       worksheetId: 'sc', quizItemIds: content.quiz.map((_: unknown, i: number) => `q${i}`), theme: 'light',
@@ -95,7 +103,10 @@ for (const file of readdirSync(DIR).filter((f) => f.endsWith('.json')).sort()) {
     title: content.title,
     ok: errors.length === 0,
     errors,
-    warnings: voice.warnings.length,
+    warnings: voice.warnings.length + ped.warnings.length,
+    activity: Math.round(ped.metrics.activityRatio * 100),
+    far: ped.metrics.farTransfer,
+    figures: ped.metrics.figures,
     avgSentence: voice.avgSentenceChars,
     glossary: content.glossary.length,
     guideNotes: content.guide_notes.length,
@@ -115,22 +126,23 @@ const pad = (s: string, n: number) => {
 }
 
 console.log('\n━━━ ONPAR 학습지 자가점검 ━━━\n')
-console.log(pad('분야', 14) + pad('제목', 40) + pad('말투', 6) + pad('평균', 6) +
-            pad('용어', 6) + pad('파르', 6) + pad('비유', 6) + pad('예시', 22) + pad('HTML', 8) + '필기칸')
+console.log(pad('분야', 14) + pad('제목', 34) + pad('검사', 6) + pad('활동', 6) + pad('far', 5) +
+            pad('도형', 6) + pad('평균', 6) + pad('용어', 6) + pad('파르', 6) + pad('예시', 20) + 'HTML')
 console.log('─'.repeat(112))
 
 for (const r of rows) {
   console.log(
     pad(CATEGORY_LABEL[r.category] ?? r.category, 14) +
-    pad(r.title.slice(0, 17), 40) +
+    pad(r.title.slice(0, 14), 34) +
     pad(r.ok ? 'OK' : `✕${r.errors.length}`, 6) +
+    pad(`${r.activity}%`, 6) +
+    pad(String(r.far), 5) +
+    pad(String(r.figures), 6) +
     pad(`${r.avgSentence}자`, 6) +
     pad(String(r.glossary), 6) +
     pad(String(r.guideNotes), 6) +
-    pad(r.hasAnalogy ? '있음' : '없음', 6) +
-    pad(r.exampleKinds.join(',') || '-', 22) +
-    pad(`${r.htmlKb}KB`, 8) +
-    String(r.inkSpaces),
+    pad(r.exampleKinds.join(',') || '-', 20) +
+    `${r.htmlKb}KB`,
   )
 }
 

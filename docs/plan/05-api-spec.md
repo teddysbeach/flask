@@ -162,6 +162,7 @@ supabase.channel('ws:$worksheetId')
 | `draft_schema_invalid` | — (잡 실패) | 집필 단계 스키마 위반 (재요청 후에도) | 재시도 버튼 + 쿼터 환불됨 |
 | `draft_contradicts_plan` | — (잡 실패) | 집필이 설계도의 사실 판단을 뒤집음 | 집필만 1회 재시도 |
 | `draft_voice_violation` | — (잡 실패) | 소외시키는 말투·반말 사용 (`11-voice-and-persona.md`) | 집필만 재시도 |
+| `draft_quality_rejected` | — (잡 실패) | 검사관 반려가 재작성 2회 후에도 유지 (`13-quality-loop.md`) | 재시도 없음. 쿼터 환불. "제가 잘 못 만들었어요" 안내 |
 | `llm_upstream_error` | — (잡 실패) | Claude API 5xx/429 | 해당 단계만 자동 재시도 2회 후 실패 |
 | `llm_refused` | — (잡 실패) | 안전 정책상 거절 | "다른 주제로 시도" 안내 |
 | `render_failed` | — (잡 실패) | 렌더러 예외 | 내부 알람 + 재시도 |

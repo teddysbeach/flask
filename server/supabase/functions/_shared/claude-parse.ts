@@ -8,6 +8,7 @@ import type { Usage } from './cost.ts'
 
 export const PLAN_MODEL_DEFAULT = 'claude-opus-5'
 export const DRAFT_MODEL_DEFAULT = 'claude-sonnet-5'
+export const CRITIC_MODEL_DEFAULT = 'claude-opus-5'
 
 /** 호출 결과. 파이프라인은 이 모양만 알면 되므로 테스트에서 쉽게 대체할 수 있다. */
 export interface LlmResult {
@@ -20,6 +21,10 @@ export interface LlmResult {
 export interface LlmClient {
   plan(topic: string, level: string, opts: { maxTokens: number; effort: string }): Promise<LlmResult>
   draft(outline: unknown, opts: { maxTokens: number; effort: string; lengthScale: number }): Promise<LlmResult>
+  /** 검사관. 학습지를 교수설계 기준으로 채점한다. */
+  critique(content: unknown, staticIssues: string[], opts: { maxTokens: number }): Promise<LlmResult>
+  /** 반려된 초안을 지적 사항과 함께 다시 쓴다. */
+  revise(outline: unknown, previous: unknown, instructions: string, opts: { maxTokens: number; effort: string }): Promise<LlmResult>
 }
 
 export class LlmRefusalError extends Error {

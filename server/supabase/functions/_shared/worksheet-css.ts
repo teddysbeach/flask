@@ -184,6 +184,61 @@ code, .code {
   color: var(--ds-color-text-primary);
 }
 
+/* ── 활동 ──
+   설명 뒤에 학생이 무언가를 하는 자리. 학습지에서 가장 중요한 요소라 가장 눈에 띄어야 한다. */
+.act {
+  margin: 0 0 var(--ds-sheet-block-gap);
+  padding: 24px 26px;
+  border: 2px solid var(--ds-color-brand-primary);
+  border-radius: var(--ds-radius-2xl);
+  max-width: 40em;
+}
+.act__label {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 13px; font-weight: 700; letter-spacing: .02em;
+  color: var(--ds-color-brand-primary); margin: 0 0 10px;
+}
+.act__prompt { font-size: 17px; line-height: 1.7; font-weight: 500; margin: 0; }
+.act__options { list-style: none; margin: 14px 0 0; padding: 0; }
+.act__options li {
+  display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start;
+  font-size: 16px; line-height: 1.65; padding: 9px 0;
+  border-top: 1px solid var(--ds-color-border-subtle);
+}
+.act__key { font-weight: 700; color: var(--ds-color-text-tertiary); }
+.act .ink-space { margin-top: 16px; }
+.act__reveal { margin-top: 16px; }
+.act__reveal summary {
+  display: inline-flex; align-items: center; gap: 6px;
+  cursor: pointer; font-size: 13px; font-weight: 700; list-style: none;
+  color: var(--ds-color-text-tertiary);
+  padding: 6px 12px; border-radius: var(--ds-radius-full);
+  border: 1px solid var(--ds-color-border-subtle);
+}
+.act__reveal summary::-webkit-details-marker { display: none; }
+.act__reveal-body {
+  margin-top: 12px; font-size: 16px; line-height: 1.72;
+  padding: 14px 18px; background: var(--ds-color-surface-sunken);
+  border-radius: var(--ds-radius-lg);
+}
+
+/* ── 표지: 전제 ── */
+.sheet__assumes {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  font-size: 14px; color: var(--ds-color-text-secondary);
+  margin: 14px 0 0;
+}
+.sheet__assumes-label { color: var(--ds-color-text-tertiary); margin-right: 4px; }
+.sheet__assumes > span:not(.sheet__assumes-label) {
+  padding: 4px 10px; border-radius: var(--ds-radius-full);
+  background: var(--ds-color-surface-sunken);
+}
+
+/* ── 오답 진단 ── */
+.quiz__mis { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--ds-color-border-subtle); }
+.quiz__mis ul { margin: 6px 0 0; padding-left: 18px; }
+.quiz__mis li { font-size: 15px; line-height: 1.7; margin-bottom: 6px; }
+
 /* ── 콜아웃 ──
    좌측 굵은 바 + 대문자 라벨은 오래된 관용구다. 옅은 면과 아이콘 라벨로 충분하다. */
 .callout {

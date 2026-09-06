@@ -6,7 +6,10 @@
 
 import { validateWorksheet, ValidationError } from './validate.ts'
 import { crossCheck } from './cross-check.ts'
-import { voiceLint, voiceIssuesToPrompt } from './voice-lint.ts'
+import { voiceLint } from './voice-lint.ts'
+import { pedagogyLint } from './pedagogy-lint.ts'
+import { normalizeVerdict, revisionInstructions, MAX_REVISIONS } from './critic.ts'
+import type { CriticVerdict } from './critic.ts'
 import { renderWorksheet } from './render.ts'
 import { worksheetCostUsd, draftParams, decideDownshift } from './cost.ts'
 import { LlmRefusalError, LlmOutputError } from './claude-parse.ts'
@@ -16,7 +19,7 @@ import type { WorksheetContent, WorksheetOutline } from './worksheet-types.ts'
 
 export type ErrorCode =
   | 'plan_schema_invalid' | 'draft_schema_invalid' | 'draft_contradicts_plan'
-  | 'draft_voice_violation'
+  | 'draft_voice_violation' | 'draft_quality_rejected'
   | 'llm_refused' | 'llm_upstream_error' | 'render_failed'
 
 export class PipelineError extends Error {
@@ -38,13 +41,15 @@ export interface Deps {
     createWorksheet(row: { id: string; userId: string; topic: string; level: string }): Promise<void>
     saveContent(worksheetId: string, content: WorksheetContent, meta: {
       quizItemIds: string[]; htmlPath: string; planModel: string; draftModel: string
+      qualityScore: number; revisions: number
     }): Promise<void>
     saveSchedules(worksheetId: string, userId: string, seeds: unknown[]): Promise<void>
     failWorksheet(worksheetId: string, code: ErrorCode, detail: string): Promise<void>
     recordJob(job: {
       worksheetId: string; userId: string; attempt: number; stage: string
       status: 'succeeded' | 'failed'; costUsd: number
-      planUsage?: unknown; draftUsage?: unknown; errorCode?: ErrorCode
+      planUsage?: unknown; draftUsage?: unknown; criticUsage?: unknown; errorCode?: ErrorCode
+      qualityScore?: number; revisions?: number
     }): Promise<void>
     recentCostsUsd(limit: number): Promise<number[]>
     userPrefs(userId: string): Promise<{ timeZone: string; reviewHour: number }>
@@ -96,6 +101,7 @@ export async function runGeneration(
   const started = deps.now()
   let planResult: LlmResult | undefined
   let draftResult: LlmResult | undefined
+  let criticResult: LlmResult | undefined
   let stage = 'plan'
 
   try {
@@ -115,25 +121,57 @@ export async function runGeneration(
       maxTokens: dp.maxTokens, effort: dp.effort, lengthScale: dp.lengthScale,
     })
 
-    let content: WorksheetContent
-    try {
-      content = validateWorksheet(draftResult.json)
-    } catch (e) {
-      throw new PipelineError('draft_schema_invalid',
-        e instanceof ValidationError ? e.issues.slice(0, 10).join('; ') : String(e))
-    }
+    // ③ 검사 루프 — 정적 린트 → 검사관 → 반려면 재작성. 최대 MAX_REVISIONS 회.
+    //    외부 평가에서 "예뻐서 좋은 학습지처럼 느껴진다" 는 말을 들었다. 이 루프가 그걸 막는다.
+    let content: WorksheetContent | undefined
+    let verdict: CriticVerdict | undefined
+    let revisions = 0
 
-    // ③ 집필이 설계의 판단을 뒤집지 않았는지 확인 — 2단계 구조의 안전장치
-    const check = crossCheck(outline, content)
-    if (!check.ok) {
-      throw new PipelineError('draft_contradicts_plan', check.violations.slice(0, 10).join('; '))
-    }
+    for (let round = 0; ; round++) {
+      // 스키마 — 깨졌으면 검사관까지 갈 것도 없이 지적만 붙여 다시 쓴다
+      let candidate: WorksheetContent
+      try {
+        candidate = validateWorksheet(draftResult.json)
+      } catch (e) {
+        const issues = (e instanceof ValidationError ? e.issues.slice(0, 12) : [String(e)]).map((i) => `[스키마] ${i}`)
+        if (round >= MAX_REVISIONS) throw new PipelineError('draft_schema_invalid', issues.join('; '))
+        revisions++
+        stage = 'revise'
+        draftResult = await deps.llm.revise(outline, draftResult.json, revisionInstructions(issues, emptyVerdict()), { maxTokens: dp.maxTokens, effort: dp.effort })
+        continue
+      }
 
-    // ③-b 말투 검사 — 어려운 학습지는 이 제품의 존재 이유와 어긋난다
-    const voice = voiceLint(content)
-    if (!voice.ok) {
-      throw new PipelineError('draft_voice_violation', voiceIssuesToPrompt(voice))
+      // 정적 검사 세 겹: 설계 정합성 · 말투 · 학습설계
+      const check = crossCheck(outline, candidate)
+      const voice = voiceLint(candidate)
+      const ped = pedagogyLint(candidate)
+      const staticIssues = [
+        ...check.violations.map((v) => `[설계 위반] ${v}`),
+        ...voice.errors.map((e) => `[말투] ${e.path}: ${e.detail}`),
+        ...ped.errors.map((e) => `[학습설계] ${e.path}: ${e.detail}`),
+      ]
+
+      // 검사관 — 정적 검사 위에서 의미적 판단 (오개념, 전이 거리, 단순화의 정확성)
+      stage = 'critic'
+      criticResult = await deps.llm.critique(candidate, staticIssues, { maxTokens: 1500 })
+      verdict = normalizeVerdict(criticResult.json)
+
+      if (staticIssues.length === 0 && verdict.verdict === 'pass') {
+        content = candidate
+        break
+      }
+
+      if (round >= MAX_REVISIONS) {
+        const why = [...staticIssues.slice(0, 6), ...verdict.must_fix.slice(0, 6).map((m) => `[검사관] ${m.path}: ${m.issue}`)]
+        throw new PipelineError('draft_quality_rejected',
+          `${MAX_REVISIONS}회 재작성 후에도 반려 (점수 ${verdict.score}): ` + why.join('; '))
+      }
+
+      revisions++
+      stage = 'revise'
+      draftResult = await deps.llm.revise(outline, candidate, revisionInstructions(staticIssues, verdict), { maxTokens: dp.maxTokens, effort: dp.effort })
     }
+    if (!content || !verdict) throw new PipelineError('draft_quality_rejected', '검사 루프가 결과 없이 끝났습니다')
 
     // ④ 렌더 — 결정론적 순수 함수
     stage = 'render'
@@ -150,6 +188,7 @@ export async function runGeneration(
     await deps.db.saveContent(worksheetId, content, {
       quizItemIds, htmlPath,
       planModel: planResult.model, draftModel: draftResult.model,
+      qualityScore: verdict.score, revisions,
     })
 
     // ⑤ 복습 스케줄 5회차
@@ -159,8 +198,9 @@ export async function runGeneration(
 
     await deps.db.recordJob({
       worksheetId, userId: input.userId, attempt, stage: 'done', status: 'succeeded',
-      costUsd: totalCost(planResult, draftResult),
-      planUsage: planResult.usage, draftUsage: draftResult.usage,
+      costUsd: totalCost(planResult, draftResult, criticResult),
+      planUsage: planResult.usage, draftUsage: draftResult.usage, criticUsage: criticResult?.usage,
+      qualityScore: verdict.score, revisions,
     })
   } catch (e) {
     const code = toErrorCode(e)
@@ -169,8 +209,8 @@ export async function runGeneration(
     await deps.db.failWorksheet(worksheetId, code, describe(e))
     await deps.db.recordJob({
       worksheetId, userId: input.userId, attempt, stage, status: 'failed',
-      costUsd: totalCost(planResult, draftResult),   // 실패해도 쓴 토큰은 과금된다
-      planUsage: planResult?.usage, draftUsage: draftResult?.usage,
+      costUsd: totalCost(planResult, draftResult, criticResult),   // 실패해도 쓴 토큰은 과금된다
+      planUsage: planResult?.usage, draftUsage: draftResult?.usage, criticUsage: criticResult?.usage,
       errorCode: code,
     })
     throw e
@@ -179,12 +219,17 @@ export async function runGeneration(
   }
 }
 
-function totalCost(plan?: LlmResult, draft?: LlmResult): number {
+function totalCost(plan?: LlmResult, draft?: LlmResult, critic?: LlmResult): number {
   const stages = []
   if (plan) stages.push({ model: plan.model, usage: plan.usage })
   if (draft) stages.push({ model: draft.model, usage: draft.usage })
+  if (critic) stages.push({ model: critic.model, usage: critic.usage })
   return stages.length ? worksheetCostUsd(stages) : 0
 }
+
+const emptyVerdict = (): CriticVerdict => ({
+  score: 0, verdict: 'revise', must_fix: [], should_fix: [], strengths: [], rubric: {} as any,
+})
 
 export function toErrorCode(e: unknown): ErrorCode {
   if (e instanceof PipelineError) return e.code

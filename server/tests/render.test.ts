@@ -186,10 +186,31 @@ test('필기 레이어와 문서 폭 고정이 살아있다', () => {
   assert(html.includes(`data-worksheet-id="${CTX.worksheetId}"`), 'worksheet id 가 없다')
 })
 
-test('필기 여백이 섹션마다 들어간다', () => {
+test('필기 여백이 섹션·문제·활동·그림 과제마다 들어간다', () => {
   const n = (html.match(/class="ink-space"/g) ?? []).length
-  // 섹션 10개(문제 섹션 제외) + 문제 5개
-  assert(n === 15, `필기 여백이 ${n}개다 (15개여야 함)`)
+  // 섹션 10개(문제 섹션 제외) + 문제 5개 + 손을 쓰는 활동 + 그림 위 과제
+  const activityInk = content.main_lesson.blocks
+    .filter((b) => b.activity && ['compute', 'draw', 'explain'].includes(b.activity.kind)).length
+  const figureInk = content.figures.filter((f) => f.drawTask).length
+  const expected = 10 + content.quiz.length + activityInk + figureInk
+  assert(n === expected, `필기 여백이 ${n}개다 (${expected}개여야 함: 10 + 문제 ${content.quiz.length} + 활동 ${activityInk} + 그림 과제 ${figureInk})`)
+  assert(activityInk > 0, '손을 쓰는 활동이 하나도 없다 — 빈 종이는 학습활동이 아니다')
+})
+
+test('활동 블록이 본론 절반 이상에 있고, 답은 접혀 있다', () => {
+  const acts = (html.match(/class="act act--/g) ?? []).length
+  assert(acts * 2 >= content.main_lesson.blocks.length, `활동이 ${acts}/${content.main_lesson.blocks.length} 블록뿐이다`)
+  // reveal 은 details 안에 있어야 한다 — 답하기 전에 열려 있으면 활동이 아니다
+  const openReveals = (html.match(/<details class="act__reveal" open/g) ?? []).length
+  assert(openReveals === 0, '활동의 답이 처음부터 열려 있다')
+})
+
+test('도형은 스펙에서 결정론적으로 그려지고 접근성 설명이 붙는다', () => {
+  for (const f of content.figures) {
+    assert(html.includes(`data-figure="${f.id}"`), `도형 ${f.id} 가 없다`)
+    assert(html.includes(`<desc id="fig-${f.id}-d">`), `도형 ${f.id} 에 desc 가 없다`)
+  }
+  assert(!html.includes('user-scalable=no'), '확대 금지 viewport 가 남아 있다 (WCAG 위반)')
 })
 
 test('필기 런타임이 인라인으로 박혀 있다', () => {

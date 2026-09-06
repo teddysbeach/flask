@@ -48,6 +48,8 @@ export function makeDeps(admin: any, llm: LlmClient): Deps {
             html_path: meta.htmlPath,
             plan_model: meta.planModel,
             draft_model: meta.draftModel,
+            quality_score: meta.qualityScore,
+            revisions: meta.revisions,
             ready_at: new Date().toISOString(),
           })
           .eq('id', worksheetId).select('user_id').single()
@@ -94,13 +96,17 @@ export function makeDeps(admin: any, llm: LlmClient): Deps {
       async recordJob(job) {
         const p: any = job.planUsage ?? {}
         const d: any = job.draftUsage ?? {}
+        const k: any = job.criticUsage ?? {}
         await admin.from('generation_jobs').insert({
           worksheet_id: job.worksheetId, user_id: job.userId,
           attempt: job.attempt, stage: job.stage, status: job.status,
           error_code: job.errorCode ?? null,
           plan_tokens_in: p.inputTokens ?? 0, plan_tokens_out: p.outputTokens ?? 0,
           draft_tokens_in: d.inputTokens ?? 0, draft_tokens_out: d.outputTokens ?? 0,
-          cache_read_tokens: (p.cacheReadTokens ?? 0) + (d.cacheReadTokens ?? 0),
+          critic_tokens_in: k.inputTokens ?? 0, critic_tokens_out: k.outputTokens ?? 0,
+          cache_read_tokens: (p.cacheReadTokens ?? 0) + (d.cacheReadTokens ?? 0) + (k.cacheReadTokens ?? 0),
+          quality_score: job.qualityScore ?? null,
+          revisions: job.revisions ?? 0,
           cost_usd: job.costUsd,
           finished_at: new Date().toISOString(),
         })

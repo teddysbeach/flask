@@ -31,7 +31,7 @@ async function test(name: string, fn: () => Promise<void> | void) {
 function makeDeps(over: any = {}) {
   const log: any = {
     quotaConsumed: 0, quotaRefunded: 0, worksheets: [], contents: [],
-    schedules: [], jobs: [], failures: [], uploads: [],
+    schedules: [], jobs: [], failures: [], uploads: [], critiques: 0, revisions: 0, lastInstructions: '',
   }
   let idSeq = 0
   const usage = { inputTokens: 2600, outputTokens: 1000, cacheReadTokens: 0 }
@@ -43,6 +43,19 @@ function makeDeps(over: any = {}) {
       draft: async () => over.draftThrows ? Promise.reject(over.draftThrows)
         : { json: over.content ?? CONTENT, model: 'claude-sonnet-5',
             usage: { inputTokens: 4400, outputTokens: 6000, cacheReadTokens: 0 }, stopReason: 'end_turn' },
+      // 검사관: 기본은 통과. over.verdicts 로 회차별 판정을 지정한다.
+      critique: async () => {
+        log.critiques++
+        const v = Array.isArray(over.verdicts) ? (over.verdicts[log.critiques - 1] ?? over.verdicts[over.verdicts.length - 1]) : { score: 88, must_fix: [] }
+        return { json: { verdict: v.must_fix?.length ? 'revise' : 'pass', should_fix: [], strengths: [], rubric: {}, ...v },
+                 model: 'claude-opus-5', usage: { inputTokens: 9000, outputTokens: 800, cacheReadTokens: 0 }, stopReason: 'end_turn' }
+      },
+      // 재작성: over.revised 가 있으면 그것을, 없으면 원본을 다시 낸다
+      revise: async (_o: unknown, _prev: unknown, instructions: string) => {
+        log.revisions++; log.lastInstructions = instructions
+        return { json: over.revised ?? over.content ?? CONTENT, model: 'claude-sonnet-5',
+                 usage: { inputTokens: 9000, outputTokens: 6000, cacheReadTokens: 0 }, stopReason: 'end_turn' }
+      },
     },
     db: {
       consumeQuota: async () => { if (over.noQuota) return false; log.quotaConsumed++; return true },
@@ -109,7 +122,9 @@ await test('성공 잡에 단계별 사용량과 실비가 기록된다', async 
   await pipe.runGeneration(deps, INPUT, 'ws1')
   const job = log.jobs[0]
   assert.equal(job.status, 'succeeded')
-  assert.equal(Number(job.costUsd.toFixed(4)), 0.1068, `실비 계산이 다르다: ${job.costUsd}`)
+  // 설계 0.0380 + 집필 0.0688 + 검사관(opus 9000in/800out) 0.0650 = 0.1718
+  assert.equal(Number(job.costUsd.toFixed(4)), 0.1718, `실비 계산이 다르다: ${job.costUsd}`)
+  assert.ok(job.criticUsage, '검사관 사용량이 안 남았다')
   assert.ok(job.planUsage && job.draftUsage, '단계별 사용량이 안 남았다')
 })
 
@@ -130,7 +145,7 @@ const failCases: [string, any, string][] = [
   ['모델이 거절하면', { planThrows: new LlmRefusalError('cyber') }, 'llm_refused'],
   ['설계 응답이 깨졌으면', { planThrows: new LlmOutputError('JSON 파싱 실패') }, 'llm_upstream_error'],
   ['설계도에 quiz_plan 이 없으면', { outline: { title: 'x' } }, 'plan_schema_invalid'],
-  ['집필이 스키마를 어기면', { content: { ...CONTENT, quiz: CONTENT.quiz.slice(0, 4) } }, 'draft_schema_invalid'],
+  ['집필이 스키마를 계속 어기면', { content: { ...CONTENT, quiz: CONTENT.quiz.slice(0, 4) } }, 'draft_schema_invalid'],
 ]
 
 for (const [label, over, expected] of failCases) {
@@ -152,24 +167,10 @@ await test('집필이 설계의 사실성 판단을 뒤집으면 실패시킨다
   const { deps, log } = makeDeps({ content: twisted })
   await assert.rejects(() => pipe.runGeneration(deps, INPUT, 'ws1'))
   // 검증기가 먼저 잡든(disclaimer) 정합성 검사가 잡든, 통과하지 않는 것이 핵심이다
-  assert.ok(['draft_contradicts_plan', 'draft_schema_invalid'].includes(log.failures[0].code),
+  // 검증기(disclaimer 없음)든 정합성 검사든 정적 지적이 남아 있으면 상한까지 재작성 후 반려된다
+  assert.ok(['draft_quality_rejected', 'draft_schema_invalid'].includes(log.failures[0].code),
     `가상 시나리오가 사실로 둔갑했다: ${log.failures[0].code}`)
   assert.equal(log.quotaRefunded, 1)
-})
-
-await test('집필이 소외시키는 말투를 쓰면 draft_voice_violation 으로 잡는다', async () => {
-  const rude = structuredClone(CONTENT)
-  rude.what_we_learn.analogy = '이건 당연히 아는 내용이라 아주 간단합니다. 쉽죠?'
-  const { deps, log } = makeDeps({ content: rude })
-  await assert.rejects(() => pipe.runGeneration(deps, INPUT, 'ws1'))
-  assert.equal(log.failures[0].code, 'draft_voice_violation',
-    '어려운 학습지는 이 제품의 존재 이유와 어긋난다')
-  assert.equal(log.quotaRefunded, 1)
-  assert.equal(log.uploads.length, 0, '말투 위반 학습지가 업로드됐다')
-})
-
-await test('말투 위반은 재시도한다 (다시 쓰면 고쳐질 수 있다)', () => {
-  assert.equal(pipe.isRetryable('draft_voice_violation'), true)
 })
 
 await test('집필이 문제 난이도를 바꾸면 draft_contradicts_plan 으로 잡는다', async () => {
@@ -177,13 +178,63 @@ await test('집필이 문제 난이도를 바꾸면 draft_contradicts_plan 으�
   twisted.quiz[0].difficulty = twisted.quiz[0].difficulty === 3 ? 1 : 3
   const { deps, log } = makeDeps({ content: twisted })
   await assert.rejects(() => pipe.runGeneration(deps, INPUT, 'ws1'))
-  assert.equal(log.failures[0].code, 'draft_contradicts_plan')
+  assert.equal(log.failures[0].code, 'draft_quality_rejected')
+  assert.ok(log.failures[0].detail.includes('[설계 위반]'), `사유에 정합성 지적이 없다: ${log.failures[0].detail.slice(0, 80)}`)
 })
 
 await test('실패해도 이미 쓴 토큰의 실비는 기록한다', async () => {
   const { deps, log } = makeDeps({ draftThrows: new LlmOutputError('끊김') })
   await assert.rejects(() => pipe.runGeneration(deps, INPUT, 'ws1'))
   assert.ok(log.jobs[0].costUsd > 0, '실패해도 설계 단계 토큰은 과금된다 — 기록해야 예산이 맞는다')
+})
+
+console.log('\n▸ 검사 루프 (반려 → 재작성)')
+
+await test('검사관이 통과시키면 재작성 없이 끝난다', async () => {
+  const { deps, log } = makeDeps()
+  await pipe.runGeneration(deps, INPUT, 'ws1')
+  assert.equal(log.critiques, 1)
+  assert.equal(log.revisions, 0)
+  assert.equal(log.contents[0].meta.qualityScore, 88)
+  assert.equal(log.contents[0].meta.revisions, 0)
+})
+
+await test('검사관이 반려하면 사유를 붙여 재작성하고, 통과하면 저장한다', async () => {
+  const { deps, log } = makeDeps({ verdicts: [
+    { score: 55, must_fix: [{ path: 'quiz[0]', issue: '본문 복사', fix: '새 상황으로' }] },
+    { score: 84, must_fix: [] },
+  ] })
+  await pipe.runGeneration(deps, INPUT, 'ws1')
+  assert.equal(log.revisions, 1, '반려됐는데 재작성이 없다')
+  assert.equal(log.critiques, 2, '재작성 후 다시 검사하지 않았다')
+  assert.ok(log.lastInstructions.includes('본문 복사'), '재작성 지시에 반려 사유가 없다')
+  assert.equal(log.contents[0].meta.qualityScore, 84)
+  assert.equal(log.contents[0].meta.revisions, 1)
+})
+
+await test('정적 린트에 걸리면 검사관 점수가 높아도 재작성한다', async () => {
+  const rude = structuredClone(CONTENT)
+  rude.what_we_learn.analogy = '이건 당연히 아는 내용이라 아주 간단합니다. 쉽죠?'
+  const { deps, log } = makeDeps({ content: rude, revised: CONTENT, verdicts: [{ score: 95, must_fix: [] }] })
+  await pipe.runGeneration(deps, INPUT, 'ws1')
+  assert.equal(log.revisions, 1, '말투 위반인데 그냥 통과시켰다')
+  assert.ok(log.lastInstructions.includes('[말투]'), '재작성 지시에 말투 지적이 없다')
+  assert.equal(log.uploads.length, 1, '고쳐진 뒤에는 올라가야 한다')
+})
+
+await test('재작성 상한을 넘겨도 반려면 draft_quality_rejected 로 실패하고 환불한다', async () => {
+  const { deps, log } = makeDeps({ verdicts: [{ score: 40, must_fix: [{ path: 'title', issue: '오개념 헤드라인', fix: '바꿔라' }] }] })
+  await assert.rejects(() => pipe.runGeneration(deps, INPUT, 'ws1'))
+  assert.equal(log.failures[0].code, 'draft_quality_rejected')
+  assert.equal(log.revisions, 2, `재작성이 ${log.revisions}회 (상한 2회여야 함)`)
+  assert.equal(log.critiques, 3, '초안 + 재작성 2회 = 검사 3회')
+  assert.equal(log.quotaRefunded, 1)
+  assert.equal(log.uploads.length, 0, '반려된 학습지가 올라갔다')
+  assert.ok(log.failures[0].detail.includes('오개념 헤드라인'), '실패 사유에 검사관 지적이 없다')
+})
+
+await test('품질 반려는 잡 단위로 재시도하지 않는다 (루프 안에서 이미 다 써봤다)', () => {
+  assert.equal(pipe.isRetryable('draft_quality_rejected'), false)
 })
 
 console.log('\n▸ 재시도 정책')
