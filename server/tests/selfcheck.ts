@@ -25,7 +25,7 @@ const CATEGORY_LABEL: Record<string, string> = {
 /** 분야별로 자연스러운 예시 종류. 어긋나면 경고한다. */
 const NATURAL_EXAMPLE: Record<string, string[]> = {
   math: ['calc', 'steps', 'scene'],
-  science: ['scene', 'steps', 'compare'],
+  science: ['scene', 'steps', 'compare', 'calc'],   // 물리는 식을 세우는 예시가 자연스럽다
   cs: ['code', 'steps', 'compare'],
   art: ['compare', 'steps', 'scene'],
   music: ['steps', 'compare'],
@@ -57,6 +57,8 @@ interface Row {
   quizCount: number
   htmlKb: number
   inkSpaces: number
+  hookFirst: boolean
+  corePath: number
 }
 
 const rows: Row[] = []
@@ -73,7 +75,7 @@ for (const file of readdirSync(DIR).filter((f) => f.endsWith('.json')).sort()) {
       ...(row as Row), category: raw.category ?? '?', title: raw.title ?? '?',
       ok: false, errors: e instanceof ValidationError ? e.issues.slice(0, 5) : [String(e)],
       warnings: 0, activity: 0, far: 0, figures: 0, avgSentence: 0, glossary: 0, guideNotes: 0, hasAnalogy: false,
-      exampleKinds: [], unnaturalExample: [], quizCount: 0, htmlKb: 0, inkSpaces: 0,
+      exampleKinds: [], unnaturalExample: [], quizCount: 0, htmlKb: 0, inkSpaces: 0, hookFirst: false, corePath: 0,
     })
     continue
   }
@@ -116,6 +118,8 @@ for (const file of readdirSync(DIR).filter((f) => f.endsWith('.json')).sort()) {
     quizCount: content.quiz.length,
     htmlKb: Math.round(html.length / 1024),
     inkSpaces: (html.match(/class="ink-space"/g) ?? []).length,
+    hookFirst: ped.metrics.hookFirst,
+    corePath: Math.round(ped.metrics.corePathRatio * 100),
   })
 }
 
@@ -127,8 +131,8 @@ const pad = (s: string, n: number) => {
 
 console.log('\n━━━ ONPAR 학습지 자가점검 ━━━\n')
 console.log(pad('분야', 14) + pad('제목', 34) + pad('검사', 6) + pad('활동', 6) + pad('far', 5) +
-            pad('도형', 6) + pad('평균', 6) + pad('용어', 6) + pad('파르', 6) + pad('예시', 20) + 'HTML')
-console.log('─'.repeat(112))
+            pad('도형', 6) + pad('평균', 6) + pad('용어', 6) + pad('파르', 6) + pad('예측', 6) + pad('핵심', 6) + pad('예시', 20) + 'HTML')
+console.log('─'.repeat(124))
 
 for (const r of rows) {
   console.log(
@@ -141,6 +145,8 @@ for (const r of rows) {
     pad(`${r.avgSentence}자`, 6) +
     pad(String(r.glossary), 6) +
     pad(String(r.guideNotes), 6) +
+    pad(r.hookFirst ? '예' : '아니오', 6) +
+    pad(`${r.corePath}%`, 6) +
     pad(r.exampleKinds.join(',') || '-', 20) +
     `${r.htmlKb}KB`,
   )

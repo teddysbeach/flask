@@ -21,6 +21,13 @@ node --experimental-strip-types "$HERE/logic.test.ts" | tail -2
 echo "▸ 학습지 자가점검 (분야별)"
 node --experimental-strip-types "$HERE/selfcheck.ts" | tail -5
 
+echo "▸ 상호작용 런타임 (Chromium)"
+if node -e "require(require('child_process').execSync('npm root -g',{encoding:'utf8'}).trim()+'/playwright')" 2>/dev/null; then
+  node --experimental-strip-types "$HERE/interact.browser.test.ts" | tail -2
+else
+  echo "  (playwright 가 없어 건너뜀 — npm i -g playwright 후 다시 실행)"
+fi
+
 echo "▸ 생성 파이프라인"
 node --experimental-strip-types "$HERE/pipeline.test.ts" | tail -2
 

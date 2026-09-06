@@ -131,10 +131,27 @@ test('XSS: 모든 문자열 필드에 공격 문자열을 넣어도 태그가 �
     'html', 'head', 'meta', 'title', 'style', 'body', 'div', 'article', 'header', 'footer',
     'section', 'h1', 'h2', 'p', 'span', 'ul', 'ol', 'li', 'strong', 'em', 'code', 'pre',
     'details', 'summary', 'canvas', 'dl', 'dt', 'dd', 'aside', 'svg', 'path',
+    // 응답 위젯 (V4). 허용하되 아래에서 형태를 다시 조인다.
+    'label', 'input', 'button', 'output', 'figure', 'figcaption',
   ])
   const found = new Set([...body.matchAll(/<\/?([a-zA-Z][\w-]*)/g)].map((m) => m[1].toLowerCase()))
   const injected = [...found].filter((t) => !ALLOWED.has(t))
   assert(injected.length === 0, `주입된 태그가 있다: ${injected.join(', ')}`)
+
+  // 폼 컨트롤을 허용했으니, 문서의 모든 input/button 이 우리가 만든 모양인지까지 확인한다.
+  // 어떤 태그에도 인라인 이벤트 핸들러가 있으면 안 된다.
+  const inputs = [...body.matchAll(/<input\b([^>]*)>/g)].map((m) => m[1])
+  assert(inputs.length > 0, 'input 이 하나도 없다 (선택 활동·시도 체크가 사라졌다)')
+  for (const attrs of inputs) {
+    assert(/^ type="(radio|checkbox|range)"/.test(attrs), `우리가 만들지 않은 input: <input${attrs.slice(0, 60)}>`)
+  }
+  const buttons = [...body.matchAll(/<button\b([^>]*)>/g)].map((m) => m[1])
+  for (const attrs of buttons) {
+    assert(attrs.includes('data-submit'), `우리가 만들지 않은 button: <button${attrs.slice(0, 60)}>`)
+  }
+  // 속성값 안에 이스케이프되어 남은 'onerror=' 는 문자열일 뿐이다. 값을 비운 뒤 속성 이름만 본다.
+  const attrNamesOnly = body.replace(/="[^"]*"/g, '=""')
+  assert(!/<[a-z][^>]*\son[a-z]+=/i.test(attrNamesOnly), '인라인 이벤트 핸들러가 붙은 태그가 있다')
 
   // svg/path 를 허용 목록에 넣었으므로, 문서의 모든 path 가 실제로 우리 아이콘에서
   // 온 것인지까지 확인한다. 허용만 하고 넘어가면 주입된 path 를 놓친다.
@@ -170,8 +187,42 @@ test('11개 섹션이 전부, 순서대로 나온다', () => {
     assert(html.includes(`id="sec-${i + 1}" data-section="${SECTIONS[i].key}"`),
       `섹션 ${i + 1} (${SECTIONS[i].key}) 이 없거나 순서가 다르다`)
   }
-  const count = (html.match(/class="sec"/g) ?? []).length
-  assert(count === 11, `섹션이 ${count}개다 (11개여야 함)`)
+  const core = (html.match(/class="sec sec--core"/g) ?? []).length
+  const aside = (html.match(/class="sec sec--aside"/g) ?? []).length
+  assert(core + aside === 11, `섹션이 ${core + aside}개다 (11개여야 함)`)
+  assert(core === SECTIONS.filter((x) => x.core).length, `핵심 섹션이 ${core}개 (${SECTIONS.filter((x) => x.core).length}개여야 함)`)
+})
+
+test('보조 섹션은 접혀 있고, 핵심 섹션은 접히지 않는다', () => {
+  for (const [i, s] of SECTIONS.entries()) {
+    const start = html.indexOf(`id="sec-${i + 1}"`)
+    const head = html.slice(start, start + 200)
+    if (s.core) assert(!head.includes('sec__fold'), `핵심 섹션 ${s.key} 가 접혀 있다`)
+    else assert(head.includes('<details class="sec__fold">'), `보조 섹션 ${s.key} 가 접혀 있지 않다`)
+  }
+  // 접힌 섹션은 처음부터 열려 있으면 안 된다 — 핵심 경로가 다시 묻힌다
+  assert(!html.includes('<details class="sec__fold" open'), '보조 섹션이 처음부터 열려 있다')
+})
+
+test('첫 활동(hook)이 비유·설명보다 먼저 온다', () => {
+  const hookPos = html.indexOf('class="act act--')
+  const analogyPos = html.indexOf('class="analogy"')
+  assert(hookPos > 0 && hookPos < analogyPos, '설명 전에 예측하게 하는 활동이 없다 — 예측 없는 설명은 읽기다')
+  const sec1 = html.slice(html.indexOf('id="sec-1"'), html.indexOf('id="sec-2"'))
+  assert(sec1.includes('data-response-kind="choice"'), '첫 활동이 고르는 형태가 아니다')
+  assert(sec1.includes('type="radio"'), '첫 활동에 고를 라디오가 없다')
+})
+
+test('선택형 문제는 제출 전엔 답이 안 열리고, 오답마다 피드백이 붙는다', () => {
+  // 런타임 스크립트도 같은 셀렉터 문자열을 담고 있으니 섹션 범위로만 자른다
+  const quiz = html.slice(html.indexOf('data-section="quiz"'), html.indexOf('id="sec-9"'))
+  const mc = (quiz.match(/data-response-kind="choice"/g) ?? []).length
+  assert(mc === content.quiz.filter((q) => q.choices).length, `선택형 문제 수가 다르다 (${mc})`)
+  assert((quiz.match(/data-submit/g) ?? []).length === mc, '선택형 문제마다 제출 버튼이 있어야 한다')
+  assert(quiz.includes('data-answer="'), '정답 인덱스가 없다 (런타임이 채점을 못 한다)')
+  assert(quiz.includes(' data-feedback="'), '오답 선택지에 피드백이 붙지 않았다')
+  assert((quiz.match(/data-attempted/g) ?? []).length === content.quiz.filter((q) => !q.choices).length,
+    '서술형 문제마다 시도 체크가 있어야 한다')
 })
 
 test('문제마다 quiz_items.id 가 붙는다 (복습 알림 딥링크용)', () => {
@@ -188,12 +239,20 @@ test('필기 레이어와 문서 폭 고정이 살아있다', () => {
 
 test('필기 여백이 섹션·문제·활동·그림 과제마다 들어간다', () => {
   const n = (html.match(/class="ink-space"/g) ?? []).length
-  // 섹션 10개(문제 섹션 제외) + 문제 5개 + 손을 쓰는 활동 + 그림 위 과제
+  // V4: 섹션 끝에 붙던 '그냥 빈 칸' 은 뺐다. 빈 종이는 과제가 아니다.
+  // 서술형 문제 + 손을 쓰는 활동 + 그림 위 과제 + 마무리 성찰 한 칸.
+  const writtenQuiz = content.quiz.filter((q) => !q.choices).length
   const activityInk = content.main_lesson.blocks
     .filter((b) => b.activity && ['compute', 'draw', 'explain'].includes(b.activity.kind)).length
   const figureInk = content.figures.filter((f) => f.drawTask).length
-  const expected = 10 + content.quiz.length + activityInk + figureInk
-  assert(n === expected, `필기 여백이 ${n}개다 (${expected}개여야 함: 10 + 문제 ${content.quiz.length} + 활동 ${activityInk} + 그림 과제 ${figureInk})`)
+  const expected = writtenQuiz + activityInk + figureInk + 1
+  assert(n === expected, `필기 여백이 ${n}개다 (${expected}개여야 함: 서술형 ${writtenQuiz} + 활동 ${activityInk} + 그림 과제 ${figureInk} + 성찰 1)`)
+  // 과제가 붙지 않은 여백이 없어야 한다: 모든 ink-space 바로 앞 400자 안에 프롬프트가 있다
+  const noIcons = html.replace(/<svg[\s\S]*?<\/svg>/g, '')
+  for (const m of noIcons.matchAll(/class="ink-space"/g)) {
+    const before = noIcons.slice(Math.max(0, m.index! - 500), m.index)
+    assert(/act__prompt|quiz__q|fig__task|reflect__prompt/.test(before), `과제 없는 빈 여백이 있다 (offset ${m.index})`)
+  }
   assert(activityInk > 0, '손을 쓰는 활동이 하나도 없다 — 빈 종이는 학습활동이 아니다')
 })
 

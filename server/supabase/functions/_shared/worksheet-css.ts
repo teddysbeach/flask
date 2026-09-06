@@ -200,11 +200,7 @@ code, .code {
 }
 .act__prompt { font-size: 17px; line-height: 1.7; font-weight: 500; margin: 0; }
 .act__options { list-style: none; margin: 14px 0 0; padding: 0; }
-.act__options li {
-  display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start;
-  font-size: 16px; line-height: 1.65; padding: 9px 0;
-  border-top: 1px solid var(--ds-color-border-subtle);
-}
+.act__options { margin: 14px 0 0; }
 .act__key { font-weight: 700; color: var(--ds-color-text-tertiary); }
 .act .ink-space { margin-top: 16px; }
 .act__reveal { margin-top: 16px; }
@@ -221,6 +217,56 @@ code, .code {
   padding: 14px 18px; background: var(--ds-color-surface-sunken);
   border-radius: var(--ds-radius-lg);
 }
+
+/* ── 선택지 (라디오) ── */
+.act__opt {
+  display: grid; grid-template-columns: auto 26px 1fr; gap: 10px; align-items: start;
+  font-size: 16px; line-height: 1.65; padding: 10px 12px; margin: 0 -12px;
+  border-top: 1px solid var(--ds-color-border-subtle); cursor: pointer;
+  border-radius: var(--ds-radius-md);
+}
+.act__opt input { margin-top: 5px; accent-color: var(--ds-color-brand-primary); }
+.act__opt.is-picked { background: var(--ds-color-surface-sunken); }
+.act__opt.is-correct { background: var(--ds-callout-tip-bg); }
+.act__opt.is-wrong { background: var(--ds-callout-caution-bg); }
+.act__fb {
+  margin: 12px 0 0; padding: 12px 16px; font-size: 15px; line-height: 1.7;
+  background: var(--ds-callout-caution-bg); color: var(--ds-color-text-primary);
+  border-radius: var(--ds-radius-lg);
+}
+.act__fb::before { content: "이렇게 고르셨다면 — "; font-weight: 700; color: var(--ds-callout-caution-accent); }
+.act__attempt { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 14px; color: var(--ds-color-text-secondary); cursor: pointer; }
+.act__attempt input { accent-color: var(--ds-color-brand-primary); }
+.quiz__submit {
+  margin-top: 12px; padding: 9px 18px; font-size: 14px; font-weight: 700; cursor: pointer;
+  border: 0; border-radius: var(--ds-radius-full);
+  background: var(--ds-color-neutral-primary-base); color: var(--ds-color-neutral-primary-on-base);
+}
+.is-answered .quiz__submit { display: none; }
+/* 고르기 전에 답을 열려고 하면 살짝 흔들어 알린다 */
+@keyframes nudge { 0%,100% { transform: translateX(0) } 25% { transform: translateX(-4px) } 75% { transform: translateX(4px) } }
+.is-nudge { animation: nudge .3s ease 2; }
+.is-nudge .act__reveal summary, .is-nudge .quiz__a summary { color: var(--ds-callout-caution-accent); border-color: var(--ds-callout-caution-accent); }
+
+/* ── 보조 섹션 (접힘) ──
+   핵심 경로와 보조 경로를 시각적으로 나눈다. 역사·상황극·꿀팁은 원하면 편다. */
+.sec--aside { margin-bottom: 28px; }
+.sec__fold { border: 1px dashed var(--ds-color-border-default); border-radius: var(--ds-radius-xl); padding: 0 22px; }
+.sec__fold[open] { padding-bottom: 28px; }
+.sec__fold-summary {
+  display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none;
+  padding: 16px 0; font-size: 16px; font-weight: 700; color: var(--ds-color-text-secondary);
+}
+.sec__fold-summary::-webkit-details-marker { display: none; }
+.sec__fold-hint { margin-left: auto; font-size: 13px; font-weight: 500; color: var(--ds-color-text-tertiary); }
+.sec__fold[open] .sec__fold-hint { display: none; }
+.sec__fold[open] .sec__fold-summary { display: none; }
+.sec__aside { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: var(--ds-radius-full); background: var(--ds-color-surface-sunken); color: var(--ds-color-text-tertiary); }
+
+/* ── 마무리 성찰 ── */
+.reflect { margin-top: 28px; max-width: 40em; }
+.reflect__prompt { display: flex; gap: 8px; align-items: start; font-size: 16px; font-weight: 700; line-height: 1.6; margin: 0; }
+.reflect__prompt .ico { color: var(--ds-color-brand-primary); margin-top: 3px; }
 
 /* ── 표지: 전제 ── */
 .sheet__assumes {
@@ -390,11 +436,7 @@ code, .code {
   margin-bottom: 8px;
 }
 .quiz__choices { list-style: none; margin: 16px 0 0; padding: 0; max-width: 36em; }
-.quiz__choices li {
-  font-size: 16px; line-height: 1.6; padding: 13px 18px; margin-bottom: 8px;
-  border: 1px solid var(--ds-color-border-subtle);
-  border-radius: var(--ds-radius-lg);
-}
+.quiz__choices { margin: 16px 0 0; }
 .quiz__a { margin-top: 16px; }
 .quiz__a summary {
   display: inline-flex; align-items: center; gap: 6px;

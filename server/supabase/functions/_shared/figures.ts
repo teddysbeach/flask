@@ -16,9 +16,11 @@ const FN: Record<string, (x: number) => number> = {
   'sin': (x) => Math.sin(x),
   'exp': (x) => Math.exp(x),
   'linear': (x) => 0.8 * x + 1,
+  'abs': (x) => Math.abs(x),
 }
 
-function plot(s: Extract<FigureSpec, { kind: 'plot' }>): string {
+/** plot 의 좌표계. SVG 와 런타임(worksheet-interact.js)이 같은 값을 써야 슬라이더가 곡선 위를 달린다. */
+function plotFrame(s: Extract<FigureSpec, { kind: 'plot' }>) {
   const fn = FN[s.fn]
   const [x0, x1] = s.xRange
   const N = 80
@@ -26,6 +28,11 @@ function plot(s: Extract<FigureSpec, { kind: 'plot' }>): string {
   const ys = xs.map(fn)
   const yMin = Math.min(...ys, 0), yMax = Math.max(...ys, 0)
   const pad = 44
+  return { fn, x0, x1, xs, ys, yMin, yMax, pad }
+}
+
+function plot(s: Extract<FigureSpec, { kind: 'plot' }>): string {
+  const { fn, x0, x1, xs, ys, yMin, yMax, pad } = plotFrame(s)
   const sx = (x: number) => pad + ((x - x0) / (x1 - x0)) * (W - pad * 2)
   const sy = (y: number) => H - pad - ((y - yMin) / (yMax - yMin || 1)) * (H - pad * 2)
 
@@ -67,7 +74,9 @@ function plot(s: Extract<FigureSpec, { kind: 'plot' }>): string {
 function profileY(kind: string, t: number): number {
   const g = (c: number, w: number) => Math.exp(-((t - c) ** 2) / (2 * w * w))
   switch (kind) {
-    case 'two-humps': return 0.9 * (g(0.34, 0.09) + g(0.66, 0.09))
+    // 슬릿 하나의 회절: 넓은 중앙 최대 + 양옆의 약한 측면 최대. '봉우리 하나' 가 아니다.
+    case 'single': return g(0.5, 0.11) + 0.12 * (g(0.24, 0.045) + g(0.76, 0.045))
+    case 'two-humps': return 0.9 * (g(0.34, 0.09) + g(0.66, 0.09)) + 0.08 * (g(0.1, 0.04) + g(0.9, 0.04))
     case 'fringes': return g(0.5, 0.22) * (0.5 + 0.5 * Math.cos((t - 0.5) * 2 * Math.PI * 6))
     case 'fringes-weak': return g(0.5, 0.22) * (0.5 + 0.18 * Math.cos((t - 0.5) * 2 * Math.PI * 6))
     default: return g(0.5, 0.13)
@@ -156,15 +165,49 @@ export function renderFigure(fig: Figure): string {
     default: body = swatches(fig.spec)
   }
   const id = esc(fig.id)
-  return `<figure class="fig" id="fig-${id}" data-figure="${id}">` +
+  const inter = (fig.spec as any).interactive
+    ? ` data-interactive="${fig.spec.kind}"` +
+      (fig.spec.kind === 'plot' ? plotDataAttrs(fig.spec) : '')
+    : ''
+  return `<figure class="fig" id="fig-${id}" data-figure="${id}"${inter}>` +
     `<svg class="fig__svg" viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="fig-${id}-t" aria-describedby="fig-${id}-d">` +
     `<title id="fig-${id}-t">${esc(fig.title)}</title><desc id="fig-${id}-d">${esc(fig.alt)}</desc>${body}</svg>` +
-    `<figcaption class="fig__cap">${esc(fig.title)}</figcaption>` +
+    ((fig.spec as any).interactive ? interactiveControls(fig) : '') +
+    `<figcaption class="fig__cap">${esc(fig.title)}${
+      fig.spec.kind === 'distribution' ? ' <span class="fig__note">슬릿 폭을 무시한 이상화 모델이에요. 실제 무늬는 회절 봉투 안에 나타나요.</span>' : ''
+    }</figcaption>` +
     (fig.drawTask ? `<p class="fig__task">${esc(fig.drawTask)}</p><div class="ink-space" data-ink-space="md"></div>` : '') +
     `</figure>`
 }
 
+/** 런타임이 SVG 좌표를 재현하는 데 필요한 값. plot() 과 같은 plotFrame() 에서 나온다. */
+function plotDataAttrs(s: Extract<FigureSpec, { kind: 'plot' }>): string {
+  const { x0, x1, yMin, yMax, pad } = plotFrame(s)
+  const a = s.secant?.[0] ?? s.tangentAt ?? 0
+  return ` data-fn="${esc(s.fn)}" data-x0="${f2(x0)}" data-x1="${f2(x1)}" data-a="${f2(a)}"` +
+    ` data-pad="${f2(pad)}" data-ymin="${f2(yMin)}" data-ymax="${f2(yMax)}"`
+}
+
+/** 슬라이더. 실제 계산은 런타임(worksheet-interact.js)이 한다 — 여기서는 자리만. */
+function interactiveControls(fig: Figure): string {
+  const id = esc(fig.id)
+  if (fig.spec.kind === 'plot') {
+    return `<div class="fig__ctl"><label for="h-${id}">h (두 번째 점까지의 거리)</label>` +
+      `<input type="range" id="h-${id}" class="fig__slider" min="-2" max="2" step="0.01" value="2" data-for="${id}">` +
+      `<output class="fig__readout" data-for="${id}">h = 2.00 → 할선 기울기 <b>8.00</b></output></div>`
+  }
+  return `<div class="fig__ctl"><label for="v-${id}">경로 정보 (0 = 없음, 1 = 충분)</label>` +
+    `<input type="range" id="v-${id}" class="fig__slider" min="0" max="1" step="0.01" value="0" data-for="${id}">` +
+    `<output class="fig__readout" data-for="${id}">간섭 가시도 <b>100%</b></output></div>`
+}
+
 export const FIGURE_CSS = `
+.fig__note { font-weight: 400; color: var(--ds-color-text-tertiary); }
+.fig__ctl { margin: 12px 0 0; display: grid; gap: 6px; font-size: 14px; color: var(--ds-color-text-secondary); }
+.fig__slider { width: 100%; accent-color: var(--ds-color-brand-primary); }
+.fig__readout { font-family: var(--ds-font-mono); font-size: 14px; color: var(--ds-color-text-primary); }
+.fig__readout b { color: var(--ds-color-brand-primary); }
+.fig-secant--live { stroke: var(--ds-color-status-info); stroke-width: 2.4; }
 .fig { margin: 0 0 var(--ds-sheet-block-gap); max-width: 40em; }
 .fig__svg {
   display: block; width: 100%; height: auto;

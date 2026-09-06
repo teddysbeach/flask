@@ -12,7 +12,7 @@ import { INK_RUNTIME_JS } from './ink-runtime.g.ts'
 import { SECTIONS } from './worksheet-types.ts'
 import { icon } from './icons.g.ts'
 import { renderFigure, FIGURE_CSS } from './figures.ts'
-import type { WorksheetContent, InlineNode, RenderContext } from './worksheet-types.ts'
+import type { WorksheetContent, InlineNode, RenderContext, Activity } from './worksheet-types.ts'
 
 /** HTML 텍스트 이스케이프. 속성값까지 안전하도록 따옴표도 처리한다. */
 export function esc(s: string): string {
@@ -105,8 +105,10 @@ const CONF_LABEL: Record<string, string> = {
 // ── 섹션 렌더러 ──────────────────────────────────────────────────────────
 // 인덱스 = 섹션 번호 - 1. SECTIONS 와 순서가 1:1로 맞아야 한다(테스트가 검사).
 const RENDERERS: ((c: WorksheetContent, ctx: RenderContext) => string)[] = [
-  // ① 무엇을 배우는가 — 비유가 정의보다 먼저 온다 (설명 사다리 ①단)
+  // ① 무엇을 배우는가 — 예측이 맨 먼저, 그다음 비유, 그다음 정의.
+  //    역사와 상황극을 다 읽고 나서 예측하면 이미 정답이 머릿속에 들어와 있다.
   (c) => [
+    renderActivity(c.what_we_learn.hook, { prefix: 'hook' }),
     `<p class="analogy">${esc(c.what_we_learn.analogy)}</p>`,
     p(c.what_we_learn.summary),
     `<p class="h3">이 학습지를 마치면</p>`,
@@ -181,20 +183,30 @@ const RENDERERS: ((c: WorksheetContent, ctx: RenderContext) => string)[] = [
   (c) => c.pro_tips.map((t) =>
     callout('tip', t.tip, `<p class="p">${esc(t.why)}</p>`)).join(''),
 
-  // ⑧ 질의 5개
+  // ⑧ 적용 문제 — 선택형은 고른 오답에 맞는 피드백만, 서술형은 시도 후에 답.
   (c, ctx) => `<ol class="quiz">${c.quiz.map((q, i) => {
-    // data-quiz-id 는 quiz_items.id. 복습 알림이 이 id 로 해당 문제에 스크롤한다.
     const id = ctx.quizItemIds[i] ?? ''
-    return `<li class="quiz__item" data-quiz-id="${esc(id)}">
+    const rid = nextResponseId('quiz')
+    const norm = (t: string) => t.replace(/[\s.,!?()'"]/g, '')
+    const answerIdx = q.choices ? q.choices.findIndex((ch) => norm(ch) === norm(q.answer)) : -1
+    const fbFor = (ch: string) => q.misconceptions.find((m) => norm(ch).includes(norm(m.wrong).slice(0, 8)) || norm(m.wrong).includes(norm(ch).slice(0, 8)))?.why
+    const choices = q.choices
+      ? `<div class="quiz__choices" role="radiogroup">${q.choices.map((ch, j) => {
+          const fb = fbFor(ch)
+          return `<label class="act__opt"${fb ? ` data-feedback="${esc(fb)}"` : ''}>` +
+            `<input type="radio" name="${rid}" value="${esc(ch)}"><span class="act__key">${String.fromCharCode(9312 + j)}</span><span>${esc(ch)}</span></label>`
+        }).join('')}</div><p class="act__fb" data-feedback-slot hidden></p>` +
+        `<button type="button" class="quiz__submit" data-submit>제출</button>`
+      : `${inkSpace(q.kind === 'explain' ? 'md' : 'sm')}<label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label>`
+    return `<li class="quiz__item" data-quiz-id="${esc(id)}" data-response-id="${rid}" data-response-kind="${q.choices ? 'choice' : 'written'}"${answerIdx >= 0 ? ` data-answer="${answerIdx}"` : ''}>
       <p class="quiz__q">${esc(q.question)}</p>
-      ${q.choices ? `<ul class="quiz__choices">${q.choices.map((ch) => `<li>${esc(ch)}</li>`).join('')}</ul>` : ''}
-      ${inkSpace(q.kind === 'explain' ? 'md' : 'sm')}
+      ${choices}
       <details class="quiz__a">
-        <summary>${icon('info', 15)}정답 보기</summary>
+        <summary>${icon('info', 15)}${q.choices ? '제출하면 열려요' : '적고 나서 열기'}</summary>
         <div class="quiz__a-body">
           <p><span class="quiz__a-label">정답</span>${esc(q.answer)}</p>
           <p>${esc(q.explanation)}</p>
-          ${q.misconceptions.length ? `<div class="quiz__mis"><p class="quiz__a-label">이렇게 답했다면</p><ul>${
+          ${q.misconceptions.length && !q.choices ? `<div class="quiz__mis"><p class="quiz__a-label">이렇게 답했다면</p><ul>${
             q.misconceptions.map((m) => `<li><strong>${esc(m.wrong)}</strong> — ${esc(m.why)}</li>`).join('')}</ul></div>` : ''}
         </div>
       </details>
@@ -220,6 +232,7 @@ const RENDERERS: ((c: WorksheetContent, ctx: RenderContext) => string)[] = [
     p(c.wrap_up.daily_life_guide),
     `<p class="h3">스스로 점검</p>`,
     ul(c.wrap_up.checklist, 'checklist'),
+    `<div class="reflect"><p class="reflect__prompt">${icon('pen', 16)}${esc(c.wrap_up.reflection)}</p>${inkSpace('md')}</div>`,
   ].join(''),
 
   // ⑪ 다음 단계 제안
@@ -240,17 +253,30 @@ const ACTIVITY_LABEL: Record<string, string> = {
  * 활동. 설명 뒤에 학생이 결정·예측·계산·표시하게 만든다.
  * reveal 은 접어 둔다 — 답하기 전에 열면 활동이 아니다.
  */
-function renderActivity(a: NonNullable<WorksheetContent['main_lesson']['blocks'][number]['activity']>): string {
-  const opts = a.options
-    ? `<ol class="act__options">${a.options.map((o, i) =>
-        `<li><span class="act__key">${String.fromCharCode(9312 + i)}</span>${esc(o)}</li>`).join('')}</ol>`
+let responseSeq = 0
+const nextResponseId = (prefix: string) => `${prefix}-${++responseSeq}`
+
+function renderActivity(a: Activity, opts: { prefix: string; feedbackByOption?: (string | undefined)[] } = { prefix: 'act' }): string {
+  const rid = nextResponseId(opts.prefix)
+  const choice = a.kind === 'predict' || a.kind === 'decide'
+  const written = !choice
+  const opts_ = a.options
+    ? `<div class="act__options" role="radiogroup">${a.options.map((o, i) => {
+        const fb = opts.feedbackByOption?.[i]
+        return `<label class="act__opt"${fb ? ` data-feedback="${esc(fb)}"` : ''}>` +
+          `<input type="radio" name="${rid}" value="${esc(o)}"><span class="act__key">${String.fromCharCode(9312 + i)}</span><span>${esc(o)}</span></label>`
+      }).join('')}</div>` +
+      `<p class="act__fb" data-feedback-slot hidden></p>`
     : ''
   const ink = a.kind === 'compute' || a.kind === 'draw' || a.kind === 'explain'
     ? inkSpace(a.kind === 'explain' ? 'sm' : 'md') : ''
-  return `<div class="act act--${a.kind}">` +
+  // 채점은 못 하지만 시도했는지는 기록한다. 시도 전에는 답이 열리지 않는다.
+  const attempted = written
+    ? `<label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label>` : ''
+  return `<div class="act act--${a.kind}" data-response-id="${rid}" data-response-kind="${choice ? 'choice' : 'written'}">` +
     `<p class="act__label">${icon('secQuiz', 15)}${esc(ACTIVITY_LABEL[a.kind])}</p>` +
-    `<p class="act__prompt">${esc(a.prompt)}</p>${opts}${ink}` +
-    `<details class="act__reveal"><summary>${icon('info', 14)}답하고 나서 열기</summary>` +
+    `<p class="act__prompt">${esc(a.prompt)}</p>${opts_}${ink}${attempted}` +
+    `<details class="act__reveal"><summary>${icon('info', 14)}${choice ? '고르면 열려요' : '적고 나서 열기'}</summary>` +
     `<div class="act__reveal-body">${esc(a.reveal)}</div></details></div>`
 }
 
@@ -278,17 +304,24 @@ export function renderWorksheet(c: WorksheetContent, ctx: RenderContext): string
     notesBySection.set(g.section, list)
   }
 
+  responseSeq = 0   // 결정론: 렌더마다 id 가 같은 순서로 나와야 골든 파일이 맞는다
+
   const sections = SECTIONS.map((s, i) => {
     const num = String(i + 1).padStart(2, '0')
     const body = tidy(RENDERERS[i](c, ctx))
     const notes = (notesBySection.get(s.key) ?? []).map(guideNote).join('')
-    // 문제 섹션은 문제마다 필기 칸이 이미 있으므로 섹션 끝 여백을 붙이지 않는다.
-    const trailing = s.key === 'quiz' ? '' : inkSpace(s.ink)
-    return `<section class="sec" id="sec-${i + 1}" data-section="${s.key}">` +
-      `<header class="sec__head">` +
-      `<p class="sec__label">${icon(SECTION_ICON[s.key], 17)}<span class="sec__num">${num}</span></p>` +
-      `<h2 class="sec__title">${esc(s.title)}</h2></header>` +
-      `<div class="sec__body">${body}${notes}</div>${trailing}</section>`
+    const head = `<header class="sec__head">` +
+      `<p class="sec__label">${icon(SECTION_ICON[s.key], 17)}<span class="sec__num">${num}</span>` +
+      (s.core ? '' : `<span class="sec__aside">보조 읽기</span>`) + `</p>` +
+      `<h2 class="sec__title">${esc(s.title)}</h2></header>`
+    // 섹션 끝의 빈 필기칸은 없앴다. 빈 종이는 학습활동이 아니다.
+    // 필기칸은 활동·그림 과제·문제·마무리 성찰처럼 인지 명령이 붙은 자리에만 있다.
+    const inner = `${head}<div class="sec__body">${body}${notes}</div>`
+    return s.core
+      ? `<section class="sec sec--core" id="sec-${i + 1}" data-section="${s.key}">${inner}</section>`
+      : `<section class="sec sec--aside" id="sec-${i + 1}" data-section="${s.key}"><details class="sec__fold">` +
+        `<summary class="sec__fold-summary">${icon(SECTION_ICON[s.key], 16)}<span class="sec__num">${num}</span> ${esc(s.title)}` +
+        `<span class="sec__fold-hint">보조 읽기 · 펼치기</span></summary>${inner}</details></section>`
   }).join('')
 
   const meta = [

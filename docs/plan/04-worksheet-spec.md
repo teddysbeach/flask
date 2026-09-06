@@ -2,19 +2,22 @@
 
 ## 1. 11개 섹션 (고정, 순서 불변)
 
-| # | 키 | 섹션명 | 목적 |
-|---|---|---|---|
-| 1 | `what_we_learn` | 무엇을 배우는가 | 한 문단 요약 + 학습 목표 3개 + 소요 시간 |
-| 2 | `before_and_need` | 이것이 생기기 전에는 | 이전 세계의 불편, 왜 필요해졌는가 |
-| 3 | `prerequisites` | 먼저 보면 좋은 학습지 3개 | 각각 새 학습지 생성 진입점 |
-| 4 | `origin_story` | 탄생 배경 | 언제·누가·어떤 맥락에서. **연도/인물은 확실할 때만** |
-| 5 | `roleplay` | 상황극 & 예시 | 이해를 돕는 스토리. 사실 기반이거나 "가상임"을 명시 |
-| 6 | `main_lesson` | 본론 | 핵심 학습 내용. 3~6개 하위 블록 |
-| 7 | `pro_tips` | 꿀팁 | 실무자만 아는 요령 3~5개 |
-| 8 | `quiz` | 질의 5개 | 복습 알림의 재료가 되는 문제 |
-| 9 | `homework` | 숙제 & 과제 | 직접 해보는 과제 |
-| 10 | `wrap_up` | 마무리 팁 | 사용 예시 + 일상 적용 가이드 |
-| 11 | `next_steps` | 다음 단계 제안 | 이어서 배울 것 3개 |
+| # | 키 | 섹션명 | 경로 | 목적 |
+|---|---|---|---|---|
+| 1 | `what_we_learn` | 무엇을 배우는가 | **핵심** | **첫 예측(hook)** → 일상 비유 → 요약 + 목표 3개 + 용어 풀이 |
+| 2 | `before_and_need` | 이것이 생기기 전에는 | 보조 | 이전 세계의 불편, 왜 필요해졌는가 |
+| 3 | `prerequisites` | 먼저 알고 있어야 할 것 | 보조 | 각각 새 학습지 생성 진입점 |
+| 4 | `origin_story` | 탄생 배경 | 보조 | 언제·누가·어떤 맥락에서. **연도/인물은 확실할 때만** |
+| 5 | `roleplay` | 상황극 & 예시 | 보조 | 이해를 돕는 스토리. 사실 기반이거나 "가상임"을 명시 |
+| 6 | `main_lesson` | 본론 | **핵심** | 설명 → 도형 → 예시 → 활동 → 흔한 실수. 3~6개 블록, 절반 이상에 활동 |
+| 7 | `pro_tips` | 꿀팁 | 보조 | 실무자만 아는 요령 3~5개 |
+| 8 | `quiz` | 적용 문제 | **핵심** | 복습 알림의 재료. far transfer 2개 이상 |
+| 9 | `homework` | 직접 해보기 | **핵심** | 직접 해보는 과제 |
+| 10 | `wrap_up` | 정리 | **핵심** | 사용 예시 + 일상 적용 + 점검 + **성찰(reflection)** |
+| 11 | `next_steps` | 다음 단계 제안 | 보조 | 이어서 배울 것 3개 |
+
+"보조" 섹션은 `SECTIONS[].core = false`. 렌더러가 `<details class="sec__fold">` 로 접어서 내보내고,
+핵심 경로(1 → 6 → 8 → 9 → 10)가 먼저 읽히게 한다. 섹션 id 와 순서는 그대로다 — 필기 좌표는 흔들리지 않는다.
 
 ## 2. 생성 계약: LLM은 JSON만, HTML은 서버가
 
@@ -43,7 +46,11 @@ LLM 출력 문자열은 **전부 HTML 이스케이프** 후 삽입한다. 예외
   "level": "beginner|intermediate|advanced",
   "estimated_minutes": 25,
 
+  "time": { "core": 25, "practice": 15, "optional": 40 },   // optional = 숙제 합계 (검증기)
+  "assumes": ["string"],                   // 1~4개. "입문" 이 무엇에 대한 입문인지
+
   "what_we_learn": {
+    "hook": Activity,                      // 첫 예측. predict|decide 만. 설명 전에 고르게 한다 (V4)
     "analogy": "string",                   // 일상 비유. 정의보다 먼저 온다 (설명 사다리 ①단)
     "summary": [InlineNode],
     "objectives": ["string", "string", "string"],   // 정확히 3개
@@ -54,7 +61,7 @@ LLM 출력 문자열은 **전부 HTML 이스케이프** 후 삽입한다. 예외
     { "term": "string", "plain": "string" }
   ],
 
-  "guide_notes": [                        // 2~4개 — 파르(먼저 헤맨 사람)의 한마디
+  "guide_notes": [                        // 1~2개 — 파르(먼저 헤맨 사람)의 한마디. 오개념 교정·힌트에만
     { "section": SectionKey, "note": "string" }
   ],
 
@@ -89,11 +96,26 @@ LLM 출력 문자열은 **전부 HTML 이스케이프** 후 삽입한다. 예외
       {
         "heading": "string",
         "body": [InlineNode],
-        "example": { "caption": "string", "code": "string|null", "language": "string|null" },
+        "figure": "string|null",           // figures[].id 참조
+        "example": Example,                // kind: code|steps|compare|calc|scene
+        "activity": Activity|null,         // 절반 이상의 블록에 필수
         "common_mistake": "string|null"
       }
     ]
   },
+
+  "figures": [                             // 0~6개. 구조화 스펙만, SVG 문자열 금지
+    {
+      "id": "string", "title": "string", "alt": "string", "drawTask": "string|null",
+      "spec": { "kind": "plot", "fn": "x^2|x^3|sin|exp|linear|abs", "xRange": [0, 6],
+                "secant": [3, 5] | null, "tangentAt": 3 | null, "interactive": true }
+            | { "kind": "distribution", "panels": [{ "title": "string", "profile": "single|two-humps|fringes|fringes-weak" }],
+                "idealized": true,          // 필수. 슬릿 폭을 무시한 모델임을 캡션에 밝힌다
+                "interactive": true }       // 경로정보 슬라이더
+            | { "kind": "tonecurve", "curve": "linear|s-mild|s-strong|inverse-s", "clipHighlights": false }
+            | { "kind": "swatches", "rows": [{ "label": "string", "colors": ["#rrggbb"] }] }
+    }
+  ],
 
   "pro_tips": [ { "tip": "string", "why": "string" } ],   // 3~5개
 
@@ -104,7 +126,9 @@ LLM 출력 문자열은 **전부 HTML 이스케이프** 후 삽입한다. 예외
       "choices": ["string"] | null,
       "answer": "string",
       "explanation": "string",
-      "difficulty": 1
+      "difficulty": 1,
+      "transfer": "near|far",              // far 2개 이상
+      "misconceptions": [ { "wrong": "string", "why": "string" } ]   // 선택형은 선택지별 피드백이 된다
     }
   ],
 
@@ -116,7 +140,8 @@ LLM 출력 문자열은 **전부 HTML 이스케이프** 후 삽입한다. 예외
   "wrap_up": {
     "usage_examples": ["string"],          // 2~4개
     "daily_life_guide": [InlineNode],      // 일상 적용
-    "checklist": ["string"]                // 스스로 점검
+    "checklist": ["string"],               // 스스로 점검
+    "reflection": "string"                 // 처음 예측(hook)으로 돌아가 한 줄 쓰기 (V4)
   },
 
   "next_steps": [ { "title": "string", "why": "string", "difficulty_delta": "same|harder" } ]
@@ -124,6 +149,8 @@ LLM 출력 문자열은 **전부 HTML 이스케이프** 후 삽입한다. 예외
 ```
 
 `InlineNode` = `{ "type": "text"|"bold"|"code"|"em", "value": "string" }`
+`Activity` = `{ "kind": "predict|decide|compute|draw|explain", "prompt": "string", "options": ["string"]|null, "reveal": "string" }`
+— predict/decide 는 `options` 필수(라디오로 렌더), 나머지는 필기 칸 + "적었어요" 체크.
 
 **검증 규칙 (Zod)**: 배열 길이 제약(prerequisites=3, quiz=5, objectives=3)은 스키마에서 강제한다.
 LLM이 4개를 주면 스키마 실패 → 오류 메시지를 붙여 1회 재요청 → 그래도 실패면 잡 실패 처리.
@@ -281,7 +308,7 @@ const draft = await sonnet.messages.stream({
 <html lang="ko" data-theme="light">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1">   <!-- 확대 금지는 WCAG 위반이라 뺐다 -->
   <style>/* GENERATED from design_tokens.json — 02-design-system.md §1 */</style>
 </head>
 <body>
@@ -292,28 +319,48 @@ const draft = await sonnet.messages.stream({
     <p class="sheet__meta">난이도 · 예상 25분</p>
   </header>
 
-  <section class="sec" id="sec-1" data-section="what_we_learn">
-    <h2 class="sec__title"><span class="sec__num">01</span>무엇을 배우는가</h2>
-    <div class="sec__body">...</div>
-    <div class="ink-space" data-ink-space="md"></div>   <!-- 필기 여백 -->
+  <section class="sec sec--core" id="sec-1" data-section="what_we_learn">
+    <header class="sec__head">...</header>
+    <div class="sec__body">
+      <div class="act act--predict" data-response-id="hook-1" data-response-kind="choice">  <!-- 첫 예측 -->
+        <p class="act__prompt">...</p>
+        <div class="act__options" role="radiogroup">
+          <label class="act__opt"><input type="radio" name="hook-1" value="..."> ...</label>
+        </div>
+        <p class="act__fb" data-feedback-slot hidden></p>
+        <details class="act__reveal">...</details>   <!-- 고르기 전엔 런타임이 열지 않는다 -->
+      </div>
+      <p class="analogy">...</p> ...
+    </div>
   </section>
 
-  <!-- sec-2 ... sec-11 동일 패턴 -->
+  <section class="sec sec--aside" id="sec-2" data-section="before_and_need">   <!-- 보조: 접혀서 시작 -->
+    <details class="sec__fold"><summary class="sec__fold-summary">...</summary> ... </details>
+  </section>
 
-  <section class="sec" id="sec-8" data-section="quiz">
-    <h2 class="sec__title"><span class="sec__num">08</span>질의 5개</h2>
+  <section class="sec sec--core" id="sec-8" data-section="quiz">
     <ol class="quiz">
-      <li class="quiz__item" data-quiz-id="{uuid}">
+      <li class="quiz__item" data-quiz-id="{uuid}" data-response-id="quiz-3" data-response-kind="choice" data-answer="1">
         <p class="quiz__q">...</p>
-        <div class="ink-space" data-ink-space="lg"></div>  <!-- 답 쓰는 칸 -->
-        <details class="quiz__a"><summary>정답 보기</summary><div>...</div></details>
+        <div class="quiz__choices" role="radiogroup">
+          <label class="act__opt" data-feedback="이렇게 골랐다면 …"><input type="radio" ...> ...</label>
+        </div>
+        <p class="act__fb" data-feedback-slot hidden></p>
+        <button type="button" class="quiz__submit" data-submit>제출</button>
+        <details class="quiz__a">...</details>
+      </li>
+      <li class="quiz__item" data-quiz-id="{uuid}" data-response-id="quiz-4" data-response-kind="written">
+        <p class="quiz__q">...</p>
+        <div class="ink-space" data-ink-space="sm"></div>   <!-- 답 쓰는 칸: 과제가 있는 곳에만 -->
+        <label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label>
+        <details class="quiz__a">...</details>
       </li>
     </ol>
   </section>
 
 </article>
 <canvas id="ink-layer" class="ink-layer"></canvas>   <!-- 필기 레이어, 06번 문서 -->
-<script>/* GENERATED: worksheet_runtime.js — 필기 엔진 */</script>
+<script>/* GENERATED: ink-runtime.g.ts — 필기 엔진 + 학습 상호작용(worksheet-interact.js) */</script>
 </body>
 </html>
 ```
@@ -323,7 +370,10 @@ const draft = await sonnet.messages.stream({
 - 섹션 id는 `sec-1` ~ `sec-11` 로 **항상 11개 모두 존재**한다 (내용이 빈약해도 섹션을 생략하지 않는다).
 - `data-quiz-id` 는 `quiz_items.id` 와 동일 → 복습 알림에서 해당 문제로 스크롤 가능.
 - 문서 폭 `--sheet-width` 는 **고정**. 화면 맞춤은 `transform: scale()` 로만.
-- `.ink-space` 는 필기 전용 빈 블록. 렌더러가 섹션 성격에 따라 `sm|md|lg` 를 배정한다.
+- `.ink-space` 는 필기 전용 빈 블록. **과제가 붙은 자리에만** 둔다(서술형 문제, compute/draw/explain 활동, 그림 위 과제, 성찰).
+  섹션 끝에 그냥 붙는 빈 칸은 없다 — 빈 종이는 과제가 아니다. 렌더 테스트가 강제한다.
+- 응답 위젯: `data-response-id` 는 렌더 순서로 부여되는 결정론적 id. 런타임이 `ONPAR_RESPONSES[id]` 에 기록하고
+  Flutter 브리지 `learn` 채널로 `{type: choice|attempt|slider, payload}` 를 보낸다.
 - HTML을 다시 생성해도(재렌더) 동일 JSON이면 **바이트 단위로 동일**해야 한다 (렌더러 순수 함수).
   이 성질이 깨지면 기존 필기가 어긋난다. 렌더러에 골든 파일 테스트를 건다.
 

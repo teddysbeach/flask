@@ -18,6 +18,10 @@ export interface PedagogyReport {
     figures: number
     enrichmentRatio: number
     verbatimQuiz: number
+    /** 첫 예측 활동이 hook 에 있는가 (설명 전에 틀릴 기회) */
+    hookFirst: boolean
+    /** 핵심 경로(core 섹션) 텍스트 / 전체 텍스트 */
+    corePathRatio: number
   }
 }
 
@@ -33,9 +37,14 @@ const MISCONCEPTION_TRAPS: Record<string, { pattern: RegExp; why: string }[]> = 
     { pattern: /보는 순간|지켜보면|쳐다보면|의식이 .*바꾼|마음이 .*바꾼/, why: '"관측 = 사람이 본다" 오개념. 경로 정보가 새어 나가는 것이 기준이다' },
     { pattern: /알갱이가 아니(다|라는|에요)/, why: '"전자 = 입자 아님" 으로 저장된다. "고전적인 입자 모델로는 설명할 수 없다" 로 써야 한다' },
     { pattern: /탐지기를 (붙이면|켜면) 두 무더기/, why: '이분법. 실제로는 두 단일슬릿 분포의 합이고, 경로정보가 늘수록 간섭이 연속적으로 약해진다' },
+    { pattern: /슬릿 하나.{0,10}봉우리 하나|봉우리 하나(예요|이에요|가 생)/, why: '실제 단일슬릿은 회절로 넓은 중앙 최대와 측면 최대를 만든다. 이상화 모델임을 밝히지 않으면 실제 사진에서 혼란스러워한다' },
+    { pattern: /둘 (중 하나가 아니라 )?둘 다 아니/, why: '"그럼 대체 뭐예요?" 에 답할 수 없는 슬로건. "고전적 입자 모델 하나로도 파동 모델 하나로도 모든 결과를 설명할 수 없는 양자계" 로 현상 중심으로' },
+    { pattern: /질문이 답의 모양을 정|묻느냐에 따라 .*(바뀐|달라진)/, why: '"우리가 묻는 대로 자연이 현실을 바꾼다" 로 저장된다. "장치가 두 경로를 구별 가능하게 만드느냐에 따라 검출 확률분포가 달라진다" 가 정확하다' },
   ],
   math: [
     { pattern: /도착(은|하지는) 못|절대 도착하지/, why: '극한은 "도착 못 하는 것" 이 아니다. 그 점의 값과 무관하게 주변에서 어디로 가는지를 본다' },
+    { pattern: /정확히 .{0,6}(되려면|나오려면).{0,12}(0으로|0 으로) (놓|두)/, why: '극한값을 "금지된 h=0 에 숨은 값" 처럼 만든다. h≠0 인 차분몫의 값들이 h→0 일 때 그 값을 극한으로 갖는 것이다' },
+    { pattern: /초등학교 (산수|수학)|초등 수준/, why: '어떤 학생에게는 "이것도 못 하면 기본도 안 된다" 는 신호가 된다. "익숙한 평균 변화율 계산" 이면 같은 정보에 모욕 가능성이 없다' },
     { pattern: /dx.*(아주 작은|매우 작은).*(변화량|숫자|값)/, why: 'dx 를 "아주 작은 Δx" 로 기억하게 된다. 이 단계에서는 dy/dx 표기의 기호로만 읽게 한다' },
     { pattern: /시험 문제의 (절반|반)|시험에 (잘|자주) 나/, why: '"왜 그런지 넘어가지 말라" 고 해놓고 시험 기술을 강조하면 메시지가 충돌한다' },
   ],
@@ -43,6 +52,9 @@ const MISCONCEPTION_TRAPS: Record<string, { pattern: RegExp; why: string }[]> = 
     { pattern: /한 번 (날아간|잃은).*(되살릴 수 없|복구할 수 없)/, why: 'RAW 에서는 일부 채널 클리핑을 복구할 수 있다. "중요한 디테일이 있는 영역에서 모든 채널이 손실됐는가" 로 가르쳐야 한다' },
     { pattern: /스포이드로 .*(찍으면|누르면) (한 번에|바로) 맞/, why: '화면에서 회색처럼 보이는 것이 중성이라는 보장이 없다. 신뢰할 수 있는 중성 기준물을 쓴다' },
     { pattern: /교정은 정답이 있/, why: '너무 단정적. 의도적 색온도, 혼합 조명에서는 "정답" 이 없다. 입문용 근사임을 밝혀야 한다' },
+    { pattern: /(조명|빛)(을|의 색을) 덜 받(아서|는)/, why: 'WB 기준물은 조명을 "덜 받는" 것이 아니라 피사체와 "같은" 조명을 받아야 그 조명을 측정할 수 있다' },
+    { pattern: /(언제나|항상|무조건) .{0,10}(이 순서|순서대로)|순서(는|가) (언제나|항상) /, why: '순서는 규칙이 아니라 초보자가 원인을 분리해 연습하기 위한 권장 진단 순서(scaffold)다' },
+    { pattern: /따뜻[^.!?]{0,30}노랑[^.!?]{0,25}파랑/, why: '"따뜻한 사진 = 하이라이트 노랑 + 그림자 파랑" 공식으로 외운다. "따뜻한 룩의 예시 A" 로 쓰고 다른 방법 B 를 나란히' },
   ],
 }
 
@@ -65,6 +77,13 @@ export function pedagogyLint(c: WorksheetContent): PedagogyReport {
   const warnings: PedagogyIssue[] = []
   const E = (path: string, rule: string, detail: string) => errors.push({ path, rule, detail })
   const Wn = (path: string, rule: string, detail: string) => warnings.push({ path, rule, detail })
+
+  // ── 0. 첫 활동은 설명 전에. hook 이 predict/decide 가 아니면 검증기가 이미 거부한다 ──
+  const hookFirst = c.what_we_learn.hook.kind === 'predict' || c.what_we_learn.hook.kind === 'decide'
+  // hook 의 reveal 에 정답을 다 써버리면 "예측" 이 아니라 "정답 먼저 보여주기" 가 된다
+  if (c.what_we_learn.hook.reveal.length > 320) {
+    Wn('what_we_learn.hook.reveal', '예측 활동의 답이 김', '첫 예측의 reveal 은 방향만 주고 본론에서 풀어야 합니다')
+  }
 
   // ── 1. 활동 비율: 설명 한 단위마다 학생이 무언가를 해야 한다 ─────────────
   const blocks = c.main_lesson.blocks
@@ -168,9 +187,16 @@ export function pedagogyLint(c: WorksheetContent): PedagogyReport {
   // ── 9. 난이도 ───────────────────────────────────────────────────────────
   if (c.quiz.every((q) => q.difficulty <= 2)) Wn('quiz', '난이도 상한', '난이도 3 문제가 없습니다')
 
+  // ── 10. 핵심 경로 비중 ─────────────────────────────────────────────────
+  const asideText = enrichment + c.next_steps.reduce((n, x) => n + x.title.length + x.why.length, 0)
+  const coreText = core + c.what_we_learn.analogy.length + textOf(c.what_we_learn.summary).length
+    + c.quiz.reduce((n, q) => n + q.question.length + q.answer.length + q.explanation.length, 0)
+    + c.homework.tasks.reduce((n, t) => n + t.detail.length, 0)
+  const corePathRatio = coreText + asideText ? coreText / (coreText + asideText) : 1
+
   return {
     ok: errors.length === 0, errors, warnings,
-    metrics: { activityRatio, farTransfer, figures: c.figures.length, enrichmentRatio, verbatimQuiz: verbatim },
+    metrics: { activityRatio, farTransfer, figures: c.figures.length, enrichmentRatio, verbatimQuiz: verbatim, hookFirst, corePathRatio },
   }
 }
 

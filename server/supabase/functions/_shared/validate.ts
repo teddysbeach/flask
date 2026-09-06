@@ -106,9 +106,32 @@ export function validateWorksheet(input: unknown): WorksheetContent {
   const assumes = arr(c, r.assumes, 'assumes', 1, 4)
     .map((a, i) => str(c, a, `assumes[${i}]`, { max: 120 }))
 
+  // 활동 하나의 공통 형태. hook 과 블록 활동이 같은 검증을 받는다.
+  const activity = (v: unknown, path: string) => {
+    const a = obj(c, v, path)
+    const kind = oneOf(c, a.kind, `${path}.kind`, ['predict', 'decide', 'compute', 'draw', 'explain'] as const)
+    const options = a.options == null ? null
+      : arr(c, a.options, `${path}.options`, 2, 5).map((x, j) => str(c, x, `${path}.options[${j}]`, { max: 120 }))
+    if ((kind === 'predict' || kind === 'decide') && !options) {
+      c.issues.push(at(`${path}.options`, `${kind} 활동은 고를 것(options)이 있어야 합니다`))
+    }
+    return {
+      kind,
+      prompt: str(c, a.prompt, `${path}.prompt`, { min: 10, max: 400 }),
+      options,
+      reveal: str(c, a.reveal, `${path}.reveal`, { min: 10, max: 500 }),
+    }
+  }
+
   // ① 무엇을 배우는가 — 일상 비유가 반드시 먼저 온다 (설명 사다리 ①단)
   const w = obj(c, r.what_we_learn, 'what_we_learn')
+  const hook = activity(w.hook, 'what_we_learn.hook')
+  // 첫 예측은 반드시 고르는 것이어야 한다. 계산이나 그림은 아직 아무것도 모르는 상태에서 시킬 수 없다.
+  if (hook.kind !== 'predict' && hook.kind !== 'decide') {
+    c.issues.push(at('what_we_learn.hook.kind', `첫 활동은 predict 또는 decide 여야 합니다 (받은 값: ${hook.kind}). 설명 전이라 고를 수만 있습니다`))
+  }
   const whatWeLearn = {
+    hook,
     analogy: str(c, w.analogy, 'what_we_learn.analogy', { min: 10, max: 400 }),
     summary: inline(c, w.summary, 'what_we_learn.summary'),
     objectives: arr(c, w.objectives, 'what_we_learn.objectives', 3, 3)
@@ -149,7 +172,8 @@ export function validateWorksheet(input: unknown): WorksheetContent {
       const xr = arr(c, sp.xRange, `figures[${i}].spec.xRange`, 2, 2).map((v, j) => num(c, v, `figures[${i}].spec.xRange[${j}]`, -100, 100))
       spec = {
         kind,
-        fn: oneOf(c, sp.fn, `figures[${i}].spec.fn`, ['x^2', 'x^3', 'sin', 'exp', 'linear'] as const),
+        fn: oneOf(c, sp.fn, `figures[${i}].spec.fn`, ['x^2', 'x^3', 'sin', 'exp', 'linear', 'abs'] as const),
+        interactive: sp.interactive === true,
         xRange: xr,
         points: sp.points == null ? undefined : arr(c, sp.points, `figures[${i}].spec.points`, 0, 8).map((v, j) => num(c, v, `figures[${i}].spec.points[${j}]`, -100, 100)),
         secant: sp.secant == null ? undefined : arr(c, sp.secant, `figures[${i}].spec.secant`, 2, 2).map((v, j) => num(c, v, `figures[${i}].spec.secant[${j}]`, -100, 100)),
@@ -157,7 +181,12 @@ export function validateWorksheet(input: unknown): WorksheetContent {
         label: sp.label == null ? undefined : str(c, sp.label, `figures[${i}].spec.label`, { max: 60 }),
       }
     } else if (kind === 'distribution') {
-      spec = { kind, panels: arr(c, sp.panels, `figures[${i}].spec.panels`, 1, 4).map((pn, j) => {
+      // 슬릿 폭을 무시한 점-경로 모델이다. 실제 단일슬릿은 넓은 회절 무늬를 만든다.
+      // 이 사실을 그림에 밝히지 않으면 학생이 나중에 실제 사진을 보고 혼란스러워한다.
+      if (sp.idealized !== true) {
+        c.issues.push(at(`figures[${i}].spec.idealized`, 'distribution 도형은 idealized: true 로 이상화 모델임을 밝혀야 합니다'))
+      }
+      spec = { kind, interactive: sp.interactive === true, idealized: true, panels: arr(c, sp.panels, `figures[${i}].spec.panels`, 1, 4).map((pn, j) => {
         const po = obj(c, pn, `figures[${i}].spec.panels[${j}]`)
         return {
           title: str(c, po.title, `figures[${i}].spec.panels[${j}].title`, { max: 60 }),
@@ -275,21 +304,7 @@ export function validateWorksheet(input: unknown): WorksheetContent {
           if (fid && !figureIds.has(fid)) c.issues.push(at(`main_lesson.blocks[${i}].figure`, `figures 에 없는 id: ${fid}`))
           return fid
         })(),
-        activity: o.activity == null ? null : (() => {
-          const a = obj(c, o.activity, `main_lesson.blocks[${i}].activity`)
-          const kind = oneOf(c, a.kind, `main_lesson.blocks[${i}].activity.kind`, ['predict', 'decide', 'compute', 'draw', 'explain'] as const)
-          const options = a.options == null ? null
-            : arr(c, a.options, `main_lesson.blocks[${i}].activity.options`, 2, 5).map((x, j) => str(c, x, `main_lesson.blocks[${i}].activity.options[${j}]`, { max: 120 }))
-          if ((kind === 'predict' || kind === 'decide') && !options) {
-            c.issues.push(at(`main_lesson.blocks[${i}].activity.options`, `${kind} 활동은 고를 것(options)이 있어야 합니다`))
-          }
-          return {
-            kind,
-            prompt: str(c, a.prompt, `main_lesson.blocks[${i}].activity.prompt`, { min: 10, max: 400 }),
-            options,
-            reveal: str(c, a.reveal, `main_lesson.blocks[${i}].activity.reveal`, { min: 10, max: 500 }),
-          }
-        })(),
+        activity: o.activity == null ? null : activity(o.activity, `main_lesson.blocks[${i}].activity`),
         common_mistake: nullableStr(c, o.common_mistake, `main_lesson.blocks[${i}].common_mistake`, 400),
       }
     }),
@@ -373,6 +388,7 @@ export function validateWorksheet(input: unknown): WorksheetContent {
     daily_life_guide: inline(c, wu.daily_life_guide, 'wrap_up.daily_life_guide'),
     checklist: arr(c, wu.checklist, 'wrap_up.checklist', 2, 6)
       .map((x, i) => str(c, x, `wrap_up.checklist[${i}]`, { max: 200 })),
+    reflection: str(c, wu.reflection, 'wrap_up.reflection', { min: 15, max: 300 }),
   }
 
   // ⑪ 다음 단계

@@ -42,9 +42,15 @@ export type ExampleKind = 'code' | 'calc' | 'steps' | 'compare' | 'scene'
  *   swatches      색 견본 비교 (미술)
  */
 export type FigureSpec =
-  | { kind: 'plot'; fn: 'x^2' | 'x^3' | 'sin' | 'exp' | 'linear'; xRange: [number, number]
-      points?: number[]; secant?: [number, number]; tangentAt?: number; label?: string }
-  | { kind: 'distribution'; panels: { title: string; profile: 'two-humps' | 'fringes' | 'fringes-weak' | 'single' }[] }
+  | { kind: 'plot'; fn: 'x^2' | 'x^3' | 'sin' | 'exp' | 'linear' | 'abs'; xRange: [number, number]
+      points?: number[]; secant?: [number, number]; tangentAt?: number; label?: string
+      /** true 면 두 번째 점을 슬라이더로 움직여 할선이 접선으로 가는 것을 직접 본다 (h 는 양쪽 다) */
+      interactive?: boolean }
+  | { kind: 'distribution'; panels: { title: string; profile: 'two-humps' | 'fringes' | 'fringes-weak' | 'single' }[]
+      /** true 면 경로정보 슬라이더로 간섭 가시도가 연속적으로 줄어드는 것을 본다 */
+      interactive?: boolean
+      /** 슬릿 폭을 무시한 이상화 모델임을 그림에 밝힌다. distribution 은 항상 true 여야 한다(검증기). */
+      idealized?: boolean }
   | { kind: 'tonecurve'; curve: 'linear' | 's-mild' | 's-strong' | 'inverse-s'; clipHighlights?: boolean }
   | { kind: 'swatches'; rows: { label: string; colors: string[] }[] }
 
@@ -108,7 +114,12 @@ export interface WorksheetContent {
   assumes: string[]
 
   what_we_learn: {
-    /** 일상 비유. 설명 사다리 ①단이고 학습지 맨 앞에 온다. 이게 없으면 독자는 걸어둘 못이 없다. */
+    /**
+     * 첫 화면의 예측 활동. 설명을 하나도 읽기 전에 틀릴 기회를 준다.
+     * 역사와 상황극을 다 읽고 나서 예측하면 이미 정답이 머릿속에 들어와 있다.
+     */
+    hook: Activity
+    /** 일상 비유. 설명 사다리 ①단. hook 다음에 온다. */
     analogy: string
     summary: InlineNode[]
     objectives: string[]          // 정확히 3개
@@ -194,6 +205,8 @@ export interface WorksheetContent {
     usage_examples: string[]      // 2~4개
     daily_life_guide: InlineNode[]
     checklist: string[]
+    /** 필기칸에 붙는 인지 명령. "첫 예측과 실제 결과가 어디서 달랐는지 적으세요" 처럼. */
+    reflection: string
   }
 
   next_steps: { title: string; why: string; difficulty_delta: 'same' | 'harder' }[]
@@ -208,18 +221,24 @@ export interface RenderContext {
 }
 
 /** 11개 섹션. 순서 불변이고 내용이 빈약해도 생략하지 않는다. */
+/**
+ * 11개 섹션. 순서는 제품 요구사항이라 고정이지만, 학습 경로는 둘로 나뉜다.
+ *   core: true  — 예측·개념·연습·평가. 반드시 지나가는 길.
+ *   core: false — 역사·상황극·꿀팁·다음단계. 접혀 있고, 원하면 편다.
+ * 30분짜리 학습지가 17,000px 이면 학생은 난이도보다 길이에 먼저 압도된다.
+ */
 export const SECTIONS = [
-  { key: 'what_we_learn',   title: '무엇을 배우는가',        ink: 'sm' },
-  { key: 'before_and_need', title: '이것이 생기기 전에는',    ink: 'md' },
-  { key: 'prerequisites',   title: '먼저 보면 좋은 학습지',   ink: 'sm' },
-  { key: 'origin_story',    title: '탄생 배경',              ink: 'md' },
-  { key: 'roleplay',        title: '상황극 & 예시',          ink: 'md' },
-  { key: 'main_lesson',     title: '본론',                   ink: 'lg' },
-  { key: 'pro_tips',        title: '꿀팁',                   ink: 'md' },
-  { key: 'quiz',            title: '질의 5개',               ink: 'sm' },
-  { key: 'homework',        title: '숙제 & 과제',            ink: 'lg' },
-  { key: 'wrap_up',         title: '마무리 팁',              ink: 'md' },
-  { key: 'next_steps',      title: '다음 단계 제안',          ink: 'sm' },
+  { key: 'what_we_learn',   title: '무엇을 배우는가',        core: true  },
+  { key: 'before_and_need', title: '이것이 생기기 전에는',    core: false },
+  { key: 'prerequisites',   title: '먼저 알고 있어야 할 것',  core: true  },
+  { key: 'origin_story',    title: '탄생 배경',              core: false },
+  { key: 'roleplay',        title: '상황극 & 예시',          core: false },
+  { key: 'main_lesson',     title: '본론',                   core: true  },
+  { key: 'pro_tips',        title: '꿀팁',                   core: false },
+  { key: 'quiz',            title: '적용 문제',              core: true  },
+  { key: 'homework',        title: '직접 해보기',            core: true  },
+  { key: 'wrap_up',         title: '정리',                   core: true  },
+  { key: 'next_steps',      title: '다음 단계 제안',          core: false },
 ] as const
 
 export const SECTION_KEYS = SECTIONS.map((s) => s.key) as readonly SectionKey[]

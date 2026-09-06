@@ -297,6 +297,60 @@ test('코드가 아닌 예시에 language 를 붙이면 거부한다', () => {
     e.issues.some((i: string) => i.includes('language')))
 })
 
+console.log('\n▸ 학습설계 린트 — 분야별 오개념 헤드라인 (V3 평가에서 추가)')
+
+/** 분야만 바꾸고 본론 첫 블록 제목에 문장을 심어 린트에 걸리는지 본다. */
+function lintWithHeading(category: string, heading: string) {
+  const c = structuredClone(content) as any
+  c.category = category
+  c.main_lesson.blocks[0].heading = heading
+  return pedagogyLint(c).errors.filter((e) => e.rule === '오개념')
+}
+
+test('V3 평가가 짚은 오개념 문장을 잡는다', () => {
+  const cases: [string, string][] = [
+    ['math', '정확히 접선이 되려면 h를 0으로 놓으면 돼요'],
+    ['math', '이건 초등학교 산수예요'],
+    ['science', '슬릿 하나면 봉우리 하나예요'],
+    ['science', '전자는 둘 중 하나가 아니라 둘 다 아니에요'],
+    ['science', '질문이 답의 모양을 정해요'],
+    ['art', '회색 카드는 조명을 덜 받아서 기준이 돼요'],
+    ['art', '보정은 언제나 이 순서대로 해요'],
+    ['art', '따뜻하게 만들려면 하이라이트에 노랑, 그림자에 파랑을 넣어요'],
+  ]
+  for (const [cat, bad] of cases) {
+    assert.ok(lintWithHeading(cat, bad).length > 0, `[${cat}] "${bad}" 를 못 잡았다`)
+  }
+})
+
+test('같은 문장이라도 바로 반박하면 잡지 않는다', () => {
+  const cases: [string, string][] = [
+    ['math', '"h를 0으로 놓으면 돼요" 는 틀린 생각이에요'],
+    ['science', '슬릿 하나면 봉우리 하나라고 생각하기 쉽지만, 실제로는 아니에요'],
+    ['art', '조명을 덜 받는 카드를 쓰면 안 돼요'],
+    ['art', '순서는 언제나 이 순서라는 규칙이 아니에요'],
+  ]
+  for (const [cat, ok] of cases) {
+    assert.equal(lintWithHeading(cat, ok).length, 0, `[${cat}] 반박 문장 "${ok}" 을 오개념으로 잘못 잡았다`)
+  }
+})
+
+test('다른 분야의 덫은 적용하지 않는다', () => {
+  assert.equal(lintWithHeading('cs', '슬릿 하나면 봉우리 하나예요').length, 0)
+})
+
+test('첫 활동이 고르는 것이 아니면 hookFirst 가 꺼진다', () => {
+  const c = structuredClone(content) as any
+  c.what_we_learn.hook = { kind: 'compute', prompt: c.what_we_learn.hook.prompt, options: null, reveal: c.what_we_learn.hook.reveal }
+  assert.equal(pedagogyLint(c).metrics.hookFirst, false)
+  assert.equal(pedagogyLint(content).metrics.hookFirst, true)
+})
+
+test('핵심 경로 비중을 잰다 (보조 콘텐츠가 본론을 넘지 않는다)', () => {
+  const m = pedagogyLint(content).metrics
+  assert.ok(m.corePathRatio > 0.5, `핵심 경로가 ${Math.round(m.corePathRatio * 100)}% 뿐이다`)
+})
+
 console.log('\n▸ 말투 (파르)')
 
 test('픽스처가 말투 규칙을 지킨다', () => {
