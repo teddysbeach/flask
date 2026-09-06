@@ -1,4 +1,6 @@
-# Baewoom (배움) — 학습지 생성 앱
+# ONPAR (온파) — 학습지 생성 앱
+
+**ONPAR** = 온(전부의·온전한) + par(라틴어·스페인어·영어: 동등한) — *"모두가 같은 자리에서 배운다."*
 
 > 배우고 싶은 개념을 입력하면 **11개 섹션으로 구조화된 학습지**를 만들어주고,
 > 아이패드에서 애플펜슬로 바로 필기하며 풀고,
@@ -17,6 +19,7 @@
 | 필기 | WebView 내부 Canvas + Pointer Events (Apple Pencil 필압) |
 | 복습 | 에빙하우스 간격(1/3/7/16/35일) + SM-2 lite + 로컬 알림 |
 | 무료 정책 | 계정당 학습지 2개 (장당 생성 실비 150원 이내) |
+| 유료 | 인앱결제 소모성 상품 — **학습지 5장 1,900원** |
 
 ## 학습지 11개 섹션
 
@@ -28,12 +31,12 @@
 
 | 문서 | 내용 |
 |---|---|
-| [00. 제품 개요](docs/plan/00-overview.md) | 문제 정의, 가설, 스코프, 성공 지표 |
+| [00. 제품 개요](docs/plan/00-overview.md) | 문제 정의, 가설, 스코프, 성공 지표, **유닛 이코노믹스** |
 | [01. 아키텍처](docs/plan/01-architecture.md) | 시스템 구성, 기술 선택 근거, 폴더 구조 |
 | [02. 디자인 시스템](docs/plan/02-design-system.md) | Orca 토큰, 브랜드 액센트, 교체 절차 |
-| [03. 데이터 모델](docs/plan/03-data-model.md) | Supabase 스키마, RLS, 쿼터 원자성 |
+| [03. 데이터 모델](docs/plan/03-data-model.md) | Supabase 스키마, RLS, 쿼터 원자성, 결제 원장 |
 | [04. 학습지 규격](docs/plan/04-worksheet-spec.md) | 11섹션 JSON 스키마, HTML 규격, 2단계 LLM 호출·비용 예산 |
-| [05. API 규격](docs/plan/05-api-spec.md) | Edge Function / PostgREST 경계, 오류 코드 |
+| [05. API 규격](docs/plan/05-api-spec.md) | Edge Function / PostgREST 경계, 영수증 검증, 오류 코드 |
 | [06. 필기 레이어](docs/plan/06-annotation.md) | 아이패드 필기 설계, 좌표계, 동기화 |
 | [07. 복습 & 알림](docs/plan/07-review-notifications.md) | 망각곡선, SM-2 lite, iOS 64개 한도 대응 |
 | [08. 로드맵](docs/plan/08-roadmap.md) | M0~M5 마일스톤과 작업 분해 |
@@ -44,6 +47,16 @@
 디자인은 **`design/design_tokens.json` 하나가 유일한 교체 지점**이다.
 값만 바꾸고 `dart run design/build_tokens.dart` 를 돌리면 Flutter 테마와 학습지 CSS가 함께 다시 생성된다.
 앱 코드도 학습지 렌더러도 한 줄 고치지 않는다. 코드에 색·간격·서체 리터럴이 없도록 CI가 강제한다.
+
+## ⚠️ 유닛 이코노믹스 주의
+
+현재 가격(5장 1,900원)과 원가(장당 133원) 구조에서 **손익분기 결제 전환율은 33%** 로,
+일반 앱의 유료 전환율(2~5%)과 큰 격차가 있다. 무료 2장 원가를 CAC(266원/명)로 보면
+매우 저렴하지만, 자금 계획 없이는 확산이 곧 적자다.
+계산 근거와 레버 3개는 [00. 제품 개요 §7](docs/plan/00-overview.md) 참조.
+
+**최우선 조치**: Apple Small Business Program / Google Play 소규모 사업자 등록
+(신청만으로 수수료 30% → 15%, 팩 마진 47% 상승).
 
 ## 착수 전 블로커
 

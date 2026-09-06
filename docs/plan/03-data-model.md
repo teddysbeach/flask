@@ -113,6 +113,30 @@ auth.users ─1:1─ profiles
 
 인덱스: `(user_id, state, due_at)` — "다가오는 복습 N개" 조회의 핵심.
 
+### `purchases`
+
+인앱결제 원장. **영수증 검증에 성공한 것만 기록되며, 이 표가 쿼터 지급의 유일한 근거다.**
+
+| 컬럼 | 타입 | 비고 |
+|---|---|---|
+| `id` | `uuid PK` | |
+| `user_id` | `uuid not null` | |
+| `platform` | `text not null` | `ios` / `android` |
+| `product_id` | `text not null` | `onpar.sheets.5` |
+| `transaction_id` | `text not null` | 스토어 트랜잭션 ID |
+| `original_transaction_id` | `text` | Apple 환불 알림 매칭용 |
+| `quantity_granted` | `int not null` | 지급한 학습지 장수 (5) |
+| `price_krw` | `int` | 표시가 1900 |
+| `state` | `text not null default 'granted'` | `granted` / `refunded` / `revoked` |
+| `raw_receipt` | `jsonb` | 검증 응답 원본 (분쟁 대응) |
+| `purchased_at` / `created_at` | `timestamptz` | |
+| `refunded_at` | `timestamptz` | |
+
+**`unique (platform, transaction_id)`** — 이 제약 하나가 **중복 지급을 막는 핵심**이다.
+재시도·네트워크 오류로 같은 영수증이 두 번 들어와도 두 번째는 DB가 거부한다.
+
+인덱스: `(user_id, purchased_at desc)`, `(original_transaction_id)`.
+
 ### `generation_jobs`
 
 | 컬럼 | 타입 |
@@ -148,6 +172,7 @@ create policy "own_update" on worksheets
 | `annotations` | 본인 | 본인 | 본인 | 본인 |
 | `review_schedules` | 본인 | ✕ | ✕ (채점은 Fn) | ✕ |
 | `generation_jobs` | 본인 | ✕ | ✕ | ✕ |
+| `purchases` | 본인 (`raw_receipt` 제외) | ✕ (Fn만) | ✕ | ✕ |
 
 **중요**: `profiles.quota_total` / `quota_used` 는 클라이언트가 절대 못 바꾸게 한다.
 Postgres 컬럼 단위 GRANT (`revoke update (quota_total, quota_used) on profiles from authenticated`)
@@ -184,6 +209,42 @@ end $$;
 - `WHERE quota_used < quota_total` 가 행 잠금 + 조건을 한 번에 처리 → 레이스 불가.
 - `execute` 권한은 `service_role` 에만 부여. `authenticated` 에서 회수.
 - 생성 실패 시 반드시 `refund_quota`. 단 **부분 성공(HTML까지 만들어짐)은 환불하지 않는다.**
+
+### 결제 지급 — 중복 방지가 내장된 한 트랜잭션
+
+```sql
+create or replace function grant_quota_from_purchase(
+  p_user uuid, p_platform text, p_product_id text,
+  p_transaction_id text, p_original_transaction_id text,
+  p_quantity int, p_price_krw int, p_receipt jsonb
+) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare v_id uuid;
+begin
+  -- unique(platform, transaction_id) 위반 시 아무것도 하지 않고 기존 행을 돌려준다.
+  -- 재시도가 몇 번 들어와도 지급은 정확히 한 번.
+  insert into purchases (user_id, platform, product_id, transaction_id,
+                         original_transaction_id, quantity_granted, price_krw, raw_receipt)
+  values (p_user, p_platform, p_product_id, p_transaction_id,
+          p_original_transaction_id, p_quantity, p_price_krw, p_receipt)
+  on conflict (platform, transaction_id) do nothing
+  returning id into v_id;
+
+  if v_id is null then                        -- 이미 처리된 영수증
+    select id into v_id from purchases
+     where platform = p_platform and transaction_id = p_transaction_id;
+    return v_id;
+  end if;
+
+  update profiles set quota_total = quota_total + p_quantity where id = p_user;
+  return v_id;
+end $$;
+```
+
+환불 회수(`revoke_quota_from_purchase`)도 같은 형태로 둔다. 스토어 환불 알림이 오면
+`purchases.state = 'refunded'` 로 바꾸고 `quota_total` 에서 차감한다.
+**단, 이미 써버린 장수는 회수하지 않는다** (`quota_used` 는 건드리지 않는다 —
+`quota_used > quota_total` 이 되면 생성이 자연스럽게 막힌다).
 
 ## 5. 마이그레이션 파일
 
