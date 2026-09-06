@@ -9,7 +9,7 @@
 | M2 | 생성 파이프라인 | 주제 → 학습지 JSON → HTML | M0 |
 | M3 | 뷰어 & 필기 | iPad에서 학습지에 필기 | M0 spike, M2 |
 | M4 | 복습 & 알림 | 망각곡선 로컬 알림 | M2 |
-| M4.5 | 인앱결제 | 5장 1,900원 판매 | M1 |
+| M4.5 | 인앱결제 | 소모성 팩 3종 판매 | M1 |
 | M5 | 다듬기 & 베타 | TestFlight 배포 | M1~M4.5 |
 
 디자인 토큰은 확보되었으므로 M2·M3 를 병렬로 진행할 수 있다.
@@ -104,19 +104,24 @@
 
 - [ ] **Apple Small Business Program / Google Play 소규모 사업자 등록** ⭐ 수수료 30% → 15%.
       신청만으로 마진이 47% 오른다. 다른 어떤 작업보다 먼저 한다
-- [ ] App Store Connect / Play Console 에 소모성 상품 `onpar.sheets.5` (1,900원) 등록
+- [ ] App Store Connect / Play Console 에 소모성 상품 3종 등록
+      `onpar.sheets.3` 4,900원 / `onpar.sheets.10` 12,900원 / `onpar.sheets.30` 29,900원
+      (한국 가격 티어 존재 여부 Console 확인 — `10-pricing.md` §8)
+- [ ] **서버 상품 카탈로그** — 지급 장수는 서버가 정한다. 클라이언트 값 신뢰 금지
 - [ ] `purchases` 테이블 + `grant_quota_from_purchase()` / `revoke_quota_from_purchase()` 마이그레이션
 - [ ] `verify-purchase` Edge Function
   - [ ] Apple App Store Server API JWS 검증
   - [ ] Google Play Developer API `purchases.products.get` 검증
   - [ ] `grant_quota_from_purchase()` 호출 (멱등)
 - [ ] `store-webhook` Edge Function — 환불/취소 시 쿼터 회수 (서명 검증)
-- [ ] 앱: 구매 화면 (쿼터 소진 시 + 설정에서 진입)
+- [ ] 앱: 구매 화면 — 10장을 기본 선택 + "가장 인기" 배지, 3장은 앵커로 상단 배치
+- [ ] 앱: 상품 설명에 **"이미 만든 학습지는 계속 이용 가능"** 명시 (`10-pricing.md` §5)
 - [ ] 앱: **미완료 트랜잭션 재시도 큐** — 결제됐는데 지급 실패한 경우 복구
       (`Transaction.updates` / `queryPurchasesAsync` 상시 리스너)
 - [ ] 서버 지급 성공 후에만 `finish()` / `acknowledge()`
 - [ ] 테스트: 샌드박스 결제, 중복 영수증 2회 전송(1회만 지급되는지), 환불 회수, 지급 실패 후 재시도
-- [ ] 결제 지표 계측: 쿼터 소진 → 구매 화면 진입 → 결제 완료 퍼널
+- [ ] 결제 지표 계측: 쿼터 소진 → 구매 화면 진입 → 결제 완료 퍼널 + **상품별 구성비**
+      (3장 비중이 50% 넘으면 앵커가 작동 안 하는 것 — `10-pricing.md` §7)
 
 ## M5 — 다듬기 & 베타
 
@@ -127,7 +132,7 @@
 - [ ] 앱 아이콘 / 스플래시 / 스토어 스크린샷
 - [ ] 개인정보처리방침 · 이용약관 (LLM 사용 및 데이터 처리 고지 포함)
 - [ ] 전자상거래 표시사항 (사업자 정보, 청약철회 안내 — 소모성 상품 특성 명시)
-- [ ] **베타 종료 시 결제 전환율 실측 → 가격·무료 장수 재검토** (`00-overview.md` §7 권고 4)
+- [ ] **베타 종료 시 결제 전환율·재구매율 실측 → `10-pricing.md` §7 조정 규칙 적용**
 - [ ] 계정 삭제 기능 (App Store 심사 필수 요건)
 - [ ] Sentry 크래시 리포팅 + 익명 사용 분석
 - [ ] LLM 비용 알람 및 소프트 차단 (`05-api-spec.md` §5)

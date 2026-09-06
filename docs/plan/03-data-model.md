@@ -122,11 +122,11 @@ auth.users ─1:1─ profiles
 | `id` | `uuid PK` | |
 | `user_id` | `uuid not null` | |
 | `platform` | `text not null` | `ios` / `android` |
-| `product_id` | `text not null` | `onpar.sheets.5` |
+| `product_id` | `text not null` | `onpar.sheets.3` / `.10` / `.30` |
 | `transaction_id` | `text not null` | 스토어 트랜잭션 ID |
 | `original_transaction_id` | `text` | Apple 환불 알림 매칭용 |
-| `quantity_granted` | `int not null` | 지급한 학습지 장수 (5) |
-| `price_krw` | `int` | 표시가 1900 |
+| `quantity_granted` | `int not null` | 지급 장수. **서버 카탈로그 기준** (3/10/30) |
+| `price_krw` | `int` | 표시가 (4900 / 12900 / 29900) |
 | `state` | `text not null default 'granted'` | `granted` / `refunded` / `revoked` |
 | `raw_receipt` | `jsonb` | 검증 응답 원본 (분쟁 대응) |
 | `purchased_at` / `created_at` | `timestamptz` | |

@@ -32,7 +32,14 @@ DB 접근은 `service_role` 클라이언트로 한다 (RLS 우회는 Fn 안에�
 { "worksheet_id": "uuid", "status": "queued", "quota_remaining": 1 }
 
 // 402 Payment Required — 쿼터 소진 → 앱은 구매 화면으로
-{ "error": "quota_exhausted", "quota_total": 2, "quota_used": 2, "product_id": "onpar.sheets.5" }
+{
+  "error": "quota_exhausted", "quota_total": 2, "quota_used": 2,
+  "products": [
+    { "id": "onpar.sheets.3",  "sheets": 3  },
+    { "id": "onpar.sheets.10", "sheets": 10, "recommended": true },
+    { "id": "onpar.sheets.30", "sheets": 30 }
+  ]
+}
 
 // 400 — topic 길이 위반(1~120자) / 금칙 입력
 { "error": "invalid_topic", "detail": "..." }
@@ -63,12 +70,12 @@ DB 접근은 `service_role` 클라이언트로 한다 (RLS 우회는 Fn 안에�
 // 요청 — 클라이언트가 스토어에서 받은 영수증/토큰을 그대로 올린다
 {
   "platform": "ios",
-  "product_id": "onpar.sheets.5",
+  "product_id": "onpar.sheets.10",
   "receipt": "<Apple: signedTransactionInfo (JWS) / Google: purchaseToken>"
 }
 
 // 200 — 지급 완료 (이미 처리된 영수증도 200. 멱등)
-{ "granted": 5, "quota_total": 7, "quota_used": 2, "purchase_id": "uuid", "already_processed": false }
+{ "granted": 10, "quota_total": 12, "quota_used": 2, "purchase_id": "uuid", "already_processed": false }
 
 // 400 — 영수증 검증 실패
 { "error": "invalid_receipt", "detail": "..." }
@@ -80,7 +87,9 @@ DB 접근은 `service_role` 클라이언트로 한다 (RLS 우회는 Fn 안에�
 **처리 순서**
 1. JWT 로 `user_id` 확인
 2. 플랫폼별 서버 검증 — Apple: App Store Server API 로 JWS 서명 검증 / Google: Play Developer API `purchases.products.get`
-3. `product_id` 가 우리가 파는 상품인지, 상태가 `purchased` 인지 확인
+3. `product_id` 가 **서버 상품 카탈로그**에 있는지, 상태가 `purchased` 인지 확인.
+   지급 장수는 클라이언트가 보낸 값이 아니라 **서버 카탈로그에서 조회한 값**을 쓴다
+   (`onpar.sheets.3` → 3, `.10` → 10, `.30` → 30). 클라이언트가 장수를 말하게 두면 안 된다.
 4. `grant_quota_from_purchase()` 호출 — **`unique(platform, transaction_id)` 가 중복 지급을 막는다** (`03-data-model.md` §4)
 5. 성공 응답 후에야 클라이언트가 트랜잭션을 `finish()` / `acknowledge()` 한다
 
@@ -146,7 +155,7 @@ supabase.channel('ws:$worksheetId')
 
 | 코드 | HTTP | 의미 | 앱 동작 |
 |---|---|---|---|
-| `quota_exhausted` | 402 | 잔여 쿼터 없음 | 구매 화면 (5장 1,900원) |
+| `quota_exhausted` | 402 | 잔여 쿼터 없음 | 구매 화면 (팩 3종) |
 | `invalid_topic` | 400 | 주제 형식 위반 | 입력창 인라인 오류 |
 | `generation_in_progress` | 429 | 이미 생성 중 | 진행 중 학습지로 이동 |
 | `plan_schema_invalid` | — (잡 실패) | 설계 단계 스키마 위반 (재요청 후에도) | 재시도 버튼 + 쿼터 환불됨 |
