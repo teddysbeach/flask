@@ -8,6 +8,7 @@
 
 import { TOKENS_CSS } from './tokens.css.ts'
 import { WORKSHEET_CSS } from './worksheet-css.ts'
+import { INK_RUNTIME_JS } from './ink-runtime.g.ts'
 import { SECTIONS } from './worksheet-types.ts'
 import type { WorksheetContent, InlineNode, RenderContext } from './worksheet-types.ts'
 
@@ -220,6 +221,7 @@ ${sections}
 <canvas class="ink-layer" id="ink-layer" aria-hidden="true"></canvas>
 </article>
 </div>
+<script>${INK_RUNTIME_JS}</script>
 </body>
 </html>`
 }

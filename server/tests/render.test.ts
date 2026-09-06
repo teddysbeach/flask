@@ -112,7 +112,12 @@ test('XSS: 모든 문자열 필드에 공격 문자열을 넣어도 태그가 �
   poisoned.next_steps[0].title = ATTACK
 
   const html = renderWorksheet(validateWorksheet(poisoned), CTX)
-  const body = html.slice(html.indexOf('<body>'))
+  // 우리가 넣은 필기 런타임 <script> 블록은 통째로 걷어내고 검사한다.
+  // 허용 목록에 'script' 를 넣어버리면 주입된 스크립트를 못 잡게 된다.
+  const body = html
+    .slice(html.indexOf('<body>'))
+    .replace(/<script>[\s\S]*?<\/script>/g, '')
+  assert(!body.includes('<script'), '런타임 블록을 걷어낸 뒤에도 script 태그가 남아있다')
 
   // 이스케이프된 텍스트에도 'onerror=' 라는 '문자열'은 남는다. 그건 위험하지 않다.
   // 위험한 건 실제 '엘리먼트'가 생기는 것이므로, 문서에 존재하는 태그 이름을 전부 뽑아
@@ -172,6 +177,12 @@ test('필기 여백이 섹션마다 들어간다', () => {
   const n = (html.match(/class="ink-space"/g) ?? []).length
   // 섹션 10개(문제 섹션 제외) + 문제 5개
   assert(n === 15, `필기 여백이 ${n}개다 (15개여야 함)`)
+})
+
+test('필기 런타임이 인라인으로 박혀 있다', () => {
+  assert(html.includes('ONPAR_INK'), '필기 런타임이 없다')
+  assert(html.includes('getCoalescedEvents'), 'ProMotion 샘플 수집이 빠졌다')
+  assert(html.includes("pointerType === 'pen'"), '팜 리젝션이 빠졌다')
 })
 
 test('외부 리소스를 하나도 참조하지 않는다 (오프라인 렌더)', () => {
