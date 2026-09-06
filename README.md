@@ -42,6 +42,7 @@
 | [08. 로드맵](docs/plan/08-roadmap.md) | M0~M5 마일스톤과 작업 분해 |
 | [09. 미결정 사항](docs/plan/09-open-questions.md) | 질문 7개 + 리스크 10개 |
 | [10. 가격 설계](docs/plan/10-pricing.md) | 가격 3종, 유닛 이코노믹스, 실측 후 조정 규칙 |
+| [11. 목소리와 페르소나](docs/plan/11-voice-and-persona.md) | 파르 페르소나, 설명 사다리, 단어 정책, 말투 강제 |
 
 ## 디자인 교체
 

@@ -95,6 +95,10 @@ test('XSS: 모든 문자열 필드에 공격 문자열을 넣어도 태그가 �
   poisoned.title = ATTACK
   poisoned.topic_normalized = ATTACK
   poisoned.what_we_learn.one_liner = ATTACK
+  poisoned.what_we_learn.analogy = ATTACK
+  poisoned.glossary[0].term = ATTACK
+  poisoned.glossary[0].plain = ATTACK
+  poisoned.guide_notes[0].note = ATTACK
   poisoned.what_we_learn.objectives[0] = ATTACK
   poisoned.what_we_learn.summary[0] = { type: 'text', value: ATTACK }
   poisoned.roleplay.dialogue[0].line = ATTACK
@@ -125,7 +129,7 @@ test('XSS: 모든 문자열 필드에 공격 문자열을 넣어도 태그가 �
   const ALLOWED = new Set([
     'html', 'head', 'meta', 'title', 'style', 'body', 'div', 'article', 'header', 'footer',
     'section', 'h1', 'h2', 'p', 'span', 'ul', 'ol', 'li', 'strong', 'em', 'code', 'pre',
-    'details', 'summary', 'canvas',
+    'details', 'summary', 'canvas', 'dl', 'dt', 'dd', 'aside',
   ])
   const found = new Set([...body.matchAll(/<\/?([a-zA-Z][\w-]*)/g)].map((m) => m[1].toLowerCase()))
   const injected = [...found].filter((t) => !ALLOWED.has(t))
@@ -183,6 +187,29 @@ test('필기 런타임이 인라인으로 박혀 있다', () => {
   assert(html.includes('ONPAR_INK'), '필기 런타임이 없다')
   assert(html.includes('getCoalescedEvents'), 'ProMotion 샘플 수집이 빠졌다')
   assert(html.includes("pointerType === 'pen'"), '팜 리젝션이 빠졌다')
+})
+
+test('일상 비유가 정의보다 먼저 나온다 (설명 사다리 ①단)', () => {
+  const analogyPos = html.indexOf('class="analogy"')
+  const summaryPos = html.indexOf('class="p"')
+  assert(analogyPos > 0, '일상 비유 블록이 없다')
+  assert(analogyPos < summaryPos, '비유가 설명보다 뒤에 있다 — 독자가 걸어둘 못이 없어진다')
+})
+
+test('용어 풀이가 1번 섹션에 들어간다', () => {
+  assert(html.includes('class="glossary"'), '용어 풀이가 없다')
+  for (const g of content.glossary) assert(html.includes(esc(g.term)), `용어 누락: ${g.term}`)
+})
+
+test('파르의 말이 지정한 섹션에 배치된다', () => {
+  const count = (html.match(/class="par"/g) ?? []).length
+  assert(count === content.guide_notes.length, `파르 블록이 ${count}개 (${content.guide_notes.length}개여야 함)`)
+  for (const g of content.guide_notes) {
+    const secStart = html.indexOf(`data-section="${g.section}"`)
+    const secEnd = html.indexOf('<section', secStart + 1)
+    const section = html.slice(secStart, secEnd === -1 ? undefined : secEnd)
+    assert(section.includes(esc(g.note).slice(0, 30)), `파르의 말이 ${g.section} 섹션 밖에 있다`)
+  }
 })
 
 test('외부 리소스를 하나도 참조하지 않는다 (오프라인 렌더)', () => {

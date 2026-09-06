@@ -6,6 +6,7 @@
 
 import { validateWorksheet, ValidationError } from './validate.ts'
 import { crossCheck } from './cross-check.ts'
+import { voiceLint, voiceIssuesToPrompt } from './voice-lint.ts'
 import { renderWorksheet } from './render.ts'
 import { worksheetCostUsd, draftParams, decideDownshift } from './cost.ts'
 import { LlmRefusalError, LlmOutputError } from './claude-parse.ts'
@@ -15,6 +16,7 @@ import type { WorksheetContent, WorksheetOutline } from './worksheet-types.ts'
 
 export type ErrorCode =
   | 'plan_schema_invalid' | 'draft_schema_invalid' | 'draft_contradicts_plan'
+  | 'draft_voice_violation'
   | 'llm_refused' | 'llm_upstream_error' | 'render_failed'
 
 export class PipelineError extends Error {
@@ -127,6 +129,12 @@ export async function runGeneration(
       throw new PipelineError('draft_contradicts_plan', check.violations.slice(0, 10).join('; '))
     }
 
+    // ③-b 말투 검사 — 어려운 학습지는 이 제품의 존재 이유와 어긋난다
+    const voice = voiceLint(content)
+    if (!voice.ok) {
+      throw new PipelineError('draft_voice_violation', voiceIssuesToPrompt(voice))
+    }
+
     // ④ 렌더 — 결정론적 순수 함수
     stage = 'render'
     const quizItemIds = content.quiz.map(() => deps.newId())
@@ -190,7 +198,8 @@ const describe = (e: unknown) =>
 
 /** 재시도할 가치가 있는 실패인가. 거절이나 설계 위반은 다시 해도 같다. */
 export function isRetryable(code: ErrorCode): boolean {
-  return code === 'llm_upstream_error' || code === 'draft_schema_invalid' || code === 'draft_contradicts_plan'
+  return code === 'llm_upstream_error' || code === 'draft_schema_invalid'
+    || code === 'draft_contradicts_plan' || code === 'draft_voice_violation'
 }
 
 export const MAX_ATTEMPTS = 3

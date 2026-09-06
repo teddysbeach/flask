@@ -44,10 +44,19 @@ LLM 출력 문자열은 **전부 HTML 이스케이프** 후 삽입한다. 예외
   "estimated_minutes": 25,
 
   "what_we_learn": {
+    "analogy": "string",                   // 일상 비유. 정의보다 먼저 온다 (설명 사다리 ①단)
     "summary": [InlineNode],
     "objectives": ["string", "string", "string"],   // 정확히 3개
     "one_liner": "string"                            // 한 줄 정의
   },
+
+  "glossary": [                           // 3~6개 — 어려운 말을 그 자리에서 푼다
+    { "term": "string", "plain": "string" }
+  ],
+
+  "guide_notes": [                        // 2~4개 — 파르(먼저 헤맨 사람)의 한마디
+    { "section": SectionKey, "note": "string" }
+  ],
 
   "before_and_need": {
     "world_before": [InlineNode],          // 이전에는 어땠는지
@@ -317,5 +326,6 @@ const draft = await sonnet.messages.stream({
 | 렌더러 골든 테스트 | 픽스처 JSON → HTML 스냅샷 비교 (결정론성 보장) |
 | XSS | `<script>`, `" onload=` 등을 모든 문자열 필드에 넣어 이스케이프 확인 |
 | 프롬프트 회귀 | 고정 주제 10개에 대해 생성 → 섹션 누락·길이 초과·정직성 위반 자동 체크 |
+| 말투 | 금지 표현·반말 검출, 합니다체 오인 없음, 코드 블록 제외 |
 | 단계 간 정합성 | 집필 결과가 설계도의 `confidence` / `mode` / 문제 대상을 **뒤집지 않았는지** 자동 대조 |
 | 비용 회귀 | 30건 실측으로 장당 실비가 `$0.105` 목표·`$0.12` 경보 안에 드는지 확인 |

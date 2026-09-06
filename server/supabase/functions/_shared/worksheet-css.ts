@@ -99,6 +99,47 @@ code, .code {
 .list li { font-size: var(--ds-ws-body-size); line-height: var(--ds-ws-body-lh); margin-bottom: 8px; }
 .list li::marker { color: var(--ds-color-text-tertiary); }
 
+/* ── 일상 비유 ──
+   학습지에서 독자가 가장 먼저 읽는 문장. 정의보다 먼저 온다. */
+.analogy {
+  font-size: 19px; line-height: 1.7; font-weight: 500;
+  margin: 0 0 20px; padding: 18px 20px;
+  background: var(--ds-callout-story-bg);
+  border-radius: var(--ds-radius-lg);
+  color: var(--ds-color-text-primary);
+}
+
+/* ── 용어 풀이 ── */
+.glossary { margin: 0 0 16px; }
+.glossary dt {
+  font-size: 15px; font-weight: 700; margin-top: 14px;
+  color: var(--ds-color-brand-primary);
+}
+.glossary dt:first-child { margin-top: 0; }
+.glossary dd {
+  font-size: 15px; line-height: 1.7; margin: 4px 0 0;
+  color: var(--ds-color-text-secondary);
+}
+
+/* ── 파르 ──
+   선생이 아니라 옆자리에 앉은, 먼저 헤맨 사람. */
+.par {
+  display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start;
+  margin: 20px 0 0; padding: 14px 16px;
+  background: var(--ds-color-surface-sunken);
+  border-radius: var(--ds-radius-lg);
+}
+.par__badge {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: var(--ds-radius-full);
+  background: var(--ds-color-brand-primary); color: var(--ds-color-text-on-brand);
+  font-size: 12px; font-weight: 700; letter-spacing: -.02em;
+}
+.par__note {
+  font-size: 15px; line-height: 1.72; margin: 0;
+  color: var(--ds-color-text-primary);
+}
+
 /* ── 콜아웃 ── */
 .callout {
   border-left: var(--ds-callout-bar-width) solid;

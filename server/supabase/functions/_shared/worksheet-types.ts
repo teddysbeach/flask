@@ -6,6 +6,12 @@
 
 export const SCHEMA_VERSION = 1
 
+/** 11개 섹션 키. SECTIONS 상수는 파일 하단에 있고 값이 같아야 한다(테스트가 검사). */
+export type SectionKey =
+  | 'what_we_learn' | 'before_and_need' | 'prerequisites' | 'origin_story'
+  | 'roleplay' | 'main_lesson' | 'pro_tips' | 'quiz' | 'homework'
+  | 'wrap_up' | 'next_steps'
+
 export type Level = 'beginner' | 'intermediate' | 'advanced'
 export type Confidence = 'high' | 'medium' | 'low'
 export type QuizKind = 'short_answer' | 'multiple_choice' | 'explain'
@@ -39,10 +45,18 @@ export interface WorksheetContent {
   estimated_minutes: number
 
   what_we_learn: {
+    /** 일상 비유. 설명 사다리 ①단이고 학습지 맨 앞에 온다. 이게 없으면 독자는 걸어둘 못이 없다. */
+    analogy: string
     summary: InlineNode[]
     objectives: string[]          // 정확히 3개
     one_liner: string
   }
+
+  /** 어려운 말을 그 자리에서 푼다. 3~6개. docs/plan/11-voice-and-persona.md §3 */
+  glossary: { term: string; plain: string }[]
+
+  /** 파르(먼저 헤맨 사람)의 한마디. 막히기 쉬운 지점에 2~4개. */
+  guide_notes: { section: SectionKey; note: string }[]
 
   before_and_need: {
     world_before: InlineNode[]
@@ -123,4 +137,4 @@ export const SECTIONS = [
   { key: 'next_steps',      title: '다음 단계 제안',          ink: 'sm' },
 ] as const
 
-export type SectionKey = (typeof SECTIONS)[number]['key']
+export const SECTION_KEYS = SECTIONS.map((s) => s.key) as readonly SectionKey[]

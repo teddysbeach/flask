@@ -9,6 +9,7 @@ import { crossCheck } from '../supabase/functions/_shared/cross-check.ts'
 import * as rev from '../supabase/functions/_shared/review-schedule.ts'
 import { validateWorksheet } from '../supabase/functions/_shared/validate.ts'
 import { validateTopic, validateLevel } from '../supabase/functions/_shared/http.ts'
+import { voiceLint } from '../supabase/functions/_shared/voice-lint.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 let passed = 0
@@ -245,6 +246,58 @@ test('알림 본문은 문장 단위로 자른다', () => {
   assert.ok(body.length <= 101, `너무 길다: ${body.length}`)
   assert.ok(body.endsWith('…'))
   assert.equal(rev.notificationBody('짧은 질문?'), '짧은 질문?', '짧으면 자르지 않는다')
+})
+
+console.log('\n▸ 말투 (파르)')
+
+test('픽스처가 말투 규칙을 지킨다', () => {
+  const r = voiceLint(content)
+  assert.equal(r.errors.length, 0, r.errors.map((e) => `${e.path}: ${e.detail}`).join(' / '))
+  assert.ok(r.avgSentenceChars < 60, `평균 문장이 ${r.avgSentenceChars}자로 길다`)
+})
+
+test('못 따라온 사람을 소외시키는 말을 잡는다', () => {
+  for (const bad of ['이건 쉽죠?', '아주 간단합니다', '당연히 아는 내용이에요', '아시다시피 그렇죠', '별거 아니에요']) {
+    const r = voiceLint({ what_we_learn: { analogy: bad } })
+    assert.ok(r.errors.length > 0, `"${bad}" 를 못 잡았다`)
+  }
+})
+
+test('반말을 잡는다 (어미 나열이 아니라 평서형 전체를)', () => {
+  for (const bad of [
+    '이벤트는 과거형으로 짓는다.',      // '한다|이다|된다' 목록에 없는 어미
+    '상태를 저장하지 않는다.',
+    '그런 방법은 없다.',
+    '일단 해보자.',
+  ]) {
+    const r = voiceLint({ what_we_learn: { analogy: bad } })
+    assert.ok(r.errors.some((e) => e.rule === '반말'), `"${bad}" 를 못 잡았다`)
+  }
+})
+
+test('합니다체는 반말로 오인하지 않는다', () => {
+  for (const ok of ['이벤트를 순서대로 저장합니다.', '그것이 핵심입니다.', '어렵지는 않았습니다.']) {
+    const r = voiceLint({ what_we_learn: { analogy: ok } })
+    assert.equal(r.errors.filter((e) => e.rule === '반말').length, 0, `"${ok}" 를 반말로 잘못 잡았다`)
+  }
+})
+
+test('사용자 탓하는 실패 문구를 잡는다', () => {
+  const r = voiceLint({ what_we_learn: { analogy: '요청이 올바르지 않습니다' } })
+  assert.ok(r.errors.some((e) => e.rule === '사용자 탓'), '실패 문구는 언제나 우리 탓이어야 한다')
+})
+
+test('코드 블록은 말투 검사에서 제외한다', () => {
+  const r = voiceLint({
+    what_we_learn: { summary: [{ type: 'code', value: 'const x = 1; // 간단합니다' }] },
+  })
+  assert.equal(r.errors.length, 0, '코드 안의 주석까지 말투로 잡으면 안 된다')
+})
+
+test('딱딱한 한자어는 경고만 하고 막지는 않는다', () => {
+  const r = voiceLint({ what_we_learn: { analogy: '상태를 영속화해서 보관해요' } })
+  assert.equal(r.errors.length, 0, '경고가 실패가 되면 안 된다')
+  assert.ok(r.warnings.some((w) => w.rule === '딱딱한 한자어'))
 })
 
 console.log('\n▸ 입력 검증')

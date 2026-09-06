@@ -157,6 +157,21 @@ await test('집필이 설계의 사실성 판단을 뒤집으면 실패시킨다
   assert.equal(log.quotaRefunded, 1)
 })
 
+await test('집필이 소외시키는 말투를 쓰면 draft_voice_violation 으로 잡는다', async () => {
+  const rude = structuredClone(CONTENT)
+  rude.what_we_learn.analogy = '이건 당연히 아는 내용이라 아주 간단합니다. 쉽죠?'
+  const { deps, log } = makeDeps({ content: rude })
+  await assert.rejects(() => pipe.runGeneration(deps, INPUT, 'ws1'))
+  assert.equal(log.failures[0].code, 'draft_voice_violation',
+    '어려운 학습지는 이 제품의 존재 이유와 어긋난다')
+  assert.equal(log.quotaRefunded, 1)
+  assert.equal(log.uploads.length, 0, '말투 위반 학습지가 업로드됐다')
+})
+
+await test('말투 위반은 재시도한다 (다시 쓰면 고쳐질 수 있다)', () => {
+  assert.equal(pipe.isRetryable('draft_voice_violation'), true)
+})
+
 await test('집필이 문제 난이도를 바꾸면 draft_contradicts_plan 으로 잡는다', async () => {
   const twisted = structuredClone(CONTENT)
   twisted.quiz[0].difficulty = twisted.quiz[0].difficulty === 3 ? 1 : 3

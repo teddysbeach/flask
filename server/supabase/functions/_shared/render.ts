@@ -45,6 +45,11 @@ const inkSpace = (size: 'sm' | 'md' | 'lg') =>
 const callout = (kind: 'story' | 'tip' | 'caution', label: string, body: string) =>
   `<div class="callout callout--${kind}"><p class="callout__label">${esc(label)}</p>${body}</div>`
 
+/** 파르(먼저 헤맨 사람)의 한마디. 선생이 아니라 옆자리 사람의 목소리다. */
+const guideNote = (note: string) =>
+  `<aside class="par"><span class="par__badge" aria-hidden="true">파르</span>` +
+  `<p class="par__note">${esc(note)}</p></aside>`
+
 const LEVEL_LABEL: Record<string, string> = {
   beginner: '입문', intermediate: '중급', advanced: '심화',
 }
@@ -55,11 +60,15 @@ const CONF_LABEL: Record<string, string> = {
 // ── 섹션 렌더러 ──────────────────────────────────────────────────────────
 // 인덱스 = 섹션 번호 - 1. SECTIONS 와 순서가 1:1로 맞아야 한다(테스트가 검사).
 const RENDERERS: ((c: WorksheetContent, ctx: RenderContext) => string)[] = [
-  // ① 무엇을 배우는가
+  // ① 무엇을 배우는가 — 비유가 정의보다 먼저 온다 (설명 사다리 ①단)
   (c) => [
+    `<p class="analogy">${esc(c.what_we_learn.analogy)}</p>`,
     p(c.what_we_learn.summary),
     `<p class="h3">이 학습지를 마치면</p>`,
     ul(c.what_we_learn.objectives),
+    `<p class="h3">먼저 풀고 갈 말들</p>`,
+    `<dl class="glossary">${c.glossary.map((g) =>
+      `<dt>${esc(g.term)}</dt><dd>${esc(g.plain)}</dd>`).join('')}</dl>`,
   ].join(''),
 
   // ② 이것이 생기기 전에는
@@ -183,14 +192,23 @@ export function renderWorksheet(c: WorksheetContent, ctx: RenderContext): string
     throw new Error(`섹션 렌더러 수(${RENDERERS.length})가 SECTIONS(${SECTIONS.length})와 다릅니다`)
   }
 
+  // 파르의 말은 해당 섹션 본문 뒤, 필기 여백 앞에 놓는다.
+  const notesBySection = new Map<string, string[]>()
+  for (const g of c.guide_notes) {
+    const list = notesBySection.get(g.section) ?? []
+    list.push(g.note)
+    notesBySection.set(g.section, list)
+  }
+
   const sections = SECTIONS.map((s, i) => {
     const num = String(i + 1).padStart(2, '0')
     const body = tidy(RENDERERS[i](c, ctx))
+    const notes = (notesBySection.get(s.key) ?? []).map(guideNote).join('')
     // 문제 섹션은 문제마다 필기 칸이 이미 있으므로 섹션 끝 여백을 붙이지 않는다.
     const trailing = s.key === 'quiz' ? '' : inkSpace(s.ink)
     return `<section class="sec" id="sec-${i + 1}" data-section="${s.key}">` +
       `<h2 class="sec__title"><span class="sec__num">${num}</span>${esc(s.title)}</h2>` +
-      `<div class="sec__body">${body}</div>${trailing}</section>`
+      `<div class="sec__body">${body}${notes}</div>${trailing}</section>`
   }).join('')
 
   const meta = [

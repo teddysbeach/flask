@@ -4,7 +4,7 @@
 // "must have required property 'quiz'" 보다 "quiz 는 정확히 5개여야 하는데 4개입니다" 가
 // 재요청 성공률을 올린다. 경로와 기대값을 사람이 읽을 수 있게 낸다.
 
-import { SCHEMA_VERSION } from './worksheet-types.ts'
+import { SCHEMA_VERSION, SECTION_KEYS } from './worksheet-types.ts'
 import type { WorksheetContent, InlineNode } from './worksheet-types.ts'
 
 export class ValidationError extends Error {
@@ -94,14 +94,33 @@ export function validateWorksheet(input: unknown): WorksheetContent {
   const level = oneOf(c, r.level, 'level', ['beginner', 'intermediate', 'advanced'] as const)
   const minutes = num(c, r.estimated_minutes, 'estimated_minutes', 5, 180)
 
-  // ① 무엇을 배우는가
+  // ① 무엇을 배우는가 — 일상 비유가 반드시 먼저 온다 (설명 사다리 ①단)
   const w = obj(c, r.what_we_learn, 'what_we_learn')
   const whatWeLearn = {
+    analogy: str(c, w.analogy, 'what_we_learn.analogy', { min: 10, max: 400 }),
     summary: inline(c, w.summary, 'what_we_learn.summary'),
     objectives: arr(c, w.objectives, 'what_we_learn.objectives', 3, 3)
       .map((o, i) => str(c, o, `what_we_learn.objectives[${i}]`, { max: 200 })),
     one_liner: str(c, w.one_liner, 'what_we_learn.one_liner', { max: 200 }),
   }
+
+  // 용어 풀이 — 어려운 말을 그 자리에서 푼다
+  const glossary = arr(c, r.glossary, 'glossary', 3, 6).map((g, i) => {
+    const o = obj(c, g, `glossary[${i}]`)
+    return {
+      term: str(c, o.term, `glossary[${i}].term`, { max: 60 }),
+      plain: str(c, o.plain, `glossary[${i}].plain`, { min: 5, max: 300 }),
+    }
+  })
+
+  // 파르의 한마디
+  const guideNotes = arr(c, r.guide_notes, 'guide_notes', 2, 4).map((g, i) => {
+    const o = obj(c, g, `guide_notes[${i}]`)
+    return {
+      section: oneOf(c, o.section, `guide_notes[${i}].section`, SECTION_KEYS),
+      note: str(c, o.note, `guide_notes[${i}].note`, { min: 10, max: 400 }),
+    }
+  })
 
   // ② 이전에는 어땠는지
   const b = obj(c, r.before_and_need, 'before_and_need')
@@ -251,6 +270,8 @@ export function validateWorksheet(input: unknown): WorksheetContent {
     schema_version: SCHEMA_VERSION,
     title, topic_normalized: topic, level, estimated_minutes: minutes,
     what_we_learn: whatWeLearn,
+    glossary,
+    guide_notes: guideNotes,
     before_and_need: beforeAndNeed,
     prerequisites,
     origin_story: originStory,
