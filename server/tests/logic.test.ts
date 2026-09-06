@@ -1,7 +1,7 @@
 // 비용 가드 · 정합성 검사 · 복습 스케줄 테스트.
 //   node --experimental-strip-types server/tests/logic.test.ts
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as cost from '../supabase/functions/_shared/cost.ts'
@@ -246,6 +246,40 @@ test('알림 본문은 문장 단위로 자른다', () => {
   assert.ok(body.length <= 101, `너무 길다: ${body.length}`)
   assert.ok(body.endsWith('…'))
   assert.equal(rev.notificationBody('짧은 질문?'), '짧은 질문?', '짧으면 자르지 않는다')
+})
+
+console.log('\n▸ 분야별 픽스처 (자가점검)')
+
+test('모든 픽스처가 스키마·말투를 통과한다', () => {
+  const dir = resolve(HERE, 'fixtures')
+  const files = readdirSync(dir).filter((f) => f.endsWith('.json'))
+  assert.ok(files.length >= 4, `픽스처가 ${files.length}개뿐이다`)
+  for (const f of files) {
+    const c = validateWorksheet(JSON.parse(readFileSync(resolve(dir, f), 'utf8')))
+    const v = voiceLint(c)
+    assert.equal(v.errors.length, 0, `${f}: ${v.errors.map((e) => e.detail).join(' / ')}`)
+    assert.ok(c.what_we_learn.analogy, `${f}: 일상 비유가 없다`)
+    assert.ok(c.glossary.length >= 3, `${f}: 용어 풀이가 부족하다`)
+  }
+})
+
+test('분야마다 다른 예시 종류를 쓴다 (코드 전용 스키마가 아니다)', () => {
+  const dir = resolve(HERE, 'fixtures')
+  const kinds = new Set<string>()
+  for (const f of readdirSync(dir).filter((x) => x.endsWith('.json'))) {
+    const c = validateWorksheet(JSON.parse(readFileSync(resolve(dir, f), 'utf8')))
+    for (const b of c.main_lesson.blocks) if (b.example) kinds.add(b.example.kind)
+  }
+  assert.ok(kinds.size >= 4, `예시 종류가 ${kinds.size}가지뿐이다: ${[...kinds]}`)
+  assert.ok(!(kinds.size === 1 && kinds.has('code')), '코드 예시만 쓰이면 비코드 분야가 어색해진다')
+})
+
+test('코드가 아닌 예시에 language 를 붙이면 거부한다', () => {
+  const dir = resolve(HERE, 'fixtures')
+  const raw = JSON.parse(readFileSync(resolve(dir, 'worksheet-calculus.json'), 'utf8'))
+  raw.main_lesson.blocks[0].example.language = 'javascript'
+  assert.throws(() => validateWorksheet(raw), (e: any) =>
+    e.issues.some((i: string) => i.includes('language')))
 })
 
 console.log('\n▸ 말투 (파르)')

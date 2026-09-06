@@ -188,9 +188,62 @@ code, .code {
 .dialogue__speaker { font-size: 14px; font-weight: 700; white-space: nowrap; color: var(--ds-color-brand-primary); }
 .dialogue__text { font-size: 15px; line-height: 1.7; margin: 0; }
 
-/* ── 코드 예시 ── */
+/* ── 예시 ──
+   분야마다 모양이 다르다. docs/plan/12-categories.md §3 */
 .example { margin: 0 0 16px; }
 .example__caption { font-size: 13px; color: var(--ds-color-text-secondary); margin: 0 0 8px; }
+
+/* 계산 — 줄마다 한 단계. 손으로 따라 쓰기 좋게 넉넉히 띄운다 */
+.ex-calc {
+  list-style: none; counter-reset: step;
+  margin: 0; padding: 16px 18px;
+  background: var(--ds-color-surface-sunken); border-radius: var(--ds-radius-md);
+}
+.ex-calc li {
+  font-family: var(--ds-font-mono); font-size: 15px; line-height: 1.8;
+  padding: 6px 0 6px 28px; position: relative;
+}
+.ex-calc li::before {
+  counter-increment: step; content: counter(step);
+  position: absolute; left: 0; top: 8px;
+  font-family: var(--ds-font-sans); font-size: 11px; font-weight: 700;
+  color: var(--ds-color-text-tertiary);
+}
+
+/* 동작 순서 */
+.ex-steps {
+  margin: 0; padding: 16px 18px 16px 38px;
+  background: var(--ds-color-surface-sunken); border-radius: var(--ds-radius-md);
+}
+.ex-steps li { font-size: 15px; line-height: 1.75; margin-bottom: 8px; }
+.ex-steps li:last-child { margin-bottom: 0; }
+
+/* 전 / 후 비교 */
+.ex-compare {
+  padding: 14px 18px;
+  background: var(--ds-color-surface-sunken); border-radius: var(--ds-radius-md);
+}
+.ex-compare__row {
+  display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid var(--ds-color-border-subtle);
+  font-size: 15px; line-height: 1.6;
+}
+.ex-compare__row:last-child { border-bottom: 0; }
+.ex-compare__before { color: var(--ds-color-text-secondary); }
+.ex-compare__after { font-weight: 600; }
+.ex-compare__arrow { color: var(--ds-color-brand-primary); font-weight: 700; }
+.ex-compare__full { grid-column: 1 / -1; }
+
+/* 장면 묘사 */
+.ex-scene {
+  margin: 0; padding: 16px 20px;
+  border-left: var(--ds-callout-bar-width) solid var(--ds-callout-story-bar);
+  background: var(--ds-callout-story-bg);
+  border-radius: 0 var(--ds-radius-md) var(--ds-radius-md) 0;
+}
+.ex-scene p { font-size: 15px; line-height: 1.75; margin: 0 0 8px; }
+.ex-scene p:last-child { margin-bottom: 0; }
+
 pre {
   margin: 0; padding: 16px;
   background: var(--ds-color-surface-sunken);

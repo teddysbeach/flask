@@ -4,7 +4,7 @@
 // "must have required property 'quiz'" 보다 "quiz 는 정확히 5개여야 하는데 4개입니다" 가
 // 재요청 성공률을 올린다. 경로와 기대값을 사람이 읽을 수 있게 낸다.
 
-import { SCHEMA_VERSION, SECTION_KEYS } from './worksheet-types.ts'
+import { SCHEMA_VERSION, SECTION_KEYS, CATEGORIES, EXAMPLE_KINDS } from './worksheet-types.ts'
 import type { WorksheetContent, InlineNode } from './worksheet-types.ts'
 
 export class ValidationError extends Error {
@@ -92,6 +92,7 @@ export function validateWorksheet(input: unknown): WorksheetContent {
   const title = str(c, r.title, 'title', { max: 80 })
   const topic = str(c, r.topic_normalized, 'topic_normalized', { max: 120 })
   const level = oneOf(c, r.level, 'level', ['beginner', 'intermediate', 'advanced'] as const)
+  const category = oneOf(c, r.category, 'category', CATEGORIES)
   const minutes = num(c, r.estimated_minutes, 'estimated_minutes', 5, 180)
 
   // ① 무엇을 배우는가 — 일상 비유가 반드시 먼저 온다 (설명 사다리 ①단)
@@ -189,10 +190,18 @@ export function validateWorksheet(input: unknown): WorksheetContent {
         body: inline(c, o.body, `main_lesson.blocks[${i}].body`),
         example: ex === null || ex === undefined ? null : (() => {
           const e = obj(c, ex, `main_lesson.blocks[${i}].example`)
+          const kind = oneOf(c, e.kind, `main_lesson.blocks[${i}].example.kind`, EXAMPLE_KINDS)
+          const language = nullableStr(c, e.language, `main_lesson.blocks[${i}].example.language`, 30)
+          // language 는 코드에만 붙는다. 계산이나 동작 순서에 'javascript' 가 붙으면 잘못된 것이다.
+          if (kind !== 'code' && language) {
+            c.issues.push(at(`main_lesson.blocks[${i}].example.language`,
+              `kind 가 ${kind} 이면 language 는 null 이어야 합니다`))
+          }
           return {
+            kind,
             caption: str(c, e.caption, `main_lesson.blocks[${i}].example.caption`, { max: 200 }),
-            code: nullableStr(c, e.code, `main_lesson.blocks[${i}].example.code`, 2000),
-            language: nullableStr(c, e.language, `main_lesson.blocks[${i}].example.language`, 30),
+            body: str(c, e.body, `main_lesson.blocks[${i}].example.body`, { min: 1, max: 2000 }),
+            language,
           }
         })(),
         common_mistake: nullableStr(c, o.common_mistake, `main_lesson.blocks[${i}].common_mistake`, 400),
@@ -268,7 +277,7 @@ export function validateWorksheet(input: unknown): WorksheetContent {
 
   return {
     schema_version: SCHEMA_VERSION,
-    title, topic_normalized: topic, level, estimated_minutes: minutes,
+    title, topic_normalized: topic, level, category, estimated_minutes: minutes,
     what_we_learn: whatWeLearn,
     glossary,
     guide_notes: guideNotes,

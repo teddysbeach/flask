@@ -50,6 +50,45 @@ const guideNote = (note: string) =>
   `<aside class="par"><span class="par__badge" aria-hidden="true">파르</span>` +
   `<p class="par__note">${esc(note)}</p></aside>`
 
+/**
+ * 예시는 분야마다 모양이 다르다. 전부 코드 블록으로 그리면
+ * 수학 학습지에 미분 계산이 등폭 글꼴로 들어간다.
+ */
+function renderExample(ex: { kind: string; caption: string; body: string; language: string | null }): string {
+  const cap = `<p class="example__caption">${esc(ex.caption)}</p>`
+  const lines = ex.body.split('\n').map((l) => l.trim()).filter(Boolean)
+
+  let inner: string
+  switch (ex.kind) {
+    case 'code':
+      inner = `<pre class="ex-code"><code${ex.language ? ` class="lang-${esc(ex.language)}"` : ''}>${esc(ex.body)}</code></pre>`
+      break
+    case 'calc':
+      // 계산은 줄마다 한 단계씩. 눈으로 따라가며 손으로 따라 쓰게 만든다.
+      inner = `<ol class="ex-calc">${lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>`
+      break
+    case 'steps':
+      inner = `<ol class="ex-steps">${lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>`
+      break
+    case 'compare': {
+      // "전 | 후" 로 나눈다. 구분자가 없으면 한 덩어리로 둔다.
+      const rows = lines.map((l) => {
+        const i = l.indexOf('|')
+        return i === -1
+          ? `<div class="ex-compare__row"><span class="ex-compare__full">${esc(l)}</span></div>`
+          : `<div class="ex-compare__row"><span class="ex-compare__before">${esc(l.slice(0, i).trim())}</span>` +
+            `<span class="ex-compare__arrow" aria-hidden="true">→</span>` +
+            `<span class="ex-compare__after">${esc(l.slice(i + 1).trim())}</span></div>`
+      })
+      inner = `<div class="ex-compare">${rows.join('')}</div>`
+      break
+    }
+    default:  // scene
+      inner = `<blockquote class="ex-scene">${lines.map((l) => `<p>${esc(l)}</p>`).join('')}</blockquote>`
+  }
+  return `<div class="example" data-example-kind="${esc(ex.kind)}">${cap}${inner}</div>`
+}
+
 const LEVEL_LABEL: Record<string, string> = {
   beginner: '입문', intermediate: '중급', advanced: '심화',
 }
@@ -121,12 +160,7 @@ const RENDERERS: ((c: WorksheetContent, ctx: RenderContext) => string)[] = [
   (c) => c.main_lesson.blocks.map((b) => [
     `<p class="h3">${esc(b.heading)}</p>`,
     p(b.body),
-    b.example ? `<div class="example">
-        <p class="example__caption">${esc(b.example.caption)}</p>
-        ${b.example.code
-          ? `<pre><code${b.example.language ? ` class="lang-${esc(b.example.language)}"` : ''}>${esc(b.example.code)}</code></pre>`
-          : ''}
-      </div>` : '',
+    b.example ? renderExample(b.example) : '',
     b.common_mistake
       ? callout('caution', '흔한 실수', `<p class="p">${esc(b.common_mistake)}</p>`)
       : '',

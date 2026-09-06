@@ -16,6 +16,23 @@ export type Level = 'beginner' | 'intermediate' | 'advanced'
 export type Confidence = 'high' | 'medium' | 'low'
 export type QuizKind = 'short_answer' | 'multiple_choice' | 'explain'
 
+/** 12개 분야. docs/plan/12-categories.md */
+export type Category =
+  | 'math' | 'science' | 'cs' | 'art' | 'music' | 'language'
+  | 'finance' | 'history' | 'business' | 'health' | 'cooking' | 'psychology'
+
+export const CATEGORIES: readonly Category[] = [
+  'math', 'science', 'cs', 'art', 'music', 'language',
+  'finance', 'history', 'business', 'health', 'cooking', 'psychology',
+]
+
+/**
+ * 예시의 모양. 분야마다 자연스러운 형태가 다르다.
+ * 이걸 code 하나로만 두면 수학 학습지에 미분 계산이 코드 블록으로 들어간다.
+ */
+export type ExampleKind = 'code' | 'calc' | 'steps' | 'compare' | 'scene'
+export const EXAMPLE_KINDS: readonly ExampleKind[] = ['code', 'calc', 'steps', 'compare', 'scene']
+
 export type InlineNode = {
   type: 'text' | 'bold' | 'em' | 'code'
   value: string
@@ -42,6 +59,7 @@ export interface WorksheetContent {
   title: string
   topic_normalized: string
   level: Level
+  category: Category
   estimated_minutes: number
 
   what_we_learn: {
@@ -84,7 +102,14 @@ export interface WorksheetContent {
     blocks: {                     // 3~6개
       heading: string
       body: InlineNode[]
-      example: { caption: string; code: string | null; language: string | null } | null
+      example: {
+        kind: ExampleKind
+        caption: string
+        /** 여러 줄 텍스트. steps 는 줄바꿈으로, compare 는 `전 | 후` 로 나눈다. */
+        body: string
+        /** kind 가 'code' 일 때만 쓴다. */
+        language: string | null
+      } | null
       common_mistake: string | null
     }[]
   }

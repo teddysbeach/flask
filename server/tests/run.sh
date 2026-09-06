@@ -17,6 +17,9 @@ node --experimental-strip-types "$HERE/render.test.ts" | tail -2
 echo "▸ 비용 · 정합성 · 복습 스케줄"
 node --experimental-strip-types "$HERE/logic.test.ts" | tail -2
 
+echo "▸ 학습지 자가점검 (분야별)"
+node --experimental-strip-types "$HERE/selfcheck.ts" | tail -5
+
 echo "▸ 생성 파이프라인"
 node --experimental-strip-types "$HERE/pipeline.test.ts" | tail -2
 
