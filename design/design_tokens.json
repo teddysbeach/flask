@@ -1,0 +1,54 @@
+{
+  "_comment": [
+    "단일 진실 공급원(SSOT). popol.me/designsystem 의 값을 여기에 채운다.",
+    "이 파일에서 Flutter 토큰과 학습지 HTML의 CSS가 함께 생성된다:",
+    "  dart run design/build_tokens.dart",
+    "    -> packages/design_system/lib/src/tokens/tokens.g.dart",
+    "    -> server/supabase/functions/_shared/worksheet.css.ts",
+    "생성물은 직접 편집하지 않는다. 자세한 규약은 docs/plan/02-design-system.md 참조.",
+    "TODO: 아래 모든 \"TBD\" 를 popol.me 실제 값으로 교체할 것."
+  ],
+  "meta": {
+    "source": "https://popol.me/designsystem",
+    "version": "TBD",
+    "fetchedAt": "TBD",
+    "status": "unfetched"
+  },
+  "color": {
+    "brand":   { "primary": "TBD", "primaryHover": "TBD", "primaryPressed": "TBD", "onPrimary": "TBD" },
+    "surface": { "base": "TBD", "raised": "TBD", "sunken": "TBD", "overlay": "TBD" },
+    "text":    { "primary": "TBD", "secondary": "TBD", "tertiary": "TBD", "disabled": "TBD", "onBrand": "TBD" },
+    "border":  { "subtle": "TBD", "default": "TBD", "strong": "TBD", "focus": "TBD" },
+    "status":  { "success": "TBD", "warning": "TBD", "danger": "TBD", "info": "TBD" },
+    "ink":     { "pen": "TBD", "penAlt": "TBD", "highlighter": "TBD" }
+  },
+  "colorDark": {
+    "_comment": "popol.me 가 다크 모드를 정의하는 경우에만 채운다. 없으면 이 객체를 삭제한다.",
+    "brand": {}, "surface": {}, "text": {}, "border": {}, "status": {}, "ink": {}
+  },
+  "typography": {
+    "fontFamily": { "sans": "TBD", "mono": "TBD" },
+    "webfont": { "_comment": "학습지 HTML 에 base64 임베드할 WOFF2 경로/라이선스", "files": [], "license": "TBD" },
+    "scale": {
+      "display": { "size": "TBD", "lineHeight": "TBD", "weight": "TBD", "letterSpacing": "TBD" },
+      "h1":      { "size": "TBD", "lineHeight": "TBD", "weight": "TBD", "letterSpacing": "TBD" },
+      "h2":      { "size": "TBD", "lineHeight": "TBD", "weight": "TBD", "letterSpacing": "TBD" },
+      "h3":      { "size": "TBD", "lineHeight": "TBD", "weight": "TBD", "letterSpacing": "TBD" },
+      "bodyLg":  { "size": "TBD", "lineHeight": "TBD", "weight": "TBD", "letterSpacing": "TBD" },
+      "body":    { "size": "TBD", "lineHeight": "TBD", "weight": "TBD", "letterSpacing": "TBD" },
+      "caption": { "size": "TBD", "lineHeight": "TBD", "weight": "TBD", "letterSpacing": "TBD" },
+      "code":    { "size": "TBD", "lineHeight": "TBD", "weight": "TBD", "letterSpacing": "TBD" }
+    }
+  },
+  "space":  { "0": 0, "1": "TBD", "2": "TBD", "3": "TBD", "4": "TBD", "6": "TBD", "8": "TBD", "12": "TBD", "16": "TBD" },
+  "radius": { "sm": "TBD", "md": "TBD", "lg": "TBD", "full": 9999 },
+  "shadow": { "sm": "TBD", "md": "TBD", "lg": "TBD" },
+  "motion": { "durationFast": "TBD", "durationBase": "TBD", "durationSlow": "TBD", "easingStandard": "TBD", "easingEmphasized": "TBD" },
+  "breakpoint": { "phone": 0, "tablet": 768, "desktop": 1200 },
+  "worksheet": {
+    "_comment": "학습지 문서 전용 오버라이드. sheetWidth 는 필기 좌표계의 기준이므로 확정 후 변경 금지.",
+    "sheetWidth": 820,
+    "bodyLineHeight": 1.75,
+    "inkSpace": { "sm": 96, "md": 160, "lg": 240 }
+  }
+}
