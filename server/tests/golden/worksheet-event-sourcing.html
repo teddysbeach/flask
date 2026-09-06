@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>이벤트 소싱, 상태 대신 변화를 저장하기</title>
+<style>:root {
+  --ds-color-brand-primary: #7C5CFF;
+  --ds-color-brand-primary-hover: #6A46F5;
+  --ds-color-brand-primary-pressed: #5B37E0;
+  --ds-color-brand-primary-subtle: #F1EDFF;
+  --ds-color-brand-on-primary: #FAFAFA;
+  --ds-color-neutral-primary-base: #171717;
+  --ds-color-neutral-primary-on-base: #FAFAFA;
+  --ds-color-surface-base: #FFFFFF;
+  --ds-color-surface-raised: #FFFFFF;
+  --ds-color-surface-sunken: #F5F5F5;
+  --ds-color-surface-overlay: #FFFFFF;
+  --ds-color-text-primary: #0A0A0A;
+  --ds-color-text-secondary: #737373;
+  --ds-color-text-tertiary: #A1A1A1;
+  --ds-color-text-disabled: #D4D4D4;
+  --ds-color-text-on-brand: #FAFAFA;
+  --ds-color-border-subtle: #F0F0F0;
+  --ds-color-border-default: #E5E5E5;
+  --ds-color-border-strong: #868690;
+  --ds-color-border-focus: #A1A1A1;
+  --ds-color-status-success: #15803D;
+  --ds-color-status-warning: #D4A300;
+  --ds-color-status-danger: #E40014;
+  --ds-color-status-info: #2563EB;
+  --ds-color-ink-pen: #111111;
+  --ds-color-ink-pen-blue: #2563EB;
+  --ds-color-ink-pen-red: #E40014;
+  --ds-color-ink-highlighter: #F59E0B;
+  --ds-color-ink-highlighter-alt: #FACC15;
+  --ds-space-0: 0px;
+  --ds-space-1: 4px;
+  --ds-space-2: 8px;
+  --ds-space-3: 12px;
+  --ds-space-4: 16px;
+  --ds-space-6: 24px;
+  --ds-space-8: 32px;
+  --ds-space-12: 48px;
+  --ds-space-16: 64px;
+  --ds-radius-base: 10px;
+  --ds-radius-sm: 6px;
+  --ds-radius-md: 8px;
+  --ds-radius-lg: 10px;
+  --ds-radius-xl: 14px;
+  --ds-radius-2xl: 18px;
+  --ds-radius-3xl: 22px;
+  --ds-radius-4xl: 26px;
+  --ds-radius-full: 9999px;
+  --ds-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.04);
+  --ds-shadow-md: 0 2px 8px rgb(0 0 0 / 0.08);
+  --ds-shadow-lg: 0 10px 24px rgb(0 0 0 / 0.18);
+  --ds-font-sans: 'Geist', 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', sans-serif;
+  --ds-font-mono: 'SF Mono', SFMono-Regular, ui-monospace, 'Cascadia Code', Menlo, Consolas, 'Liberation Mono', monospace;
+  --ds-sheet-width: 820px;
+  --ds-sheet-padding: 56px;
+  --ds-sheet-section-gap: 32px;
+  --ds-ink-space-sm: 96px;
+  --ds-ink-space-md: 160px;
+  --ds-ink-space-lg: 240px;
+  --ds-ws-body-size: 17px;
+  --ds-ws-body-lh: 1.78;
+  --ds-ws-body-weight: 400;
+  --ds-ws-section-title-size: 22px;
+  --ds-ws-section-title-lh: 1.4;
+  --ds-ws-section-title-weight: 700;
+  --ds-ws-section-num-size: 13px;
+  --ds-ws-section-num-lh: 1;
+  --ds-ws-section-num-weight: 700;
+  --ds-ws-quiz-question-size: 18px;
+  --ds-ws-quiz-question-lh: 1.7;
+  --ds-ws-quiz-question-weight: 600;
+  --ds-ws-caption-size: 14px;
+  --ds-ws-caption-lh: 1.6;
+  --ds-ws-caption-weight: 400;
+  --ds-callout-story-bar: #7C5CFF;
+  --ds-callout-story-bg: #F7F5FF;
+  --ds-callout-tip-bar: #F59E0B;
+  --ds-callout-tip-bg: #FFFBEB;
+  --ds-callout-caution-bar: #E40014;
+  --ds-callout-caution-bg: #FEF2F2;
+  --ds-callout-bar-width: 4px;
+  --ds-paper: #FFFFFF;
+}
+:root[data-theme="dark"] {
+  --ds-color-brand-primary: #A78BFA;
+  --ds-color-brand-primary-hover: #B9A3FB;
+  --ds-color-brand-primary-pressed: #8B6DF0;
+  --ds-color-brand-primary-subtle: #241E3D;
+  --ds-color-brand-on-primary: #171717;
+  --ds-color-neutral-primary-base: #E5E5E5;
+  --ds-color-neutral-primary-on-base: #171717;
+  --ds-color-surface-base: #0A0A0A;
+  --ds-color-surface-raised: #171717;
+  --ds-color-surface-sunken: #262626;
+  --ds-color-surface-overlay: #171717;
+  --ds-color-text-primary: #FAFAFA;
+  --ds-color-text-secondary: #A1A1A1;
+  --ds-color-text-tertiary: #737373;
+  --ds-color-text-disabled: #525252;
+  --ds-color-text-on-brand: #171717;
+  --ds-color-border-subtle: rgb(255 255 255 / 0.04);
+  --ds-color-border-default: rgb(255 255 255 / 0.07);
+  --ds-color-border-strong: #71717A;
+  --ds-color-border-focus: #737373;
+  --ds-color-status-success: #86EFAC;
+  --ds-color-status-warning: #D4A300;
+  --ds-color-status-danger: #FF6568;
+  --ds-color-status-info: #60A5FA;
+  --ds-color-ink-pen: #FAFAFA;
+  --ds-color-ink-pen-blue: #60A5FA;
+  --ds-color-ink-pen-red: #FF6568;
+  --ds-color-ink-highlighter: #F59E0B;
+  --ds-color-ink-highlighter-alt: #FACC15;
+  --ds-paper: #141414;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ds-color-brand-primary: #A78BFA;
+    --ds-color-brand-primary-hover: #B9A3FB;
+    --ds-color-brand-primary-pressed: #8B6DF0;
+    --ds-color-brand-primary-subtle: #241E3D;
+    --ds-color-brand-on-primary: #171717;
+    --ds-color-neutral-primary-base: #E5E5E5;
+    --ds-color-neutral-primary-on-base: #171717;
+    --ds-color-surface-base: #0A0A0A;
+    --ds-color-surface-raised: #171717;
+    --ds-color-surface-sunken: #262626;
+    --ds-color-surface-overlay: #171717;
+    --ds-color-text-primary: #FAFAFA;
+    --ds-color-text-secondary: #A1A1A1;
+    --ds-color-text-tertiary: #737373;
+    --ds-color-text-disabled: #525252;
+    --ds-color-text-on-brand: #171717;
+    --ds-color-border-subtle: rgb(255 255 255 / 0.04);
+    --ds-color-border-default: rgb(255 255 255 / 0.07);
+    --ds-color-border-strong: #71717A;
+    --ds-color-border-focus: #737373;
+    --ds-color-status-success: #86EFAC;
+    --ds-color-status-warning: #D4A300;
+    --ds-color-status-danger: #FF6568;
+    --ds-color-status-info: #60A5FA;
+    --ds-color-ink-pen: #FAFAFA;
+    --ds-color-ink-pen-blue: #60A5FA;
+    --ds-color-ink-pen-red: #FF6568;
+    --ds-color-ink-highlighter: #F59E0B;
+    --ds-color-ink-highlighter-alt: #FACC15;
+    --ds-paper: #141414;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--ds-color-surface-sunken);
+  font-family: var(--ds-font-sans);
+  color: var(--ds-color-text-primary);
+  /* 필기 중 브라우저 제스처가 가로채지 않게 한다 */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 문서 폭은 고정이다. 리플로우가 일어나면 기존 필기 좌표가 전부 어긋난다.
+   화면 맞춤은 .sheet-scaler 의 transform: scale() 로만 처리한다. */
+.sheet-scaler { transform-origin: top left; will-change: transform; }
+.sheet {
+  width: var(--ds-sheet-width);
+  margin: 0 auto;
+  padding: var(--ds-sheet-padding);
+  background: var(--ds-paper);
+  position: relative;
+}
+
+/* ── 헤더 ── */
+.sheet__header { margin-bottom: calc(var(--ds-sheet-section-gap) * 1.25); }
+.sheet__eyebrow {
+  font-size: 13px; font-weight: 700; letter-spacing: .06em;
+  color: var(--ds-color-brand-primary); text-transform: uppercase;
+  margin: 0 0 10px;
+}
+.sheet__title {
+  font-size: 34px; line-height: 1.25; font-weight: 700; letter-spacing: -.6px;
+  margin: 0 0 12px; color: var(--ds-color-text-primary);
+}
+.sheet__one-liner {
+  font-size: var(--ds-ws-body-size); line-height: 1.6;
+  color: var(--ds-color-text-secondary); margin: 0 0 16px;
+}
+.sheet__meta { display: flex; flex-wrap: wrap; gap: 8px; }
+.meta-chip {
+  font-size: 13px; font-weight: 500; padding: 5px 11px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-surface-sunken); color: var(--ds-color-text-secondary);
+}
+
+/* ── 섹션 ── */
+.sec {
+  margin-bottom: var(--ds-sheet-section-gap);
+  padding: 28px;
+  background: var(--ds-color-surface-raised);
+  border: 1px solid var(--ds-color-border-default);
+  border-radius: var(--ds-radius-xl);
+  box-shadow: var(--ds-shadow-sm);
+}
+.sec__title {
+  display: flex; align-items: center; gap: 12px;
+  font-size: var(--ds-ws-section-title-size);
+  line-height: var(--ds-ws-section-title-lh);
+  font-weight: var(--ds-ws-section-title-weight);
+  letter-spacing: -.3px;
+  margin: 0 0 20px;
+}
+.sec__num {
+  flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 30px; height: 30px; padding: 0 8px;
+  font-size: var(--ds-ws-section-num-size);
+  font-weight: var(--ds-ws-section-num-weight);
+  letter-spacing: var(--ds-ws-section-num-lh);
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-brand-primary);
+  color: var(--ds-color-text-on-brand);
+}
+.sec__body > *:first-child { margin-top: 0; }
+.sec__body > *:last-child  { margin-bottom: 0; }
+
+/* ── 본문 타이포 ── */
+.p {
+  font-size: var(--ds-ws-body-size);
+  line-height: var(--ds-ws-body-lh);   /* 1.78 — 펜으로 줄 사이에 끼워 쓸 여지 */
+  margin: 0 0 16px;
+}
+.p strong { font-weight: 700; }
+.p em { font-style: normal; background: linear-gradient(transparent 62%, var(--ds-color-ink-highlighter-alt) 62%); }
+code, .code {
+  font-family: var(--ds-font-mono);
+  font-size: .92em;
+  background: var(--ds-color-surface-sunken);
+  padding: 2px 6px; border-radius: var(--ds-radius-sm);
+}
+.h3 {
+  font-size: 18px; font-weight: 650; line-height: 1.45;
+  margin: 28px 0 12px; letter-spacing: -.2px;
+}
+.list { margin: 0 0 16px; padding-left: 22px; }
+.list li { font-size: var(--ds-ws-body-size); line-height: var(--ds-ws-body-lh); margin-bottom: 8px; }
+.list li::marker { color: var(--ds-color-text-tertiary); }
+
+/* ── 콜아웃 ── */
+.callout {
+  border-left: var(--ds-callout-bar-width) solid;
+  border-radius: 0 var(--ds-radius-md) var(--ds-radius-md) 0;
+  padding: 16px 18px; margin: 0 0 16px;
+}
+.callout--story   { border-color: var(--ds-callout-story-bar);   background: var(--ds-callout-story-bg); }
+.callout--tip     { border-color: var(--ds-callout-tip-bar);     background: var(--ds-callout-tip-bg); }
+.callout--caution { border-color: var(--ds-callout-caution-bar); background: var(--ds-callout-caution-bg); }
+.callout__label {
+  font-size: 12px; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; margin: 0 0 6px; opacity: .75;
+}
+.callout p:last-child { margin-bottom: 0; }
+
+/* ── 카드 그리드 (사전학습 / 다음 단계) ── */
+.cards { display: grid; gap: 12px; }
+.card {
+  padding: 16px 18px;
+  border: 1px solid var(--ds-color-border-default);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-color-surface-base);
+}
+.card__title { font-size: 16px; font-weight: 650; margin: 0 0 6px; }
+.card__why { font-size: 14px; line-height: 1.6; color: var(--ds-color-text-secondary); margin: 0; }
+.card__hint { font-size: 13px; color: var(--ds-color-text-tertiary); margin: 8px 0 0; }
+
+/* ── 타임라인 (탄생 배경) ── */
+.timeline { list-style: none; margin: 0 0 16px; padding: 0; }
+.timeline li {
+  display: grid; grid-template-columns: 96px 1fr; gap: 16px;
+  padding: 12px 0; border-bottom: 1px solid var(--ds-color-border-subtle);
+}
+.timeline li:last-child { border-bottom: 0; }
+.timeline__when { font-size: 14px; font-weight: 650; color: var(--ds-color-brand-primary); }
+.timeline__what { font-size: 15px; line-height: 1.65; margin: 0; }
+/* 불확실한 사실은 시각적으로 구분한다. 정직성 규칙의 UI 표현. */
+.conf { font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: var(--ds-radius-sm); margin-left: 6px; vertical-align: 2px; }
+.conf--medium { background: var(--ds-callout-tip-bg); color: var(--ds-color-status-warning); }
+.conf--low    { background: var(--ds-callout-caution-bg); color: var(--ds-color-status-danger); }
+
+/* ── 상황극 ── */
+.scene { font-size: 15px; line-height: 1.7; color: var(--ds-color-text-secondary); margin: 0 0 16px; }
+.dialogue { margin: 0 0 16px; }
+.dialogue__line { display: grid; grid-template-columns: auto 1fr; gap: 12px; margin-bottom: 12px; }
+.dialogue__speaker { font-size: 14px; font-weight: 700; white-space: nowrap; color: var(--ds-color-brand-primary); }
+.dialogue__text { font-size: 15px; line-height: 1.7; margin: 0; }
+
+/* ── 코드 예시 ── */
+.example { margin: 0 0 16px; }
+.example__caption { font-size: 13px; color: var(--ds-color-text-secondary); margin: 0 0 8px; }
+pre {
+  margin: 0; padding: 16px;
+  background: var(--ds-color-surface-sunken);
+  border-radius: var(--ds-radius-md);
+  overflow-x: auto;
+  font-family: var(--ds-font-mono); font-size: 13px; line-height: 1.6;
+}
+pre code { background: none; padding: 0; }
+
+/* ── 문제 ── */
+.quiz { list-style: none; margin: 0; padding: 0; counter-reset: q; }
+.quiz__item { padding: 20px 0; border-top: 1px solid var(--ds-color-border-subtle); }
+.quiz__item:first-child { border-top: 0; padding-top: 0; }
+.quiz__q {
+  font-size: var(--ds-ws-quiz-question-size);
+  line-height: var(--ds-ws-quiz-question-lh);
+  font-weight: var(--ds-ws-quiz-question-weight);
+  margin: 0 0 4px;
+}
+.quiz__q::before {
+  counter-increment: q; content: "Q" counter(q) ". ";
+  color: var(--ds-color-brand-primary);
+}
+.quiz__choices { list-style: none; margin: 12px 0 0; padding: 0; }
+.quiz__choices li {
+  font-size: 15px; line-height: 1.6; padding: 9px 14px; margin-bottom: 8px;
+  border: 1px solid var(--ds-color-border-default);
+  border-radius: var(--ds-radius-md);
+}
+.quiz__a { margin-top: 12px; }
+.quiz__a summary {
+  cursor: pointer; font-size: 14px; font-weight: 650;
+  color: var(--ds-color-brand-primary); list-style: none;
+}
+.quiz__a summary::-webkit-details-marker { display: none; }
+.quiz__a summary::before { content: "▸ "; }
+.quiz__a[open] summary::before { content: "▾ "; }
+.quiz__a-body {
+  margin-top: 10px; padding: 14px 16px;
+  background: var(--ds-color-surface-sunken);
+  border-radius: var(--ds-radius-md);
+  font-size: 15px; line-height: 1.7;
+}
+.quiz__a-body p { margin: 0 0 8px; }
+.quiz__a-body p:last-child { margin-bottom: 0; }
+.quiz__a-label { font-weight: 700; }
+
+/* ── 체크리스트 ── */
+.checklist { list-style: none; margin: 0; padding: 0; }
+.checklist li {
+  display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start;
+  font-size: 15px; line-height: 1.7; margin-bottom: 10px;
+}
+.checklist li::before {
+  content: ""; width: 18px; height: 18px; margin-top: 3px;
+  border: 1.5px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-sm);
+}
+
+/* ── 필기 여백 ──
+   펜으로 쓰라고 비워 둔 자리. 인쇄하면 사라지는 안내선만 옅게 깐다. */
+.ink-space {
+  margin-top: 18px;
+  border-top: 1px dashed var(--ds-color-border-subtle);
+  position: relative;
+}
+.ink-space[data-ink-space="sm"] { height: var(--ds-ink-space-sm); }
+.ink-space[data-ink-space="md"] { height: var(--ds-ink-space-md); }
+.ink-space[data-ink-space="lg"] { height: var(--ds-ink-space-lg); }
+.ink-space::after {
+  content: "여기에 필기하세요";
+  position: absolute; top: 10px; left: 0;
+  font-size: 12px; color: var(--ds-color-text-tertiary); opacity: .55;
+}
+
+/* ── 필기 레이어 ──
+   문서 흐름 안에 절대 배치한다. 본문과 같은 스크롤 컨테이너를 쓰므로
+   스크롤 동기화 문제가 애초에 생기지 않는다. docs/plan/06-annotation.md §1 */
+.ink-layer {
+  position: absolute; top: 0; left: 0;
+  width: var(--ds-sheet-width); height: 100%;
+  pointer-events: none;   /* 필기 모드가 켜질 때만 auto 로 바뀐다 */
+  touch-action: none;
+  z-index: 10;
+}
+
+.sheet__footer {
+  margin-top: 40px; padding-top: 20px;
+  border-top: 1px solid var(--ds-color-border-subtle);
+  font-size: 12px; color: var(--ds-color-text-tertiary); text-align: center;
+}
+
+@media print {
+  body { background: #fff; }
+  .sec { break-inside: avoid; box-shadow: none; }
+  .ink-space::after { display: none; }
+  .quiz__a { display: none; }   /* 인쇄본에는 정답을 감춘다 */
+}
+</style>
+</head>
+<body>
+<div class="sheet-scaler">
+<article class="sheet" data-worksheet-id="ws-0000-1111-2222" data-schema-version="1">
+<header class="sheet__header">
+<p class="sheet__eyebrow">ONPAR 학습지</p>
+<h1 class="sheet__title">이벤트 소싱, 상태 대신 변화를 저장하기</h1>
+<p class="sheet__one-liner">지금의 상태 대신, 거기까지 온 모든 변화를 저장하는 방식</p>
+<div class="sheet__meta"><span class="meta-chip">입문</span><span class="meta-chip">약 28분</span><span class="meta-chip">문제 5개</span></div>
+</header>
+<section class="sec" id="sec-1" data-section="what_we_learn"><h2 class="sec__title"><span class="sec__num">01</span>무엇을 배우는가</h2><div class="sec__body"><p class="p">우리는 보통 데이터베이스에 <strong>지금의 상태</strong>를 저장합니다. 잔액 12,000원, 주소 서울시 어딘가. 이벤트 소싱은 그 대신 <strong>일어난 일의 목록</strong>을 저장하고, 상태는 그 목록을 처음부터 훑어 계산해냅니다.</p><p class="h3">이 학습지를 마치면</p><ul class="list"><li>상태 저장과 이벤트 저장의 차이를 예를 들어 설명할 수 있다</li><li>이벤트 스토어가 append-only 여야 하는 이유를 말할 수 있다</li><li>이벤트 소싱을 쓰면 안 되는 상황을 세 가지 댈 수 있다</li></ul></div><div class="ink-space" data-ink-space="sm"></div></section><section class="sec" id="sec-2" data-section="before_and_need"><h2 class="sec__title"><span class="sec__num">02</span>이것이 생기기 전에는</h2><div class="sec__body"><p class="p">예전 계좌 시스템은 잔액 칸 하나를 계속 덮어썼습니다. 12,000원이 3,000원이 되면 12,000은 그냥 사라집니다. 문제가 생겨 &quot;왜 3,000원이죠?&quot;라고 물으면 답할 방법이 없었습니다.</p><div class="callout callout--caution"><p class="callout__label">그때의 불편</p><ul class="list"><li>왜 이 값이 되었는지 추적할 수 없다 — 덮어쓴 순간 이유가 사라진다</li><li>잘못된 수정을 되돌리려면 백업 전체를 복원하는 수밖에 없다</li><li>감사(audit)가 필요한 금융·의료 도메인에서 별도 로그 테이블을 손으로 관리해야 한다</li></ul></div><p class="h3">그래서 무엇이 필요했나</p><p class="p">그런데 회계는 수백 년 전부터 이 문제를 풀어놨습니다. 장부는 잔액을 고쳐 쓰지 않습니다. 틀리면 <strong>반대 분개를 새로 적습니다</strong>. 이벤트 소싱은 그 방식을 소프트웨어로 옮긴 것입니다.</p></div><div class="ink-space" data-ink-space="md"></div></section><section class="sec" id="sec-3" data-section="prerequisites"><h2 class="sec__title"><span class="sec__num">03</span>먼저 보면 좋은 학습지</h2><div class="sec__body"><div class="cards"><div class="card"><p class="card__title">불변성(Immutability)</p><p class="card__why">이벤트가 절대 수정되지 않는다는 전제가 이벤트 소싱의 모든 장점을 만듭니다. 이걸 모르면 &quot;왜 그냥 고치면 안 되지?&quot;에서 막힙니다.</p><p class="card__hint">한 번 만들어진 값은 바꾸지 않는다는 설계 원칙</p></div><div class="card"><p class="card__title">도메인 이벤트</p><p class="card__why">저장할 이벤트를 어떻게 이름 짓고 나눌지가 이벤트 소싱의 8할입니다.</p><p class="card__hint">업무상 의미 있는 사건을 과거형으로 표현한 것</p></div><div class="card"><p class="card__title">멱등성(Idempotency)</p><p class="card__why">이벤트를 다시 읽어 상태를 재구성하는 과정이 몇 번을 해도 같아야 합니다.</p><p class="card__hint">같은 연산을 여러 번 해도 결과가 같은 성질</p></div></div></div><div class="ink-space" data-ink-space="sm"></div></section><section class="sec" id="sec-4" data-section="origin_story"><h2 class="sec__title"><span class="sec__num">04</span>탄생 배경</h2><div class="sec__body"><ul class="timeline"><li><span class="timeline__when">회계의 역사</span><p class="timeline__what">복식부기는 기록을 지우지 않고 반대 분개를 추가하는 방식으로 정확성을 지켜왔습니다.</p></li><li><span class="timeline__when">2005년경</span><p class="timeline__what">Greg Young 과 Udi Dahan 을 중심으로 DDD 커뮤니티에서 이벤트 소싱과 CQRS 가 함께 논의되기 시작했습니다.<span class="conf conf--medium">확실하지 않음</span></p></li><li><span class="timeline__when">2010년대</span><p class="timeline__what">Kafka 같은 로그 기반 시스템이 퍼지면서 &#39;로그가 곧 진실&#39;이라는 발상이 널리 받아들여졌습니다.</p></li></ul><p class="p">이벤트 소싱은 누가 발명했다기보다 여러 갈래가 만난 지점에 가깝습니다. 회계의 장부, 데이터베이스의 트랜잭션 로그, 버전 관리 시스템의 커밋 — 전부 같은 아이디어입니다. 변화를 지우지 말고 쌓아라.</p><div class="callout callout--caution"><p class="callout__label">확실하지 않은 부분</p><p class="p">&#39;2005년경 Greg Young&#39;은 커뮤니티에서 널리 통용되는 서술이지만 특정 날짜에 발표된 단일 논문이 있는 것은 아닙니다. 개념이 서서히 형성된 쪽에 가깝습니다.</p></div></div><div class="ink-space" data-ink-space="md"></div></section><section class="sec" id="sec-5" data-section="roleplay"><h2 class="sec__title"><span class="sec__num">05</span>상황극 &amp; 예시</h2><div class="sec__body"><p class="scene">은행 고객센터. 손님이 잔액이 이상하다며 찾아왔고, 개발자 민아가 불려 나왔다.</p><div class="dialogue"><div class="dialogue__line"><span class="dialogue__speaker">손님</span><p class="dialogue__text">분명히 50만원이 있었는데 지금 30만원이에요. 왜 이렇게 됐죠?</p></div><div class="dialogue__line"><span class="dialogue__speaker">민아</span><p class="dialogue__text">(조회) 음... 잔액 칸에 300,000이라고만 적혀 있네요.</p></div><div class="dialogue__line"><span class="dialogue__speaker">손님</span><p class="dialogue__text">그러니까 왜 그렇게 됐냐고요.</p></div><div class="dialogue__line"><span class="dialogue__speaker">민아</span><p class="dialogue__text">...저희 시스템은 지금 얼마인지만 저장해서요. 어떻게 그렇게 됐는지는 기록이 없습니다.</p></div><div class="dialogue__line"><span class="dialogue__speaker">손님</span><p class="dialogue__text">은행이요?</p></div></div><div class="callout callout--story"><p class="callout__label">그래서 무슨 뜻이냐면</p><p class="p">이벤트 소싱이었다면 민아의 화면에는 이렇게 떴을 겁니다. <code>입금 500,000 / 출금 150,000 / 출금 50,000</code>. 잔액은 계산 결과일 뿐이고, 진실은 그 목록입니다. 답할 수 있는 시스템과 없는 시스템의 차이입니다.</p></div><p class="card__hint">실제 사건이 아니라 이해를 돕기 위해 만든 가상의 상황입니다. 다만 상태만 저장하는 시스템에서 이런 문의에 답하지 못하는 문제 자체는 실제로 흔합니다.</p></div><div class="ink-space" data-ink-space="md"></div></section><section class="sec" id="sec-6" data-section="main_lesson"><h2 class="sec__title"><span class="sec__num">06</span>본론</h2><div class="sec__body"><p class="h3">이벤트는 과거형으로 쓴다</p><p class="p">이벤트는 이미 일어난 일입니다. 그래서 이름이 과거형이어야 합니다. <code>WithdrawMoney</code>는 명령이고, <code>MoneyWithdrawn</code>이 이벤트입니다. 명령은 거절될 수 있지만 이벤트는 거절할 수 없습니다. 이미 일어났으니까요.</p><div class="example"><p class="example__caption">같은 상황을 명령과 이벤트로 나눠 쓰면</p><pre><code class="lang-javascript">// 명령 — 거절될 수 있다
+{ type: &#39;WithdrawMoney&#39;, accountId: &#39;A1&#39;, amount: 50000 } // 이벤트 — 이미 일어난 일, 되돌릴 수 없다
+{ type: &#39;MoneyWithdrawn&#39;, accountId: &#39;A1&#39;, amount: 50000, at: &#39;2026-09-06T10:00:00Z&#39; }</code></pre></div><div class="callout callout--caution"><p class="callout__label">흔한 실수</p><p class="p">이벤트 이름을 현재형으로 짓는 것. 그 순간부터 팀이 이벤트와 명령을 섞어 쓰게 되고, 이벤트 스토어에 &#39;실패한 시도&#39;가 섞여 들어갑니다.</p></div><p class="h3">상태는 저장하지 않고 계산한다</p><p class="p">현재 잔액이 필요하면 그 계좌의 이벤트를 처음부터 접습니다. 이걸 <strong>리플레이(replay)</strong> 또는 폴드(fold)라고 부릅니다. 함수형 프로그래밍의 reduce 와 정확히 같은 연산입니다.</p><div class="example"><p class="example__caption">이벤트 목록을 접어 잔액을 만든다</p><pre><code class="lang-javascript">const balance = events.reduce((acc, e) =&gt; e.type === &#39;MoneyDeposited&#39; ? acc + e.amount : e.type === &#39;MoneyWithdrawn&#39; ? acc - e.amount : acc
+, 0)</code></pre></div><div class="callout callout--caution"><p class="callout__label">흔한 실수</p><p class="p">이벤트가 수만 개 쌓인 뒤에도 매번 처음부터 접는 것. 스냅샷(중간 결산)을 두고 그 뒤부터만 접어야 합니다.</p></div><p class="h3">이벤트 스토어는 append-only 다</p><p class="p">이벤트는 수정도 삭제도 하지 않습니다. 잘못 저장했다면 <strong>정정 이벤트를 새로 추가</strong>합니다. 회계의 반대 분개와 같습니다. 이 규칙을 한 번이라도 깨면 &#39;기록이 진실&#39;이라는 전제가 무너지고, 이벤트 소싱의 장점이 전부 사라집니다.</p><div class="callout callout--caution"><p class="callout__label">흔한 실수</p><p class="p">&quot;이번만 DB에서 직접 고치자&quot;는 유혹. 그 순간 리플레이 결과와 실제가 어긋나고, 원인을 찾는 데 며칠이 걸립니다.</p></div><p class="h3">그래서 언제 쓰면 안 되는가</p><p class="p">이벤트 소싱은 공짜가 아닙니다. 조회가 복잡해지고, 이벤트 스키마를 바꾸기 어렵고, 팀 전체가 이 모델을 이해해야 합니다. <strong>&#39;어떻게 이 상태가 되었는가&#39;를 아무도 묻지 않는 도메인이라면 쓰지 마세요.</strong> 단순 CRUD 게시판에 이걸 얹는 것은 명백한 과설계입니다.</p><div class="callout callout--caution"><p class="callout__label">흔한 실수</p><p class="p">멋져 보인다는 이유로 전체 시스템에 적용하는 것. 보통은 계좌·주문처럼 이력이 중요한 일부 영역에만 씁니다.</p></div></div><div class="ink-space" data-ink-space="lg"></div></section><section class="sec" id="sec-7" data-section="pro_tips"><h2 class="sec__title"><span class="sec__num">07</span>꿀팁</h2><div class="sec__body"><div class="callout callout--tip"><p class="callout__label">이벤트 이름은 업무 담당자가 쓰는 말로</p><p class="p">&#39;주문완료됨&#39;을 개발자가 &#39;OrderStatusUpdated&#39;로 바꾸는 순간 코드와 대화가 어긋납니다. 도메인 전문가가 알아듣는 이름이 좋은 이벤트 이름입니다.</p></div><div class="callout callout--tip"><p class="callout__label">이벤트에 계산된 값을 넣지 말 것</p><p class="p">&#39;출금 5만원&#39;만 저장하고 &#39;남은 잔액 30만원&#39;은 넣지 마세요. 계산 규칙이 바뀌면 과거 이벤트가 전부 거짓말이 됩니다.</p></div><div class="callout callout--tip"><p class="callout__label">스냅샷은 성능 문제가 실제로 생긴 뒤에</p><p class="p">처음부터 스냅샷을 넣으면 복잡도만 오릅니다. 이벤트 수천 개까지는 그냥 접어도 충분히 빠릅니다.</p></div><div class="callout callout--tip"><p class="callout__label">이벤트 버전을 처음부터 넣어두기</p><p class="p">스키마는 반드시 바뀝니다. version 필드가 없으면 나중에 과거 이벤트를 어떻게 읽어야 할지 알 수 없습니다.</p></div></div><div class="ink-space" data-ink-space="md"></div></section><section class="sec" id="sec-8" data-section="quiz"><h2 class="sec__title"><span class="sec__num">08</span>질의 5개</h2><div class="sec__body"><ol class="quiz"><li class="quiz__item" data-quiz-id="q0"><p class="quiz__q">이벤트 스토어에 저장되는 것은 &#39;현재 상태&#39;인가요, &#39;일어난 변화&#39;인가요?</p><div class="ink-space" data-ink-space="sm"></div><details class="quiz__a"><summary>정답 보기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span> 일어난 변화(이벤트)입니다. 현재 상태는 그 변화들을 처음부터 접어서 계산해냅니다.</p><p>이벤트 소싱의 정의 그 자체입니다. 상태는 저장 대상이 아니라 계산 결과입니다.</p></div></details></li><li class="quiz__item" data-quiz-id="q1"><p class="quiz__q">다음 중 이벤트 이름으로 올바른 것은?</p><ul class="quiz__choices"><li>WithdrawMoney</li><li>MoneyWithdrawn</li><li>WithdrawingMoney</li><li>MoneyWithdrawRequest</li></ul><div class="ink-space" data-ink-space="sm"></div><details class="quiz__a"><summary>정답 보기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span> MoneyWithdrawn</p><p>이벤트는 이미 일어난 일이므로 과거형입니다. WithdrawMoney 는 거절될 수 있는 명령이고, Request 는 아직 일어나지 않은 요청입니다.</p></div></details></li><li class="quiz__item" data-quiz-id="q2"><p class="quiz__q">잘못 저장된 이벤트를 발견했습니다. 어떻게 고쳐야 하나요?</p><div class="ink-space" data-ink-space="sm"></div><details class="quiz__a"><summary>정답 보기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span> 수정하지 않고 정정 이벤트를 새로 추가합니다.</p><p>이벤트 스토어는 append-only 입니다. 회계에서 틀린 분개를 지우지 않고 반대 분개를 적는 것과 같습니다. 직접 수정하면 리플레이 결과와 실제가 영구히 어긋납니다.</p></div></details></li><li class="quiz__item" data-quiz-id="q3"><p class="quiz__q">이벤트에 &#39;남은 잔액 30만원&#39; 같은 계산된 값을 넣으면 왜 위험한가요?</p><div class="ink-space" data-ink-space="sm"></div><details class="quiz__a"><summary>정답 보기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span> 계산 규칙이 바뀌면 과거 이벤트에 박힌 값이 전부 틀린 기록이 되기 때문입니다.</p><p>이벤트는 &#39;일어난 사실&#39;만 담아야 합니다. 파생된 값은 리플레이 시점에 계산합니다.</p></div></details></li><li class="quiz__item" data-quiz-id="q4"><p class="quiz__q">사내 공지사항 게시판을 이벤트 소싱으로 만들자는 제안이 나왔습니다. 반대한다면 어떤 근거를 대겠습니까?</p><div class="ink-space" data-ink-space="md"></div><details class="quiz__a"><summary>정답 보기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span> &#39;어떻게 이 상태가 되었는가&#39;를 아무도 묻지 않는 도메인이기 때문입니다.</p><p>이벤트 소싱은 이력 추적과 감사가 가치를 만드는 곳에서 값을 합니다. 공지 게시판은 최신 내용만 중요하고, 조회 복잡도와 학습 비용만 늘어납니다. 명백한 과설계입니다.</p></div></details></li></ol></div></section><section class="sec" id="sec-9" data-section="homework"><h2 class="sec__title"><span class="sec__num">09</span>숙제 &amp; 과제</h2><div class="sec__body"><div class="card"><p class="card__title">내 통장을 이벤트로 다시 쓰기</p><p class="card__why">최근 은행 거래 내역 10건을 { type, amount, at } 형태의 이벤트 배열로 종이에 옮겨 적으세요. 그다음 그 배열을 위에서부터 접어서 현재 잔액을 손으로 계산하고, 실제 잔액과 맞는지 확인하세요.</p><p class="card__hint">예상 20분</p></div><div class="card"><p class="card__title">정정 이벤트 설계해보기</p><p class="card__why">위 이벤트 중 하나가 금액을 잘못 적었다고 가정하고, 그 이벤트를 지우지 않은 채 바로잡는 정정 이벤트를 설계해 적으세요. 이름은 반드시 과거형으로.</p><p class="card__hint">예상 15분</p></div><p class="card__hint">정답은 없습니다. 다만 &#39;기존 이벤트를 고치지 않았는가&#39;와 &#39;이벤트 이름이 과거형인가&#39; 두 가지만 스스로 확인하세요.</p></div><div class="ink-space" data-ink-space="lg"></div></section><section class="sec" id="sec-10" data-section="wrap_up"><h2 class="sec__title"><span class="sec__num">10</span>마무리 팁</h2><div class="sec__body"><p class="h3">이렇게 씁니다</p><ul class="list"><li>주문 상태가 왜 &#39;취소됨&#39;이 되었는지 고객센터가 직접 확인할 수 있게 만들 때</li><li>금융·의료처럼 감사 로그가 법적으로 요구되는 시스템</li><li>협업 문서 편집기에서 되돌리기와 변경 이력을 구현할 때</li></ul><p class="h3">일상에 붙이기</p><p class="p">코드 밖에서도 써먹을 수 있습니다. 가계부를 &#39;남은 돈&#39;이 아니라 <strong>&#39;쓴 내역&#39;</strong>으로 적는 것, 일기를 &#39;나는 요즘 우울하다&#39;가 아니라 &#39;오늘 무슨 일이 있었다&#39;로 적는 것. 결론이 아니라 사건을 남기면 나중에 다른 결론도 뽑아낼 수 있습니다.</p><p class="h3">스스로 점검</p><ul class="checklist"><li>명령과 이벤트의 차이를 예로 설명할 수 있다</li><li>append-only 를 어겼을 때 무슨 일이 생기는지 말할 수 있다</li><li>이벤트 소싱을 쓰지 말아야 할 상황을 하나 이상 댈 수 있다</li></ul></div><div class="ink-space" data-ink-space="md"></div></section><section class="sec" id="sec-11" data-section="next_steps"><h2 class="sec__title"><span class="sec__num">11</span>다음 단계 제안</h2><div class="sec__body"><div class="cards"><div class="card"><p class="card__title">CQRS</p><p class="card__why">이벤트 소싱을 쓰면 조회가 불편해지는데, 그 문제를 정면으로 다루는 패턴입니다. 거의 항상 함께 등장합니다.</p><p class="card__hint">한 단계 더 깊게</p></div><div class="card"><p class="card__title">스냅샷과 프로젝션</p><p class="card__why">이벤트가 쌓였을 때의 성능 문제와, 조회용 읽기 모델을 만드는 방법을 다룹니다.</p><p class="card__hint">한 단계 더 깊게</p></div><div class="card"><p class="card__title">도메인 주도 설계(DDD)의 애그리거트</p><p class="card__why">이벤트를 &#39;어느 단위로&#39; 묶을지를 결정하는 개념입니다. 이걸 알면 이벤트 설계가 훨씬 쉬워집니다.</p><p class="card__hint">같은 난이도</p></div></div></div><div class="ink-space" data-ink-space="sm"></div></section>
+<footer class="sheet__footer">이벤트 소싱(Event Sourcing) · ONPAR</footer>
+<canvas class="ink-layer" id="ink-layer" aria-hidden="true"></canvas>
+</article>
+</div>
+</body>
+</html>
