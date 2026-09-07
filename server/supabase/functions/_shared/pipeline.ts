@@ -42,6 +42,11 @@ export interface Deps {
     saveContent(worksheetId: string, content: WorksheetContent, meta: {
       quizItemIds: string[]; htmlPath: string; planModel: string; draftModel: string
       qualityScore: number; revisions: number
+      /**
+       * 출고 블로커. 모델이 다시 써도 못 고치는 것(등록된 사진 자산이 없다 등)이라
+       * 생성은 성공시키되 "이대로 내보낼 수는 없다" 는 사실만 함께 넘긴다.
+       */
+      releaseBlocked?: string[]
     }): Promise<void>
     saveSchedules(worksheetId: string, userId: string, seeds: unknown[]): Promise<void>
     failWorksheet(worksheetId: string, code: ErrorCode, detail: string): Promise<void>
@@ -50,6 +55,8 @@ export interface Deps {
       status: 'succeeded' | 'failed'; costUsd: number
       planUsage?: unknown; draftUsage?: unknown; criticUsage?: unknown; errorCode?: ErrorCode
       qualityScore?: number; revisions?: number
+      /** 재작성으로 풀 수 없는 출고 블로커. 잡 기록에 남겨 두면 자산이 들어왔을 때 되짚을 수 있다. */
+      releaseBlocked?: string[]
     }): Promise<void>
     recentCostsUsd(limit: number): Promise<number[]>
     userPrefs(userId: string): Promise<{ timeZone: string; reviewHour: number }>
@@ -130,6 +137,9 @@ export async function runGeneration(
     let content: WorksheetContent | undefined
     let verdict: CriticVerdict | undefined
     let revisions = 0
+    // 출고 블로커는 재작성 사유가 아니다. 다시 쓰라고 해도 모델이 사진 자산을 만들어 낼 수 없어서
+    // staticIssues 에 넣으면 두 번 다시 쓰고 환불하며 실패한다. 기록만 하고 파이프라인은 통과시킨다.
+    let releaseBlocked: string[] = []
 
     for (let round = 0; ; round++) {
       // 스키마 — 깨졌으면 검사관까지 갈 것도 없이 지적만 붙여 다시 쓴다
@@ -149,6 +159,7 @@ export async function runGeneration(
       const check = crossCheck(outline, candidate)
       const voice = voiceLint(candidate)
       const ped = pedagogyLint(candidate)
+      releaseBlocked = ped.releaseBlockers.map((b) => `${b.path}: [${b.rule}] ${b.detail}`)
       const staticIssues = [
         ...check.violations.map((v) => `[설계 위반] ${v}`),
         ...voice.errors.map((e) => `[말투] ${e.path}: ${e.detail}`),
@@ -193,6 +204,7 @@ export async function runGeneration(
       quizItemIds, htmlPath,
       planModel: planResult.model, draftModel: draftResult.model,
       qualityScore: verdict.score, revisions,
+      ...(releaseBlocked.length ? { releaseBlocked } : {}),
     })
 
     // ⑤ 복습 스케줄 5회차
@@ -205,6 +217,7 @@ export async function runGeneration(
       costUsd: totalCost(planResult, draftResult, criticResult),
       planUsage: planResult.usage, draftUsage: draftResult.usage, criticUsage: criticResult?.usage,
       qualityScore: verdict.score, revisions,
+      ...(releaseBlocked.length ? { releaseBlocked } : {}),
     })
   } catch (e) {
     const code = toErrorCode(e)

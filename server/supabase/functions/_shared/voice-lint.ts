@@ -87,10 +87,21 @@ export function collectProse(content: any): { path: string; text: string }[] {
     push(`concept.blocks[${i}].common_mistake`, b?.common_mistake)
     push(`concept.blocks[${i}].activity.prompt`, b?.activity?.prompt)
     push(`concept.blocks[${i}].activity.reveal`, b?.activity?.reveal)
+    // V6: 규칙의 경계도 학생이 읽는 문장이다. 여기만 딱딱한 논문 말투가 되기 쉬워서 함께 본다.
+    push(`concept.blocks[${i}].boundary.holds_when`, b?.boundary?.holds_when)
+    push(`concept.blocks[${i}].boundary.breaks_when`, b?.boundary?.breaks_when)
   })
   inline('concept.context_note.text', content.concept?.context_note?.text)
   ;(content.glossary ?? []).forEach((g: any, i: number) => push(`glossary[${i}].plain`, g?.plain))
   ;(content.guide_notes ?? []).forEach((g: any, i: number) => push(`guide_notes[${i}].note`, g?.note))
+
+  // V6: 그림이 무엇을 생략했는지 밝히는 문장도 학습지에 그대로 나간다.
+  ;(content.figures ?? []).forEach((f: any, i: number) => push(`figures[${i}].model_note`, f?.model_note))
+  // V6: 로버스트니스 예산. 오해와 막는 방법은 파르가 쓰는 문장이다.
+  ;(content.robustness?.guards ?? []).forEach((g: any, i: number) => {
+    push(`robustness.guards[${i}].misconception`, g?.misconception)
+    push(`robustness.guards[${i}].how`, g?.how)
+  })
 
   // ⑤ 연습
   ;(content.practice?.quiz ?? []).forEach((q: any, i: number) => {

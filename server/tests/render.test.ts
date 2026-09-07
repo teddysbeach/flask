@@ -27,7 +27,7 @@ function assert(cond: unknown, msg: string) { if (!cond) throw new Error(msg) }
 const raw = JSON.parse(readFileSync(FIXTURE, 'utf8'))
 const CTX = {
   worksheetId: 'ws-0000-1111-2222',
-  quizItemIds: ['q0', 'q1', 'q2', 'q3', 'q4'],
+  quizItemIds: ['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'],
   theme: 'light' as const,
 }
 
@@ -35,17 +35,21 @@ console.log('\n▸ 검증기')
 
 test('정상 픽스처는 통과한다', () => {
   const c = validateWorksheet(raw)
-  assert(c.practice.quiz.length === 5, '문제가 5개가 아니다')
+  assert(c.practice.quiz.length >= 4 && c.practice.quiz.length <= 7, `문제가 ${c.practice.quiz.length}개다 (4~7개여야 함)`)
+  assert(new Set(c.practice.quiz.map((q) => q.evidence)).size >= 3, '증거 종류가 3가지 미만이다')
+  assert(c.robustness.guards.length >= 3, '로버스트니스 예산(guards)이 3개 미만이다')
+  assert(c.concept.blocks.some((b) => b.boundary), '규칙의 경계를 밝힌 블록이 없다')
   assert(c.exit_ticket.next_steps.length >= 2, '다음 단계가 2개 미만이다')
   assert(c.problem.objectives.length === 3, '목표가 3개가 아니다')
 })
 
 test('개수 제약을 어기면 정확한 메시지를 낸다', () => {
-  const bad = structuredClone(raw); bad.practice.quiz.pop()
+  // 문제 수는 이제 4~7 이다. 하한 아래로 내려야 잡힌다.
+  const bad = structuredClone(raw); bad.practice.quiz = bad.practice.quiz.slice(0, 3)
   try { validateWorksheet(bad); assert(false, '4개인데 통과했다') }
   catch (e) {
     const issues = (e as ValidationError).issues
-    assert(issues.some((i) => i.includes('practice.quiz') && i.includes('5개') && i.includes('4개')),
+    assert(issues.some((i) => i.includes('practice.quiz') && i.includes('4~7개') && i.includes('3개')),
       `메시지가 부정확: ${issues.join(' / ')}`)
   }
 })
@@ -154,7 +158,7 @@ test('XSS: 모든 문자열 필드에 공격 문자열을 넣어도 태그가 �
     'section', 'h1', 'h2', 'p', 'span', 'ul', 'ol', 'li', 'strong', 'em', 'code', 'pre',
     'details', 'summary', 'canvas', 'dl', 'dt', 'dd', 'aside', 'svg', 'path',
     // 응답 위젯 (V4). 허용하되 아래에서 형태를 다시 조인다.
-    'label', 'input', 'button', 'output', 'figure', 'figcaption',
+    'label', 'input', 'button', 'output', 'figure', 'figcaption', 'textarea', 'img', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
   ])
   const found = new Set([...body.matchAll(/<\/?([a-zA-Z][\w-]*)/g)].map((m) => m[1].toLowerCase()))
   const injected = [...found].filter((t) => !ALLOWED.has(t))
@@ -166,6 +170,12 @@ test('XSS: 모든 문자열 필드에 공격 문자열을 넣어도 태그가 �
   assert(inputs.length > 0, 'input 이 하나도 없다 (선택 활동·시도 체크가 사라졌다)')
   for (const attrs of inputs) {
     assert(/^ type="(radio|checkbox|range)"/.test(attrs), `우리가 만들지 않은 input: <input${attrs.slice(0, 60)}>`)
+  }
+  // textarea 도 허용했으니 우리가 만든 모양인지 본다. 값이 아니라 속성 이름으로.
+  const textareas = [...body.matchAll(/<textarea\b([^>]*)>/g)].map((m) => m[1])
+  assert(textareas.length > 0, 'textarea 가 없다 (타이핑 입력이 사라졌다)')
+  for (const attrs of textareas) {
+    assert(attrs.includes('data-answer-text'), `우리가 만들지 않은 textarea: <textarea${attrs.slice(0, 60)}>`)
   }
   const buttons = [...body.matchAll(/<button\b([^>]*)>/g)].map((m) => m[1])
   for (const attrs of buttons) {
@@ -267,19 +277,28 @@ test('⑥ 나가기 전에: 처음 예측 재방문 · 한 문장 · 틀린 문�
 })
 
 test('선택형 문제는 제출 전엔 답이 안 열리고, 오답마다 피드백이 붙는다', () => {
-  // 런타임 스크립트도 같은 셀렉터 문자열을 담고 있으니 섹션 범위로만 자른다
-  const quiz = secSlice(5)
+  // 골든 픽스처는 선택형이 없을 수도 있다(문항 구성은 분야가 정한다).
+  // 선택형 채점 경로는 반드시 검사해야 하므로, 선택형이 있는 픽스처를 골라서 본다.
+  const mcRaw = content.practice.quiz.some((q) => q.choices) ? raw
+    : JSON.parse(readFileSync(resolve(HERE, 'fixtures/worksheet-calculus.json'), 'utf8'))
+  const mcContent = validateWorksheet(structuredClone(mcRaw))
+  const mcHtml = renderWorksheet(mcContent, CTX)
+  const start = mcHtml.indexOf('id="sec-5"'), end = mcHtml.indexOf('id="sec-6"')
+  const quiz = mcHtml.slice(start, end === -1 ? mcHtml.indexOf('<footer') : end)
+  const content_ = mcContent
   const mc = (quiz.match(/data-response-kind="choice"/g) ?? []).length
-  assert(mc === content.practice.quiz.filter((q) => q.choices).length, `선택형 문제 수가 다르다 (${mc})`)
+  assert(mc === content_.practice.quiz.filter((q) => q.choices).length, `선택형 문제 수가 다르다 (${mc})`)
   assert((quiz.match(/data-submit/g) ?? []).length === mc, '선택형 문제마다 제출 버튼이 있어야 한다')
   assert(quiz.includes('data-answer="'), '정답 인덱스가 없다 (런타임이 채점을 못 한다)')
   assert(quiz.includes(' data-feedback="'), '오답 선택지에 피드백이 붙지 않았다')
-  assert((quiz.match(/data-attempted/g) ?? []).length === content.practice.quiz.filter((q) => !q.choices).length,
+  assert(mc > 0, '선택형 문제가 하나도 없다 — 채점 경로를 검사할 수 없다')
+  assert((quiz.match(/data-attempted/g) ?? []).length === content_.practice.quiz.filter((q) => !q.choices).length,
     '서술형 문제마다 시도 체크가 있어야 한다')
 })
 
 test('문제마다 quiz_items.id 가 붙는다 (복습 알림 딥링크용)', () => {
-  for (const id of CTX.quizItemIds) {
+  // 문항 수는 분야가 정한다(4~7). 쓰이는 만큼만 붙으면 된다.
+  for (const id of CTX.quizItemIds.slice(0, content.practice.quiz.length)) {
     assert(html.includes(`data-quiz-id="${id}"`), `quiz id ${id} 가 없다`)
   }
 })
@@ -291,7 +310,7 @@ test('필기 레이어와 문서 폭 고정이 살아있다', () => {
 })
 
 test('필기 여백이 섹션·문제·활동·그림 과제마다 들어간다', () => {
-  const n = (html.match(/class="ink-space"/g) ?? []).length
+  const n = (html.replace(/<script>[\s\S]*?<\/script>/g, '').match(/class="ink-space"/g) ?? []).length
   // 빈 종이는 과제가 아니다. 필기 칸은 인지 명령이 붙은 자리에만:
   // 예측 이유 1 + (관찰 비교가 explain 이면 1) + 손을 쓰는 개념 활동 + 그림 위 과제(렌더된 참조마다) + 서술형 문제 + 나가기 전에 2
   const figById = new Map(content.figures.map((f) => [f.id, f]))
@@ -304,7 +323,8 @@ test('필기 여백이 섹션·문제·활동·그림 과제마다 들어간다'
   const expected = 1 + compareInk + activityInk + figureInk + writtenQuiz + 2
   assert(n === expected, `필기 여백이 ${n}개다 (${expected}개여야 함: 이유 1 + 비교 ${compareInk} + 활동 ${activityInk} + 그림 과제 ${figureInk} + 서술형 ${writtenQuiz} + 나가기 2)`)
   // 과제가 붙지 않은 여백이 없어야 한다: 모든 ink-space 바로 앞 400자 안에 프롬프트가 있다
-  const noIcons = html.replace(/<svg[\s\S]*?<\/svg>/g, '')
+  // 런타임 <script> 안의 주석이 마크업 계약 예시를 담고 있어 그대로 세면 하나 더 잡힌다.
+  const noIcons = html.replace(/<svg[\s\S]*?<\/svg>/g, '').replace(/<script>[\s\S]*?<\/script>/g, '')
   for (const m of noIcons.matchAll(/class="ink-space"/g)) {
     const before = noIcons.slice(Math.max(0, m.index! - 500), m.index)
     assert(/act__prompt|quiz__q|fig__task|reflect__prompt/.test(before), `과제 없는 빈 여백이 있다 (offset ${m.index})`)
@@ -374,6 +394,73 @@ test('결정론: 같은 입력이면 바이트 단위로 같다', () => {
   const b = renderWorksheet(validateWorksheet(structuredClone(raw)), CTX)
   assert(a === b, '두 번 렌더한 결과가 다르다 — 재렌더 시 기존 필기가 어긋난다')
   assert(a.length === html.length, '길이가 다르다')
+})
+
+test('규칙마다 성립 조건과 깨지는 경우가 보인다 (V6)', () => {
+  const withBoundary = content.concept.blocks.filter((b) => b.boundary).length
+  assert(withBoundary > 0, '경계를 밝힌 블록이 없다')
+  assert((html.match(/class="boundary"/g) ?? []).length === withBoundary, '경계 블록이 렌더되지 않았다')
+  assert(html.includes('class="boundary__holds"') && html.includes('class="boundary__breaks"'),
+    '성립 조건과 깨지는 경우가 둘 다 보이지 않는다 — 조건만 있으면 여전히 절대법칙이다')
+  for (const b of content.concept.blocks) {
+    if (b.boundary) assert(html.includes(esc(b.boundary.breaks_when).slice(0, 20)), '깨지는 경우가 본문에 없다')
+  }
+})
+
+test('이상화 그림은 무엇을 생략했는지 스스로 말한다 (V6)', () => {
+  const needNote = content.figures.filter((f) => ['distribution', 'tonecurve', 'swatches'].includes(f.spec.kind))
+  for (const f of needNote) {
+    assert(f.model_note, `${f.id} 에 model_note 가 없다`)
+    assert(html.includes(esc(f.model_note!).slice(0, 20)), `${f.id} 의 model_note 가 렌더되지 않았다`)
+  }
+  assert((html.match(/fig__limits/g) ?? []).length >= needNote.length, '생략 고지가 빠진 그림이 있다')
+})
+
+test('모형에서 나온 가짜 정밀도가 눈금에 없다 (V6 · P0)', () => {
+  // 할선 기울기는 그림에서 실제로 계산되는 값이라 수를 보여도 정직하다.
+  // 정성 모형(분포)의 눈금에 퍼센트가 뜨면 사람은 그걸 법칙으로 기억한다.
+  for (const f of content.figures) {
+    if (f.readout === 'quantitative') assert(f.spec.kind === 'plot', `${f.id}: plot 이 아닌데 정량 눈금이다`)
+  }
+  for (const m of html.matchAll(/<output class="fig__readout"[^>]*>([\s\S]*?)<\/output>/g)) {
+    const text = m[1].replace(/<[^>]+>/g, '')
+    const fig = html.slice(0, m.index!).lastIndexOf('data-interactive="distribution"')
+    const isDist = fig > html.slice(0, m.index!).lastIndexOf('data-interactive="plot"')
+    if (isDist) assert(!/%|\d/.test(text), `정성 모형 눈금에 수가 있다: ${text}`)
+  }
+})
+
+test('문제마다 무엇을 증거로 삼는지 보인다 (V6)', () => {
+  const n = (secSlice(5).match(/quiz__evidence/g) ?? []).length
+  assert(n === content.practice.quiz.length, `증거 라벨이 ${n}개다 (${content.practice.quiz.length}개여야 함)`)
+})
+
+test('막으려 한 오해를 학습지가 끝에서 밝힌다 (V6)', () => {
+  assert(html.includes('<details class="guards">'), '로버스트니스 예산이 렌더되지 않았다')
+  assert(!html.includes('<details class="guards" open'), '검토자용 블록이 처음부터 펼쳐져 있다')
+  for (const g of content.robustness.guards) {
+    assert(html.includes(esc(g.misconception).slice(0, 15)), `막으려 한 오해가 빠졌다: ${g.misconception}`)
+  }
+})
+
+test('서술형은 타이핑과 필기를 둘 다 받는다 (V6 · 접근성)', () => {
+  const body = html.replace(/<script>[\s\S]*?<\/script>/g, '')
+  const textareas = (body.match(/data-answer-text/g) ?? []).length
+  const anchors = (body.match(/data-ink-anchor/g) ?? []).length
+  assert(textareas > 0, '타이핑 입력이 없다 — 펜이 없으면 답할 수 없다')
+  // 필기 앵커는 서술형(.answer)과 그림 과제 양쪽에 붙는다
+  assert(anchors >= textareas, `필기 앵커(${anchors})가 타이핑 칸(${textareas})보다 적다`)
+  // 모든 .answer 는 둘을 같이 갖는다
+  for (const m of body.matchAll(/<div class="answer" data-answer-for="([^"]+)">([\s\S]*?)<\/div>\s*<\/div>/g)) {
+    assert(m[2].includes('data-answer-text'), `${m[1]}: 타이핑 칸이 없다`)
+    assert(m[2].includes(`data-ink-anchor="${m[1]}"`), `${m[1]}: 필기 앵커가 응답 id 와 다르다`)
+  }
+})
+
+test('문서 폭이 고정이 아니라 상한이다 (V6 · 반응형)', () => {
+  assert(html.includes('--ds-sheet-width'), '문서 폭 토큰이 없다')
+  assert(/\.sheet\s*\{[^}]*max-width:\s*var\(--ds-sheet-width/.test(html),
+    '.sheet 가 max-width 를 쓰지 않는다 — 좁은 화면에서 본문이 축소되어 읽히지 않는다')
 })
 
 test('골든 파일과 일치한다', () => {

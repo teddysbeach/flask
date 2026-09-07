@@ -59,6 +59,10 @@ interface Row {
   inkSpaces: number
   hookFirst: boolean
   corePath: number
+  evidenceKinds: number
+  boundaries: number
+  guards: string
+  blockers: string[]
 }
 
 const rows: Row[] = []
@@ -76,6 +80,7 @@ for (const file of readdirSync(DIR).filter((f) => f.endsWith('.json')).sort()) {
       ok: false, errors: e instanceof ValidationError ? e.issues.slice(0, 5) : [String(e)],
       warnings: 0, activity: 0, far: 0, figures: 0, avgSentence: 0, glossary: 0, guideNotes: 0, hasAnalogy: false,
       exampleKinds: [], unnaturalExample: [], quizCount: 0, htmlKb: 0, inkSpaces: 0, hookFirst: false, corePath: 0,
+      evidenceKinds: 0, boundaries: 0, guards: '-', blockers: [],
     })
     continue
   }
@@ -120,6 +125,10 @@ for (const file of readdirSync(DIR).filter((f) => f.endsWith('.json')).sort()) {
     inkSpaces: (html.match(/class="ink-space"/g) ?? []).length,
     hookFirst: ped.metrics.hookFirst,
     corePath: Math.round(ped.metrics.corePathRatio * 100),
+    evidenceKinds: ped.metrics.evidenceKinds,
+    boundaries: ped.metrics.boundaries,
+    guards: `${ped.metrics.guardsCovered}/${ped.metrics.guards}`,
+    blockers: ped.releaseBlockers.map((b) => b.rule),
   })
 }
 
@@ -131,7 +140,7 @@ const pad = (s: string, n: number) => {
 
 console.log('\n━━━ ONPAR 학습지 자가점검 ━━━\n')
 console.log(pad('분야', 14) + pad('제목', 34) + pad('검사', 6) + pad('활동', 6) + pad('far', 5) +
-            pad('도형', 6) + pad('평균', 6) + pad('용어', 6) + pad('파르', 6) + pad('예측', 6) + pad('핵심', 6) + pad('예시', 20) + 'HTML')
+            pad('도형', 6) + pad('평균', 6) + pad('용어', 6) + pad('파르', 6) + pad('예측', 6) + pad('증거', 6) + pad('경계', 6) + pad('방어', 8) + pad('예시', 18) + pad('HTML', 8) + '출고')
 console.log('─'.repeat(124))
 
 for (const r of rows) {
@@ -146,9 +155,12 @@ for (const r of rows) {
     pad(String(r.glossary), 6) +
     pad(String(r.guideNotes), 6) +
     pad(r.hookFirst ? '예' : '아니오', 6) +
-    pad(`${r.corePath}%`, 6) +
-    pad(r.exampleKinds.join(',') || '-', 20) +
-    `${r.htmlKb}KB`,
+    pad(String(r.evidenceKinds), 6) +
+    pad(String(r.boundaries), 6) +
+    pad(r.guards, 8) +
+    pad(r.exampleKinds.join(',') || '-', 18) +
+    pad(`${r.htmlKb}KB`, 8) +
+    (r.blockers.length ? `보류 (${r.blockers.join(', ')})` : '가능'),
   )
 }
 
@@ -167,6 +179,11 @@ const avgAll = Math.round(rows.reduce((a, r) => a + r.avgSentence, 0) / (rows.le
 console.log('── 종합 ──')
 console.log(`학습지 ${rows.length}장 · 통과 ${rows.length - failed.length} · 실패 ${failed.length}`)
 console.log(`평균 문장 길이 ${avgAll}자 (목표 60자 이하)`)
+const blocked = rows.filter((r) => r.blockers.length)
+if (blocked.length) {
+  console.log(`\n출고 보류 ${blocked.length}장 — 재작성으로는 풀리지 않는 것들이에요:`)
+  for (const r of blocked) console.log(`  ${CATEGORY_LABEL[r.category] ?? r.category}: ${r.blockers.join(', ')}`)
+}
 console.log(`분야 커버리지 ${covered.size}/${CATEGORIES.length} — 남은 분야: ${missing.map((c) => CATEGORY_LABEL[c]).join(', ') || '없음'}`)
 
 const unnatural = rows.filter((r) => r.unnaturalExample.length)

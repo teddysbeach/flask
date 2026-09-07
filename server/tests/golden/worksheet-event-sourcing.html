@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>이벤트 소싱, 결과 말고 과정을 저장하기</title>
+<title>이벤트 소싱, 결과 말고 과정을 원본으로 두기</title>
 <style>:root {
   --ds-color-brand-primary: #FF6600;
   --ds-color-brand-primary-hover: #E14D00;
@@ -195,13 +195,18 @@ body {
   color: var(--ds-color-text-primary);
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
+  overflow-wrap: break-word;
 }
 
-/* 문서 폭은 고정이다. 리플로우가 일어나면 기존 필기 좌표가 전부 어긋난다.
-   화면 맞춤은 .sheet-scaler 의 transform: scale() 로만 처리한다. */
+/* 문서 폭은 유동이다(V6).
+   예전에는 820px 고정을 .sheet-scaler 의 scale() 로 줄여 화면에 맞췄는데,
+   390px 폰에서 배율이 0.47 이 되어 18px 본문이 8px 로 보였다. 읽을 수 없는 학습지였다.
+   필기 좌표는 이제 [data-ink-anchor] 요소 기준 정규화라 리플로우가 나도 획이 따라간다.
+   --ds-sheet-width 는 최대 폭 토큰으로 그대로 남는다(런타임·테스트가 읽는다). */
 .sheet-scaler { transform-origin: top left; will-change: transform; }
 .sheet {
-  width: var(--ds-sheet-width);
+  width: 100%;
+  max-width: var(--ds-sheet-width, 820px);
   margin: 0 auto;
   padding: var(--ds-sheet-padding);
   background: var(--ds-paper);
@@ -449,6 +454,52 @@ code, .code {
   border-radius: var(--ds-radius-lg);
 }
 
+/* ── 서술형 응답: 타이핑 + 필기 ──
+   둘 중 하나만 두면 한쪽 학습자가 답을 남길 방법을 잃는다.
+   textarea 는 JS 없이도 쓰이는 진짜 입력칸이라 어떤 경우에도 숨기지 않는다. */
+.answer { margin-top: 16px; }
+.answer__text {
+  display: block; width: 100%;
+  font-family: inherit; font-size: 16px; line-height: 1.75;
+  color: var(--ds-color-text-primary);
+  padding: 12px 14px; min-height: 88px; resize: vertical;
+  background: var(--ds-color-surface-raised);
+  border: 1px solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-lg);
+}
+.answer__text::placeholder { color: var(--ds-color-text-placeholder); }
+.answer__text:focus-visible {
+  outline: 2px solid var(--ds-color-border-focus); outline-offset: 1px;
+  border-color: var(--ds-color-border-focus);
+}
+.answer .ink-space { margin-top: 10px; }
+
+/* ── 규칙의 경계 ──
+   V6 의 핵심 장치. 단순화가 절대법칙으로 굳는 것을 막는다.
+   콜아웃만큼 존재감이 있어야 하지만 '주의' 색(빨강)은 쓰지 않는다 —
+   예외는 경고가 아니라 개념의 일부다. 두 줄 구조가 눈에 보이게 가로선으로 나눈다. */
+.boundary {
+  margin: 0 0 var(--ds-sheet-block-gap);
+  padding: 4px 22px;
+  background: var(--ds-color-surface-sunken);
+  border-left: 3px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-lg);
+  max-width: 40em;
+}
+.boundary__holds, .boundary__breaks {
+  display: grid; grid-template-columns: 18px 1fr; gap: 10px; align-items: start;
+  font-size: 16px; line-height: 1.7;
+  margin: 0; padding: 16px 0;
+  color: var(--ds-color-text-primary);
+}
+.boundary__breaks { border-top: 1px solid var(--ds-color-border-subtle); }
+.boundary__holds::before, .boundary__breaks::before {
+  font-size: 15px; font-weight: 700; line-height: 1.8;
+  color: var(--ds-color-text-tertiary);
+}
+.boundary__holds::before { content: "○"; }
+.boundary__breaks::before { content: "×"; }
+
 /* ── 선택지 (라디오) ── */
 .act__opt {
   display: grid; grid-template-columns: auto 26px 1fr; gap: 10px; align-items: start;
@@ -638,19 +689,29 @@ code, .code {
 .quiz { list-style: none; margin: 0; padding: 0; counter-reset: q; }
 .quiz__item { padding: 32px 0; border-top: 1px solid var(--ds-color-border-subtle); }
 .quiz__item:first-child { border-top: 0; padding-top: 0; }
+/* 번호 줄. 번호 옆에 이 문제가 무엇을 증거로 삼는지 작은 라벨로 붙는다.
+   문제는 개수가 아니라 증거 종류로 센다 — 그 사실이 학습자에게도 보여야 한다. */
+.quiz__head {
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 0 8px;
+}
+.quiz__head::before {
+  counter-increment: q; content: "Q" counter(q);
+  font-size: 13px; font-weight: 700; letter-spacing: .1em;
+  color: var(--ds-color-brand-primary);
+}
+.quiz__evidence {
+  font-size: 12px; font-weight: 700; line-height: 1.4;
+  padding: 3px 9px; border-radius: var(--ds-radius-full);
+  background: var(--ds-color-surface-sunken);
+  color: var(--ds-color-text-tertiary);
+}
 .quiz__q {
   font-size: var(--ds-ws-quiz-question-size);
   line-height: var(--ds-ws-quiz-question-lh);
   font-weight: var(--ds-ws-quiz-question-weight);
   letter-spacing: -.2px;
   margin: 0; max-width: 36em;
-}
-.quiz__q::before {
-  counter-increment: q; content: "Q" counter(q);
-  display: block;
-  font-size: 13px; font-weight: 700; letter-spacing: .1em;
-  color: var(--ds-color-brand-primary);
-  margin-bottom: 8px;
 }
 .quiz__choices { list-style: none; margin: 16px 0 0; padding: 0; max-width: 36em; }
 .quiz__choices { margin: 16px 0 0; }
@@ -709,10 +770,44 @@ code, .code {
    스크롤 동기화 문제가 애초에 생기지 않는다. docs/plan/06-annotation.md §1 */
 .ink-layer {
   position: absolute; top: 0; left: 0;
-  width: var(--ds-sheet-width); height: 100%;
+  width: 100%; height: 100%;
   pointer-events: none;
   touch-action: none;
   z-index: 10;
+}
+
+/* ── 로버스트니스 예산 (접힘) ──
+   이 학습지가 막으려 한 오해와 어디서 어떻게 막았는지.
+   학습자보다 검토자를 위한 것이라 맨 끝에서 조용히 있어야 한다 — 회색, 작은 글씨, 접힘. */
+.guards {
+  margin: 56px 0 0; max-width: 40em;
+  border-top: 1px solid var(--ds-color-border-subtle);
+}
+.guards__summary {
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer; list-style: none;
+  padding: 16px 0 0;
+  font-size: 13px; font-weight: 700;
+  color: var(--ds-color-text-tertiary);
+}
+.guards__summary::-webkit-details-marker { display: none; }
+.guards__summary::before { content: "＋"; font-weight: 400; }
+.guards[open] .guards__summary::before { content: "－"; }
+.guards__list { list-style: none; margin: 8px 0 0; padding: 0; }
+.guards__item { padding: 14px 0; border-top: 1px solid var(--ds-color-border-subtle); }
+.guards__item:first-child { border-top: 0; }
+.guards__mis {
+  margin: 0; font-size: 14px; line-height: 1.65;
+  color: var(--ds-color-text-secondary);
+}
+.guards__mis::before { content: "오해 "; color: var(--ds-color-text-tertiary); font-weight: 700; }
+.guards__how {
+  margin: 5px 0 0; font-size: 13px; line-height: 1.65;
+  color: var(--ds-color-text-tertiary);
+}
+.guards__where {
+  display: inline-block; margin-right: 7px;
+  font-weight: 700; color: var(--ds-color-text-secondary);
 }
 
 .sheet__footer {
@@ -722,10 +817,68 @@ code, .code {
   display: flex; justify-content: space-between; align-items: center;
 }
 
+/* ── 좁은 화면 ──
+   축소해서 보여 주는 것은 대응이 아니다. 폰에서도 본문이 본문 크기로 읽혀야 한다. */
+@media (max-width: 900px) {
+  .sheet { padding: 56px 44px; }
+  .sheet__header { margin-bottom: 48px; }
+  .sec { margin-bottom: 56px; }
+}
+@media (max-width: 640px) {
+  :root {
+    --ds-ws-body-size: 17px;
+    --ds-ws-lead-size: 19px;
+    --ds-ws-section-title-size: 22px;
+    --ds-ws-quiz-question-size: 17px;
+    --ds-ink-space-md: 128px;
+    --ds-ink-space-lg: 180px;
+  }
+  .sheet { padding: 36px 20px; }
+  .sheet__header { margin-bottom: 36px; }
+  .sheet__title { font-size: 29px; letter-spacing: -.6px; margin-bottom: 14px; }
+  .sheet__one-liner { font-size: 17px; margin-bottom: 18px; }
+  .sheet__meta { flex-wrap: wrap; gap: 6px; padding-top: 16px; }
+  .sec { margin-bottom: 48px; }
+  .sec__head { margin-bottom: 24px; padding-bottom: 14px; }
+  .h3 { font-size: 18px; margin: 30px 0 14px; }
+  .problem { padding-left: 18px; margin-bottom: 30px; }
+  .problem__q { font-size: 21px; }
+  .analogy { padding-left: 16px; margin-bottom: 28px; }
+  .act { padding: 18px 16px; border-radius: var(--ds-radius-xl); }
+  .act__opt { margin: 0 -8px; padding: 10px 8px; }
+  .callout, .par, .ex-scene { padding: 18px 16px; }
+  .par { grid-template-columns: 32px 1fr; gap: 12px; }
+  .par__badge { width: 32px; height: 32px; }
+  .boundary { padding: 2px 16px; }
+  .quiz__item { padding: 24px 0; }
+  .quiz__a-body, .ex-code, .ex-calc, .ex-steps { padding: 16px; }
+  .ex-compare { padding: 4px 16px; }
+  /* 좁은 폭에서 '전 → 후' 를 세 칸으로 두면 양쪽이 두 글자씩 남는다 */
+  .ex-compare__row { grid-template-columns: 1fr; gap: 4px; }
+  .ex-compare__arrow { text-align: left; }
+  .timeline li { grid-template-columns: 1fr; gap: 2px; }
+  .notice li { grid-template-columns: 26px 1fr; gap: 10px; }
+  .notice li::before { width: 24px; height: 24px; }
+  .answer__text { font-size: 15px; min-height: 76px; }
+  .sheet__footer { margin-top: 48px; }
+}
+
 @media print {
   body { background: #fff; }
   .sec { break-inside: avoid; }
-  .quiz__a { display: none; }
+  /* 접어 둔 보조 정보는 종이에서 열려 있어야 한다 — 종이에는 삼각형을 누를 방법이 없다. */
+  details { display: block; }
+  details > * { display: revert; }
+  details::details-content { content-visibility: visible; display: block; }
+  .context, .guards { break-inside: avoid; }
+  /* 답은 예외다. 문제와 정답이 같은 종이에 인쇄되면 문제가 아니다. */
+  .quiz__a, .act__reveal { display: none; }
+  /* 타이핑칸은 종이 위에서 그냥 줄 없는 빈 칸이다. 배경·그림자 없이 테두리만. */
+  .answer__text {
+    background: none; box-shadow: none; resize: none;
+    border: 1px solid var(--ds-color-border-strong);
+  }
+  .answer__text::placeholder { color: transparent; }
 }
 
 .fig__note { font-weight: 400; color: var(--ds-color-text-tertiary); }
@@ -733,6 +886,38 @@ code, .code {
 .fig__slider { width: 100%; accent-color: var(--ds-color-brand-primary); }
 .fig__readout { font-family: var(--ds-font-mono); font-size: 14px; color: var(--ds-color-text-primary); }
 .fig__readout b { color: var(--ds-color-brand-primary); }
+/* 정성 모형이라는 고정 문구. 슬라이더 바로 아래에 붙어 있어야 눈금과 함께 읽힌다. */
+.fig__ctl-note {
+  margin: 2px 0 0; font-size: 13px; line-height: 1.6;
+  color: var(--ds-color-text-tertiary);
+}
+/* JS 가 붙기 전에는 죽은 컨트롤이다. 런타임이 data-wired 를 달면 그때 보인다.
+   그림 자체(정적 SVG)는 그대로 보여야 하므로 컨트롤만 감춘다. */
+figure[data-interactive]:not([data-wired]) .fig__ctl { display: none; }
+/* 이 그림이 생략한 것. 눈에 띄되 본문을 밀어내지 않는 크기 — 점선 하나와 작은 글씨. */
+.fig__limits {
+  margin: 8px 0 0; padding-top: 8px;
+  border-top: 1px dashed var(--ds-color-border-subtle);
+  font-size: 13px; line-height: 1.65;
+  color: var(--ds-color-text-secondary);
+  max-width: 40em;
+}
+/* 출처·라이선스. 조용하지만 지울 수 없다. */
+.fig__credit {
+  margin: 8px 0 0; font-size: 12px; line-height: 1.6;
+  color: var(--ds-color-text-tertiary);
+}
+/* 실물 사진 */
+.fig-photo {
+  display: grid; gap: 10px;
+  border-radius: var(--ds-radius-xl); overflow: hidden;
+}
+.fig-photo--pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.fig-photo__img {
+  display: block; width: 100%; max-width: 100%; height: auto;
+  border-radius: var(--ds-radius-xl);
+  background: var(--ds-color-surface-sunken);
+}
 .fig-secant--live { stroke: var(--ds-color-status-info); stroke-width: 2.4; }
 .fig { margin: 0 0 var(--ds-sheet-block-gap); max-width: 40em; }
 .fig__svg {
@@ -762,54 +947,91 @@ code, .code {
 .fig-tick { font-size: 12px; fill: var(--ds-color-text-tertiary); font-family: var(--ds-font-sans); }
 .fig-tick--clip { fill: var(--ds-color-status-danger); font-weight: 700; }
 .fig-label { font-size: 13px; font-weight: 700; fill: var(--ds-color-text-secondary); font-family: var(--ds-font-sans); }
+
+@media (max-width: 640px) {
+  /* 두 장을 나란히 두면 각각이 손톱만 해진다. 좁은 화면에서는 위아래로 쌓는다. */
+  .fig-photo--pair { grid-template-columns: minmax(0, 1fr); }
+  .fig__task { font-size: 15px; }
+  .fig__ctl { font-size: 13px; }
+}
+@media print {
+  .fig-photo__img { break-inside: avoid; }
+}
 </style>
 </head>
 <body>
 <div class="sheet-scaler">
-<article class="sheet" data-worksheet-id="ws-0000-1111-2222" data-schema-version="2">
+<article class="sheet" data-worksheet-id="ws-0000-1111-2222" data-schema-version="3">
 <header class="sheet__header">
 <p class="sheet__eyebrow"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 10.0001V16.0112C5 16.3702 5 16.5496 5.05465 16.7081C5.10299 16.8482 5.18187 16.9759 5.28558 17.0817C5.40287 17.2015 5.5634 17.2818 5.88446 17.4423L11.2845 20.1423C11.5468 20.2735 11.678 20.3391 11.8156 20.3649C11.9375 20.3877 12.0625 20.3877 12.1844 20.3649C12.322 20.3391 12.4532 20.2735 12.7155 20.1423L18.1155 17.4423C18.4366 17.2818 18.5971 17.2015 18.7144 17.0817C18.8181 16.9759 18.897 16.8482 18.9453 16.7081C19 16.5496 19 16.3702 19 16.0112V10.0001M2 8.50006L11.6422 3.67895C11.7734 3.61336 11.839 3.58056 11.9078 3.56766C11.9687 3.55622 12.0313 3.55622 12.0922 3.56766C12.161 3.58056 12.2266 3.61336 12.3578 3.67895L22 8.50006L12.3578 13.3212C12.2266 13.3868 12.161 13.4196 12.0922 13.4325C12.0313 13.4439 11.9687 13.4439 11.9078 13.4325C11.839 13.4196 11.7734 13.3868 11.6422 13.3212L2 8.50006Z"/></svg>ONPAR 학습지</p>
-<h1 class="sheet__title">이벤트 소싱, 결과 말고 과정을 저장하기</h1>
-<p class="sheet__one-liner">지금의 결과 대신, 거기까지 온 과정을 전부 저장하는 방식</p>
-<div class="sheet__meta"><span>입문</span><span>본학습 25분</span><span>연습 14분</span><span>선택 과제 35분</span></div>
+<h1 class="sheet__title">이벤트 소싱, 결과 말고 과정을 원본으로 두기</h1>
+<p class="sheet__one-liner">지금 값 대신, 그 값이 나온 사건들을 원본으로 두는 저장 방식</p>
+<div class="sheet__meta"><span>입문</span><span>본학습 28분</span><span>연습 16분</span><span>선택 과제 50분</span></div>
 <p class="sheet__assumes"><span class="sheet__assumes-label">이 학습지는 이걸 안다고 봐요</span><span>데이터베이스에 표와 행이 있다는 걸 안다</span><span>함수를 하나쯤 써본 적이 있다</span><span>이벤트 소싱은 처음이어도 된다</span></p>
 </header>
-<section class="sec sec--core" id="sec-1" data-section="problem"><header class="sec__head"><p class="sec__label"><svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7.5 4.5C7.5 3.11929 8.61929 2 10 2C11.3807 2 12.5 3.11929 12.5 4.5V6H13.5C14.8978 6 15.5967 6 16.1481 6.22836C16.8831 6.53284 17.4672 7.11687 17.7716 7.85195C18 8.40326 18 9.10218 18 10.5H19.5C20.8807 10.5 22 11.6193 22 13C22 14.3807 20.8807 15.5 19.5 15.5H18V17.2C18 18.8802 18 19.7202 17.673 20.362C17.3854 20.9265 16.9265 21.3854 16.362 21.673C15.7202 22 14.8802 22 13.2 22H12.5V20.25C12.5 19.0074 11.4926 18 10.25 18C9.00736 18 8 19.0074 8 20.25V22H6.8C5.11984 22 4.27976 22 3.63803 21.673C3.07354 21.3854 2.6146 20.9265 2.32698 20.362C2 19.7202 2 18.8802 2 17.2V15.5H3.5C4.88071 15.5 6 14.3807 6 13C6 11.6193 4.88071 10.5 3.5 10.5H2C2 9.10218 2 8.40326 2.22836 7.85195C2.53284 7.11687 3.11687 6.53284 3.85195 6.22836C4.40326 6 5.10218 6 6.5 6H7.5V4.5Z"/></svg><span class="sec__num">01</span></p><h2 class="sec__title">문제 제시</h2><p class="sec__lead">아직은 못 푸는 문제 하나</p></header><div class="sec__body"><p class="p">포인트 앱 고객센터로 전화가 왔어요. &quot;지난주 화요일까지 분명 20,000 포인트였는데 지금 12,000 이에요. 왜죠?&quot; 상담원이 회원 화면을 열었더니 데이터베이스에는 이 한 줄뿐이에요. <code>user_id = &#39;U7&#39;, balance = 12000</code> 적립도 사용도 기록이 없어요. 지난주 화요일에 얼마였는지도 남아 있지 않아요. 상담원은 &quot;12,000 이 맞습니다&quot; 라고밖에 말할 수 없었어요.</p><div class="problem"><p class="problem__q">고객이 &quot;왜 12,000 이죠?&quot; 라고 물을 때 시스템이 답할 수 있으려면, 무엇을 저장해야 할까요?</p><p class="problem__why">은행·병원·쇼핑몰처럼 &quot;왜 이렇게 됐죠?&quot; 를 묻는 곳에서는, 지금 값 하나만으로는 아무도 답할 수 없어요.</p></div><p class="h3">이 학습지를 마치면</p><ul class="list"><li>적립·사용·정정이 섞인 상황 하나를 이벤트 세 개로 직접 적기</li><li>그 이벤트 세 개를 위에서부터 더해 지금 잔액을 손으로 다시 만들기</li><li>상태만 저장하는 설계가 답할 수 없는 질문을 하나 말하기</li></ul></div></section><section class="sec sec--core" id="sec-2" data-section="predict"><header class="sec__head"><p class="sec__label"><svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M22 12C22 17.5228 17.5228 22 12 22M22 12C22 6.47715 17.5228 2 12 2M22 12H18M12 22C6.47715 22 2 17.5228 2 12M12 22V18M2 12C2 6.47715 6.47715 2 12 2M2 12H6M12 2V6"/></svg><span class="sec__num">02</span></p><h2 class="sec__title">예측</h2><p class="sec__lead">설명을 읽기 전에 먼저 골라요</p></header><div class="sec__body"><div class="act act--predict" data-response-id="hook-1" data-response-kind="choice"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>먼저 예측해 보세요</p><p class="act__prompt">포인트 앱이 회원마다 balance 칸 하나만 저장해요. 고객이 &quot;왜 제 포인트가 12,000 이죠?&quot; 라고 물으면 시스템은 어디까지 답할 수 있을까요?</p><div class="act__options" role="radiogroup"><label class="act__opt"><input type="radio" name="hook-1" value="&quot;12,000 입니다&quot; 까지만. 어떻게 그렇게 됐는지는 남아 있지 않다"><span class="act__key">①</span><span>&quot;12,000 입니다&quot; 까지만. 어떻게 그렇게 됐는지는 남아 있지 않다</span></label><label class="act__opt"><input type="radio" name="hook-1" value="&quot;적립 20,000 / 사용 8,000 이라서요&quot; 라고 내역까지 보여줄 수 있다"><span class="act__key">②</span><span>&quot;적립 20,000 / 사용 8,000 이라서요&quot; 라고 내역까지 보여줄 수 있다</span></label><label class="act__opt"><input type="radio" name="hook-1" value="서버 로그 파일을 뒤지면 언제든 알아낼 수 있다"><span class="act__key">③</span><span>서버 로그 파일을 뒤지면 언제든 알아낼 수 있다</span></label><label class="act__opt"><input type="radio" name="hook-1" value="balance 옆에 updated_at 칸을 하나 더 두면 답할 수 있다"><span class="act__key">④</span><span>balance 옆에 updated_at 칸을 하나 더 두면 답할 수 있다</span></label></div><p class="act__fb" data-feedback-slot hidden></p><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>고르면 열려요</summary><div class="act__reveal-body">어느 쪽을 골랐는지 적어 두세요. 바로 다음 단계에서 같은 세 가지 일을 두 방식으로 저장해 보고 직접 확인해요. 이 학습지는 &quot;저장하는 것을 바꾸면 답할 수 있는 질문이 바뀐다&quot; 는 이야기예요.</div></details></div><div class="act act--explain" data-response-id="reason-2" data-response-kind="written"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>왜 그렇게 골랐나요</p><p class="act__prompt">왜 그렇게 골랐는지 한 줄로 적어 보세요. &#39;로그&#39; 나 &#39;칸 하나 더&#39; 를 골랐다면, 그 로그와 그 칸이 누구 손으로 채워지는지도요.</p><div class="ink-space" data-ink-space="sm"></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 생각을 적었어요</label></div><aside class="par"><span class="par__badge"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 15L6.92474 18.1137C6.49579 18.548 6.28131 18.7652 6.09695 18.7805C5.93701 18.7938 5.78042 18.7295 5.67596 18.6076C5.55556 18.4672 5.55556 18.162 5.55556 17.5515V15.9916C5.55556 15.444 5.10707 15.0477 4.5652 14.9683V14.9683C3.25374 14.7762 2.22378 13.7463 2.03168 12.4348C2 12.2186 2 11.9605 2 11.4444V6.8C2 5.11984 2 4.27976 2.32698 3.63803C2.6146 3.07354 3.07354 2.6146 3.63803 2.32698C4.27976 2 5.11984 2 6.8 2H14.2C15.8802 2 16.7202 2 17.362 2.32698C17.9265 2.6146 18.3854 3.07354 18.673 3.63803C19 4.27976 19 5.11984 19 6.8V11M19 22L16.8236 20.4869C16.5177 20.2742 16.3647 20.1678 16.1982 20.0924C16.0504 20.0255 15.8951 19.9768 15.7356 19.9474C15.5558 19.9143 15.3695 19.9143 14.9969 19.9143H13.2C12.0799 19.9143 11.5198 19.9143 11.092 19.6963C10.7157 19.5046 10.4097 19.1986 10.218 18.8223C10 18.3944 10 17.8344 10 16.7143V14.2C10 13.0799 10 12.5198 10.218 12.092C10.4097 11.7157 10.7157 11.4097 11.092 11.218C11.5198 11 12.0799 11 13.2 11H18.8C19.9201 11 20.4802 11 20.908 11.218C21.2843 11.4097 21.5903 11.7157 21.782 12.092C22 12.5198 22 13.0799 22 14.2V16.9143C22 17.8462 22 18.3121 21.8478 18.6797C21.6448 19.1697 21.2554 19.5591 20.7654 19.762C20.3978 19.9143 19.9319 19.9143 19 19.9143V22Z"/></svg></span><div><span class="par__name">파르</span><p class="par__note">&#39;로그를 뒤지면 된다&#39; 를 고르셨다면 잠깐만요. 그 로그는 누가 언제 적었을까요. 그리고 로그와 balance 칸이 서로 다르면 어느 쪽이 진짜일까요. 이 두 질문이 이 학습지의 핵심이에요.</p></div></aside></div></section><section class="sec sec--core" id="sec-3" data-section="observe"><header class="sec__head"><p class="sec__label"><svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2.42012 12.7132C2.28394 12.4975 2.21584 12.3897 2.17772 12.2234C2.14909 12.0985 2.14909 11.9015 2.17772 11.7766C2.21584 11.6103 2.28394 11.5025 2.42012 11.2868C3.54553 9.50484 6.8954 5 12.0004 5C17.1054 5 20.4553 9.50484 21.5807 11.2868C21.7169 11.5025 21.785 11.6103 21.8231 11.7766C21.8517 11.9015 21.8517 12.0985 21.8231 12.2234C21.785 12.3897 21.7169 12.4975 21.5807 12.7132C20.4553 14.4952 17.1054 19 12.0004 19C6.8954 19 3.54553 14.4952 2.42012 12.7132Z"/><path d="M12.0004 15C13.6573 15 15.0004 13.6569 15.0004 12C15.0004 10.3431 13.6573 9 12.0004 9C10.3435 9 9.0004 10.3431 9.0004 12C9.0004 13.6569 10.3435 15 12.0004 15Z"/></svg><span class="sec__num">03</span></p><h2 class="sec__title">관찰</h2><p class="sec__lead">예측이 맞았는지 증거를 봐요</p></header><div class="sec__body"><p class="p">설명은 잠시 미룰게요. 회원 U7 에게 일어난 같은 세 가지 일을 두 방식으로 적어 봤어요. 왼쪽은 <strong>balance 칸을 덮어쓰는 방식</strong>, 오른쪽은 <strong>일어난 일을 아래로 덧붙이기만 하는 방식</strong>이에요. 무엇이 남고 무엇이 사라지는지만 보세요.</p><div class="example" data-example-kind="code"><p class="example__caption">같은 세 가지 일 — (a) 상태를 덮어쓰기 vs (b) 이벤트를 덧붙이기</p><pre class="ex-code"><code class="lang-text">일어난 일 (a) users 표 한 행 (b) events 목록 (덧붙이기만)
---------------------- ---------------------------- ---------------------------------------
+<section class="sec sec--core" id="sec-1" data-section="problem"><header class="sec__head"><p class="sec__label"><svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7.5 4.5C7.5 3.11929 8.61929 2 10 2C11.3807 2 12.5 3.11929 12.5 4.5V6H13.5C14.8978 6 15.5967 6 16.1481 6.22836C16.8831 6.53284 17.4672 7.11687 17.7716 7.85195C18 8.40326 18 9.10218 18 10.5H19.5C20.8807 10.5 22 11.6193 22 13C22 14.3807 20.8807 15.5 19.5 15.5H18V17.2C18 18.8802 18 19.7202 17.673 20.362C17.3854 20.9265 16.9265 21.3854 16.362 21.673C15.7202 22 14.8802 22 13.2 22H12.5V20.25C12.5 19.0074 11.4926 18 10.25 18C9.00736 18 8 19.0074 8 20.25V22H6.8C5.11984 22 4.27976 22 3.63803 21.673C3.07354 21.3854 2.6146 20.9265 2.32698 20.362C2 19.7202 2 18.8802 2 17.2V15.5H3.5C4.88071 15.5 6 14.3807 6 13C6 11.6193 4.88071 10.5 3.5 10.5H2C2 9.10218 2 8.40326 2.22836 7.85195C2.53284 7.11687 3.11687 6.53284 3.85195 6.22836C4.40326 6 5.10218 6 6.5 6H7.5V4.5Z"/></svg><span class="sec__num">01</span></p><h2 class="sec__title">문제 제시</h2><p class="sec__lead">아직은 못 푸는 문제 하나</p></header><div class="sec__body"><p class="p">포인트 앱 고객센터로 전화가 왔어요. &quot;지난주 화요일까지 분명 20,000 포인트였는데 지금 12,000 이에요. 왜죠?&quot; 상담원이 회원 화면을 열었더니 데이터베이스에는 이 한 줄뿐이에요. <code>user_id = &#39;U7&#39;, balance = 12000</code> 적립도 사용도 기록이 없어요. 지난주 화요일에 얼마였는지도 남아 있지 않아요. 상담원은 &quot;12,000 이 맞습니다&quot; 라고밖에 말할 수 없었어요.</p><div class="problem"><p class="problem__q">고객이 &quot;왜 12,000 이죠?&quot; 라고 물을 때 시스템이 답할 수 있으려면, 무엇을 원본으로 저장해야 할까요?</p><p class="problem__why">은행·병원·쇼핑몰처럼 &quot;왜 이렇게 됐죠?&quot; 를 묻는 곳에서는, 지금 값 하나만으로는 아무도 답할 수 없어요.</p></div><p class="h3">이 학습지를 마치면</p><ul class="list"><li>적립·사용·정정이 섞인 상황 하나를 도메인 이벤트 세 줄로 직접 적기</li><li>그 세 줄을 위에서부터 더해 지금 잔액을 손으로 다시 만들기</li><li>동시에 들어온 두 출금 요청 중 하나가 거절돼야 하는 이유를 한 줄로 적기</li></ul></div></section><section class="sec sec--core" id="sec-2" data-section="predict"><header class="sec__head"><p class="sec__label"><svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M22 12C22 17.5228 17.5228 22 12 22M22 12C22 6.47715 17.5228 2 12 2M22 12H18M12 22C6.47715 22 2 17.5228 2 12M12 22V18M2 12C2 6.47715 6.47715 2 12 2M2 12H6M12 2V6"/></svg><span class="sec__num">02</span></p><h2 class="sec__title">예측</h2><p class="sec__lead">설명을 읽기 전에 먼저 골라요</p></header><div class="sec__body"><div class="act act--predict" data-response-id="hook-1" data-response-kind="choice"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>먼저 예측해 보세요</p><p class="act__prompt">포인트 앱이 회원마다 balance 칸 하나만 저장해요. 고객이 &quot;왜 제 포인트가 12,000 이죠?&quot; 라고 물으면 시스템은 어디까지 답할 수 있을까요?</p><div class="act__options" role="radiogroup"><label class="act__opt"><input type="radio" name="hook-1" value="&quot;12,000 입니다&quot; 까지만. 어떻게 그렇게 됐는지는 남아 있지 않다"><span class="act__key">①</span><span>&quot;12,000 입니다&quot; 까지만. 어떻게 그렇게 됐는지는 남아 있지 않다</span></label><label class="act__opt"><input type="radio" name="hook-1" value="&quot;적립 20,000 / 사용 8,000 이라서요&quot; 라고 내역까지 보여줄 수 있다"><span class="act__key">②</span><span>&quot;적립 20,000 / 사용 8,000 이라서요&quot; 라고 내역까지 보여줄 수 있다</span></label><label class="act__opt"><input type="radio" name="hook-1" value="서버 로그 파일을 뒤지면 언제든 알아낼 수 있다"><span class="act__key">③</span><span>서버 로그 파일을 뒤지면 언제든 알아낼 수 있다</span></label><label class="act__opt"><input type="radio" name="hook-1" value="balance 옆에 updated_at 칸을 하나 더 두면 답할 수 있다"><span class="act__key">④</span><span>balance 옆에 updated_at 칸을 하나 더 두면 답할 수 있다</span></label></div><p class="act__fb" data-feedback-slot hidden></p><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>고르면 열려요</summary><div class="act__reveal-body">어느 쪽을 골랐는지 적어 두세요. 다음 단계에서 같은 세 가지 일을 두 방식으로 저장해 보고 직접 확인해요. &#39;로그를 뒤지면 된다&#39; 는 반쯤 맞고 반쯤 다른데, 그 차이가 이 학습지의 절반이에요.</div></details></div><div class="act act--explain" data-response-id="reason-2" data-response-kind="written"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>왜 그렇게 골랐나요</p><p class="act__prompt">왜 그렇게 골랐는지 한 줄로 적어 보세요. &#39;로그&#39; 나 &#39;칸 하나 더&#39; 를 골랐다면, 그 로그와 그 칸이 무엇을 위해 적히는지도요.</p><div class="answer" data-answer-for="reason-2"><textarea class="answer__text" data-answer-text rows="3" placeholder="여기에 타이핑해도 되고, 아래 칸에 펜으로 써도 돼요"></textarea><div class="ink-space" data-ink-space="sm" data-ink-anchor="reason-2"></div></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 생각을 적었어요</label></div><aside class="par"><span class="par__badge"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 15L6.92474 18.1137C6.49579 18.548 6.28131 18.7652 6.09695 18.7805C5.93701 18.7938 5.78042 18.7295 5.67596 18.6076C5.55556 18.4672 5.55556 18.162 5.55556 17.5515V15.9916C5.55556 15.444 5.10707 15.0477 4.5652 14.9683V14.9683C3.25374 14.7762 2.22378 13.7463 2.03168 12.4348C2 12.2186 2 11.9605 2 11.4444V6.8C2 5.11984 2 4.27976 2.32698 3.63803C2.6146 3.07354 3.07354 2.6146 3.63803 2.32698C4.27976 2 5.11984 2 6.8 2H14.2C15.8802 2 16.7202 2 17.362 2.32698C17.9265 2.6146 18.3854 3.07354 18.673 3.63803C19 4.27976 19 5.11984 19 6.8V11M19 22L16.8236 20.4869C16.5177 20.2742 16.3647 20.1678 16.1982 20.0924C16.0504 20.0255 15.8951 19.9768 15.7356 19.9474C15.5558 19.9143 15.3695 19.9143 14.9969 19.9143H13.2C12.0799 19.9143 11.5198 19.9143 11.092 19.6963C10.7157 19.5046 10.4097 19.1986 10.218 18.8223C10 18.3944 10 17.8344 10 16.7143V14.2C10 13.0799 10 12.5198 10.218 12.092C10.4097 11.7157 10.7157 11.4097 11.092 11.218C11.5198 11 12.0799 11 13.2 11H18.8C19.9201 11 20.4802 11 20.908 11.218C21.2843 11.4097 21.5903 11.7157 21.782 12.092C22 12.5198 22 13.0799 22 14.2V16.9143C22 17.8462 22 18.3121 21.8478 18.6797C21.6448 19.1697 21.2554 19.5591 20.7654 19.762C20.3978 19.9143 19.9319 19.9143 19 19.9143V22Z"/></svg></span><div><span class="par__name">파르</span><p class="par__note">&#39;로그를 뒤지면 된다&#39; 를 고르셨다면 잠깐만요. 그 로그는 무엇을 위해 적힌 걸까요. 디버깅용 로그는 형식이 자주 바뀌고 며칠 뒤 지워지기도 해요. 도메인 이벤트 스트림은 그 자리를 대신하라고 만든 것이라 규칙이 달라요.</p></div></aside></div></section><section class="sec sec--core" id="sec-3" data-section="observe"><header class="sec__head"><p class="sec__label"><svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2.42012 12.7132C2.28394 12.4975 2.21584 12.3897 2.17772 12.2234C2.14909 12.0985 2.14909 11.9015 2.17772 11.7766C2.21584 11.6103 2.28394 11.5025 2.42012 11.2868C3.54553 9.50484 6.8954 5 12.0004 5C17.1054 5 20.4553 9.50484 21.5807 11.2868C21.7169 11.5025 21.785 11.6103 21.8231 11.7766C21.8517 11.9015 21.8517 12.0985 21.8231 12.2234C21.785 12.3897 21.7169 12.4975 21.5807 12.7132C20.4553 14.4952 17.1054 19 12.0004 19C6.8954 19 3.54553 14.4952 2.42012 12.7132Z"/><path d="M12.0004 15C13.6573 15 15.0004 13.6569 15.0004 12C15.0004 10.3431 13.6573 9 12.0004 9C10.3435 9 9.0004 10.3431 9.0004 12C9.0004 13.6569 10.3435 15 12.0004 15Z"/></svg><span class="sec__num">03</span></p><h2 class="sec__title">관찰</h2><p class="sec__lead">예측이 맞았는지 증거를 봐요</p></header><div class="sec__body"><p class="p">설명은 잠시 미룰게요. 회원 U7 에게 일어난 같은 세 가지 일을 두 방식으로 적어 봤어요. 왼쪽은 <strong>balance 칸을 덮어쓰는 방식</strong>, 오른쪽은 <strong>일어난 일을 아래로 덧붙이는 방식</strong>이에요. 무엇이 남고 무엇이 사라지는지만 보세요. 미리 한 가지만 밝혀 둘게요. 이 예제는 계좌 하나, 스트림 하나짜리로 크게 줄여 놓은 모델이에요. 실제 시스템에는 동시성 제어와 프로젝션, 멱등성이 더 붙어요.</p><div class="example" data-example-kind="code"><p class="example__caption">같은 세 가지 일 — (a) 상태를 덮어쓰기 vs (b) 이벤트를 덧붙이기</p><pre class="ex-code"><code class="lang-text">일어난 일 (a) users 표 한 행 (b) 이벤트 스트림 (덧붙이기만)
+--------------------- ---------------------------- ------------------------------------------
 ① 20,000 적립 U7 balance = 20000 #1 PointsEarned +20000 09-01 10:02
 ② 5,000 사용 U7 balance = 15000 (덮어씀) #2 PointsSpent -5000 09-02 18:40
-③ 3,000 사용 U7 balance = 12000 (덮어씀) #3 PointsSpent -3000 09-03 12:15 지금 남은 것 balance = 12000 한 칸 #1 #2 #3 세 줄 (12000 은 더해서 얻음) &quot;왜 12,000 이죠?&quot; 답 없음 #1 + #2 + #3 을 보여주면 됨
+③ 3,000 사용 U7 balance = 12000 (덮어씀) #3 PointsSpent -3000 09-03 12:15 지금 남은 것 balance = 12000 한 칸 #1 #2 #3 세 줄 (12000 은 더해서 얻음) &quot;왜 12,000 이죠?&quot; 답 없음 #1 #2 #3 을 그대로 보여주면 됨
 &quot;화요일(09-02)엔?&quot; 답 없음 #1 + #2 = 15000
-③ 이 사실 2,000 이면? 12000 을 13000 으로 다시 덮어씀 #4 PointsSpentCorrected +1000 을 덧붙임</code></pre></div><p class="h3">여기를 보세요</p><ol class="notice"><li>(a) 에서 ③ 이 끝난 뒤 20,000 과 15,000 이라는 숫자가 어디에 남아 있는지 찾아보세요.</li><li>&quot;왜 12,000 이죠?&quot; 와 &quot;화요일엔 얼마였죠?&quot; 에 (a) 와 (b) 중 어느 쪽만 답할 수 있는지 보세요.</li><li>③ 이 실수였을 때 (a) 는 무엇을 잃고 (b) 는 무엇을 더하는지 마지막 줄을 보세요.</li><li>회원이 거래를 1,000 번 하면 (a) 와 (b) 중 어느 쪽이 길어지는지 상상해 보세요.</li></ol><div class="act act--decide" data-response-id="compare-3" data-response-kind="choice"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>골라 보세요</p><p class="act__prompt">예측 단계에서 고른 답과 방금 본 표를 비교해 보세요. 예측이 맞았나요?</p><div class="act__options" role="radiogroup"><label class="act__opt"><input type="radio" name="compare-3" value="맞았어요"><span class="act__key">①</span><span>맞았어요</span></label><label class="act__opt"><input type="radio" name="compare-3" value="틀렸어요"><span class="act__key">②</span><span>틀렸어요</span></label><label class="act__opt"><input type="radio" name="compare-3" value="반쯤 맞았어요"><span class="act__key">③</span><span>반쯤 맞았어요</span></label></div><p class="act__fb" data-feedback-slot hidden></p><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>고르면 열려요</summary><div class="act__reveal-body">(a) 처럼 balance 칸 하나만 있으면 &quot;12,000 입니다&quot; 밖에 못 해요. &#39;로그를 뒤지면 된다&#39; 를 골랐다면 반쯤 맞았어요. 그 로그가 바로 (b) 의 목록인데, 누가 언제 적었는지 아무도 책임지지 않으면 로그와 balance 가 어긋나도 알 수 없어요. &#39;updated_at 칸&#39; 은 언제 바뀌었는지만 남기고 왜 바뀌었는지는 남기지 않아요.</div></details></div></div></section><section class="sec sec--core" id="sec-4" data-section="concept"><header class="sec__head"><p class="sec__label"><svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 10.0001V16.0112C5 16.3702 5 16.5496 5.05465 16.7081C5.10299 16.8482 5.18187 16.9759 5.28558 17.0817C5.40287 17.2015 5.5634 17.2818 5.88446 17.4423L11.2845 20.1423C11.5468 20.2735 11.678 20.3391 11.8156 20.3649C11.9375 20.3877 12.0625 20.3877 12.1844 20.3649C12.322 20.3391 12.4532 20.2735 12.7155 20.1423L18.1155 17.4423C18.4366 17.2818 18.5971 17.2015 18.7144 17.0817C18.8181 16.9759 18.897 16.8482 18.9453 16.7081C19 16.5496 19 16.3702 19 16.0112V10.0001M2 8.50006L11.6422 3.67895C11.7734 3.61336 11.839 3.58056 11.9078 3.56766C11.9687 3.55622 12.0313 3.55622 12.0922 3.56766C12.161 3.58056 12.2266 3.61336 12.3578 3.67895L22 8.50006L12.3578 13.3212C12.2266 13.3868 12.161 13.4196 12.0922 13.4325C12.0313 13.4439 11.9687 13.4439 11.9078 13.4325C11.839 13.4196 11.7734 13.3868 11.6422 13.3212L2 8.50006Z"/></svg><span class="sec__num">04</span></p><h2 class="sec__title">개념</h2><p class="sec__lead">본 것에 이름을 붙여요</p></header><div class="sec__body"><p class="analogy">가계부를 떠올려 보세요. 남은 돈만 적나요, 쓴 내역을 하나씩 적나요? 대부분 내역을 적을 거예요. 그래야 나중에 &quot;이 돈 어디 갔지?&quot; 에 답할 수 있으니까요. 방금 본 (b) 가 바로 그 가계부예요. 이벤트 소싱은 컴퓨터에 그 방식을 쓰는 거예요.</p><p class="h3">이벤트 이름은 과거형으로 지어요</p><p class="p">약속을 잡는 것과 만난 것은 다르죠. 약속은 취소될 수 있지만 이미 만난 건 되돌릴 수 없어요. 이벤트도 그래요. 이미 일어난 일이라서 이름이 과거형이에요. <code>WithdrawMoney</code> 는 &#39;출금해 줘&#39; 라는 부탁이고, <code>MoneyWithdrawn</code> 이 &#39;출금됐다&#39; 는 이벤트예요. 부탁은 거절할 수 있지만 일어난 일은 거절할 수 없어요. 관찰에서 본 <code>PointsSpent</code> 도 같은 이유로 과거형이에요.</p><div class="example" data-example-kind="code"><p class="example__caption">같은 상황을 부탁과 사실로 나눠 적어 보면</p><pre class="ex-code"><code class="lang-javascript">// 부탁 — 거절될 수 있어요
-{ type: &#39;WithdrawMoney&#39;, accountId: &#39;A1&#39;, amount: 50000 } // 이벤트 — 이미 일어난 일이라 되돌릴 수 없어요
-{ type: &#39;MoneyWithdrawn&#39;, accountId: &#39;A1&#39;, amount: 50000, at: &#39;2026-09-06T10:00:00Z&#39; }</code></pre></div><div class="act act--decide" data-response-id="act-4" data-response-kind="choice"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>골라 보세요</p><p class="act__prompt">&#39;OrderCancel&#39;, &#39;OrderCancelled&#39;, &#39;CancelOrder&#39; 중 이벤트 이름으로 알맞은 것은?</p><div class="act__options" role="radiogroup"><label class="act__opt"><input type="radio" name="act-4" value="OrderCancel"><span class="act__key">①</span><span>OrderCancel</span></label><label class="act__opt"><input type="radio" name="act-4" value="OrderCancelled"><span class="act__key">②</span><span>OrderCancelled</span></label><label class="act__opt"><input type="radio" name="act-4" value="CancelOrder"><span class="act__key">③</span><span>CancelOrder</span></label></div><p class="act__fb" data-feedback-slot hidden></p><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>고르면 열려요</summary><div class="act__reveal-body">OrderCancelled 예요. 이미 일어난 일이라 과거형이에요. CancelOrder 는 &#39;취소해 줘&#39; 라는 부탁이고, OrderCancel 은 어느 쪽인지 애매해서 팀이 섞어 쓰게 돼요.</div></details></div><div class="callout callout--caution"><p class="callout__label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11.9998 8.99999V13M11.9998 17H12.0098M10.6151 3.89171L2.39019 18.0983C1.93398 18.8863 1.70588 19.2803 1.73959 19.6037C1.769 19.8857 1.91677 20.142 2.14613 20.3088C2.40908 20.5 2.86435 20.5 3.77487 20.5H20.2246C21.1352 20.5 21.5904 20.5 21.8534 20.3088C22.0827 20.142 22.2305 19.8857 22.2599 19.6037C22.2936 19.2803 22.0655 18.8863 21.6093 18.0983L13.3844 3.89171C12.9299 3.10654 12.7026 2.71396 12.4061 2.58211C12.1474 2.4671 11.8521 2.4671 11.5935 2.58211C11.2969 2.71396 11.0696 3.10655 10.6151 3.89171Z"/></svg>흔한 실수</p><p class="p">이름을 현재형으로 짓는 거예요. 그러면 팀이 부탁과 사실을 섞어 쓰게 되고, 이벤트 스토어에 &#39;하려다 실패한 일&#39; 까지 들어가 버려요.</p></div><p class="h3">상태는 저장하지 않고 그때그때 계산해요</p><p class="p">잔액이 필요하면 그 계좌의 이벤트를 위에서부터 하나씩 더해요. 가계부 잔액을 손으로 더하는 것과 똑같아요. 이걸 <strong>리플레이</strong> 라고 불러요. 어려운 말 같지만 하는 일은 그냥 더하기예요. 관찰에서 (b) 의 12,000 을 &#39;더해서 얻음&#39; 이라고 적은 게 바로 이거예요. 코드로는 목록을 접어서 값 하나로 만드는 <code>reduce</code> 한 줄이에요.</p><div class="example" data-example-kind="code"><p class="example__caption">이벤트 목록을 더해서 잔액을 만들어요</p><pre class="ex-code"><code class="lang-javascript">const balance = events.reduce((sum, e) =&gt; e.type === &#39;MoneyDeposited&#39; ? sum + e.amount : e.type === &#39;MoneyWithdrawn&#39; ? sum - e.amount : sum
-, 0)</code></pre></div><div class="act act--compute" data-response-id="act-5" data-response-kind="written"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>직접 계산해 보세요</p><p class="act__prompt">입금 30,000 / 출금 12,000 / 입금 5,000 / 출금 8,000 을 위에서부터 더해 잔액을 구해 보세요.</p><div class="ink-space" data-ink-space="md"></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>적고 나서 열기</summary><div class="act__reveal-body">15,000 이에요. 30,000 − 12,000 + 5,000 − 8,000. 이게 리플레이예요. 잔액이라는 칸은 어디에도 없고, 필요할 때 이렇게 계산해요.</div></details></div><div class="callout callout--caution"><p class="callout__label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11.9998 8.99999V13M11.9998 17H12.0098M10.6151 3.89171L2.39019 18.0983C1.93398 18.8863 1.70588 19.2803 1.73959 19.6037C1.769 19.8857 1.91677 20.142 2.14613 20.3088C2.40908 20.5 2.86435 20.5 3.77487 20.5H20.2246C21.1352 20.5 21.5904 20.5 21.8534 20.3088C22.0827 20.142 22.2305 19.8857 22.2599 19.6037C22.2936 19.2803 22.0655 18.8863 21.6093 18.0983L13.3844 3.89171C12.9299 3.10654 12.7026 2.71396 12.4061 2.58211C12.1474 2.4671 11.8521 2.4671 11.5935 2.58211C11.2969 2.71396 11.0696 3.10655 10.6151 3.89171Z"/></svg>흔한 실수</p><p class="p">&#39;남은 잔액&#39; 같은 계산한 값을 이벤트 안에 함께 적는 거예요. 나중에 계산 규칙이 바뀌면 과거 이벤트가 전부 틀린 말이 돼요. 이벤트에는 일어난 사실만 적어요.</p></div><p class="h3">한 번 적은 이벤트는 고치지 않아요</p><p class="p">잘못 적었으면 어떻게 할까요. 지우는 게 아니라 <strong>바로잡는 이벤트를 새로 적어요</strong>. 장부에서 지우개를 쓰지 않는 것과 같아요. 관찰의 마지막 줄에서 (b) 가 #3 을 고치지 않고 #4 를 덧붙인 이유예요. 이 규칙을 한 번이라도 어기면 &#39;기록이 진실&#39; 이라는 약속이 깨지고, 이 방식의 장점이 통째로 사라져요.</p><div class="act act--decide" data-response-id="act-6" data-response-kind="choice"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>골라 보세요</p><p class="act__prompt">출금 12,000 이 사실은 21,000 이었어요. 어떻게 바로잡을까요?</p><div class="act__options" role="radiogroup"><label class="act__opt"><input type="radio" name="act-6" value="12,000 을 21,000 으로 고친다"><span class="act__key">①</span><span>12,000 을 21,000 으로 고친다</span></label><label class="act__opt"><input type="radio" name="act-6" value="&#39;출금 정정 +9,000&#39; 이벤트를 새로 덧붙인다"><span class="act__key">②</span><span>&#39;출금 정정 +9,000&#39; 이벤트를 새로 덧붙인다</span></label><label class="act__opt"><input type="radio" name="act-6" value="12,000 을 지우고 21,000 을 새로 적는다"><span class="act__key">③</span><span>12,000 을 지우고 21,000 을 새로 적는다</span></label></div><p class="act__fb" data-feedback-slot hidden></p><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>고르면 열려요</summary><div class="act__reveal-body">정정 이벤트를 덧붙여요. 고치거나 지우면 &#39;기록이 진실&#39; 이라는 약속이 깨지고, 예전에 계산했던 값들과 어긋나서 원인을 찾을 수 없게 돼요. 장부에 지우개를 안 쓰는 것과 같아요.</div></details></div><div class="callout callout--caution"><p class="callout__label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11.9998 8.99999V13M11.9998 17H12.0098M10.6151 3.89171L2.39019 18.0983C1.93398 18.8863 1.70588 19.2803 1.73959 19.6037C1.769 19.8857 1.91677 20.142 2.14613 20.3088C2.40908 20.5 2.86435 20.5 3.77487 20.5H20.2246C21.1352 20.5 21.5904 20.5 21.8534 20.3088C22.0827 20.142 22.2305 19.8857 22.2599 19.6037C22.2936 19.2803 22.0655 18.8863 21.6093 18.0983L13.3844 3.89171C12.9299 3.10654 12.7026 2.71396 12.4061 2.58211C12.1474 2.4671 11.8521 2.4671 11.5935 2.58211C11.2969 2.71396 11.0696 3.10655 10.6151 3.89171Z"/></svg>흔한 실수</p><p class="p">&quot;이번 한 번만 데이터베이스에서 직접 고치자&quot; 는 유혹이에요. 그 순간부터 다시 계산한 값과 실제가 어긋나고, 원인을 찾는 데 며칠이 걸려요.</p></div><p class="h3">쌓이면 느려져요 — 그래서 중간 결산을 둬요</p><p class="p">관찰의 마지막 질문을 떠올려 보세요. (b) 는 거래마다 한 줄씩 길어져요. 이벤트가 수만 개 쌓이면 잔액 한 번 보는 데 수만 번 더해야 해요. 그래서 어느 시점까지 더한 값을 따로 적어 두는데, 이걸 <strong>스냅샷</strong> 이라고 불러요. 가계부 페이지 끝의 &#39;이월 잔액&#39; 이에요. 스냅샷은 지름길일 뿐이라, 언제든 지우고 처음부터 다시 더해도 같은 값이 나와야 해요. 진실은 여전히 이벤트 쪽이에요.</p><div class="example" data-example-kind="steps"><p class="example__caption">스냅샷이 있을 때 잔액을 계산하는 순서</p><ol class="ex-steps"><li>① 가장 최근 스냅샷을 읽어요 — 예: #1000 까지 더한 값 15,000</li><li>② 그 뒤에 쌓인 이벤트만 가져와요 — #1001 부터</li><li>③ 스냅샷 값에 그 이벤트들을 이어서 더해요</li><li>④ 스냅샷이 의심되면 지우고 #1 부터 다시 더해 확인해요</li></ol></div><div class="act act--compute" data-response-id="act-7" data-response-kind="written"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>직접 계산해 보세요</p><p class="act__prompt">스냅샷: #1000 까지 더한 잔액 15,000. 그 뒤 이벤트가 출금 3,000 / 입금 1,000 두 개예요. 지금 잔액은 얼마이고, 몇 번 더했나요?</p><div class="ink-space" data-ink-space="md"></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>적고 나서 열기</summary><div class="act__reveal-body">13,000 이에요. 15,000 − 3,000 + 1,000. 더하기는 두 번이에요. 스냅샷이 없었다면 #1 부터 1,002 번 더해야 했어요. 결과는 같고 걸리는 시간만 달라요.</div></details></div><div class="callout callout--caution"><p class="callout__label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11.9998 8.99999V13M11.9998 17H12.0098M10.6151 3.89171L2.39019 18.0983C1.93398 18.8863 1.70588 19.2803 1.73959 19.6037C1.769 19.8857 1.91677 20.142 2.14613 20.3088C2.40908 20.5 2.86435 20.5 3.77487 20.5H20.2246C21.1352 20.5 21.5904 20.5 21.8534 20.3088C22.0827 20.142 22.2305 19.8857 22.2599 19.6037C22.2936 19.2803 22.0655 18.8863 21.6093 18.0983L13.3844 3.89171C12.9299 3.10654 12.7026 2.71396 12.4061 2.58211C12.1474 2.4671 11.8521 2.4671 11.5935 2.58211C11.2969 2.71396 11.0696 3.10655 10.6151 3.89171Z"/></svg>흔한 실수</p><p class="p">처음부터 스냅샷을 넣는 거예요. 저는 이벤트 몇백 개짜리에 스냅샷을 넣었다가 괜히 버그만 만들었어요. 수천 개까지는 그냥 더해도 빨라요. 느려진 다음에 넣어도 늦지 않아요.</p></div><p class="h3">그래서 언제 쓰면 안 될까요</p><p class="p">이 방식은 공짜가 아니에요. 조회가 번거로워지고, 팀 전체가 이 개념을 알아야 해요. 판단 기준은 하나예요. <strong>&#39;어쩌다 이렇게 됐는지&#39; 를 아무도 묻지 않는 곳이라면 쓰지 않는 게 좋아요.</strong> 사내 공지 게시판에 이걸 얹는 건 짐만 늘리는 일이에요. 보통은 계좌나 주문처럼 기록이 중요한 일부에만 써요.</p><div class="callout callout--caution"><p class="callout__label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11.9998 8.99999V13M11.9998 17H12.0098M10.6151 3.89171L2.39019 18.0983C1.93398 18.8863 1.70588 19.2803 1.73959 19.6037C1.769 19.8857 1.91677 20.142 2.14613 20.3088C2.40908 20.5 2.86435 20.5 3.77487 20.5H20.2246C21.1352 20.5 21.5904 20.5 21.8534 20.3088C22.0827 20.142 22.2305 19.8857 22.2599 19.6037C22.2936 19.2803 22.0655 18.8863 21.6093 18.0983L13.3844 3.89171C12.9299 3.10654 12.7026 2.71396 12.4061 2.58211C12.1474 2.4671 11.8521 2.4671 11.5935 2.58211C11.2969 2.71396 11.0696 3.10655 10.6151 3.89171Z"/></svg>흔한 실수</p><p class="p">멋져 보인다는 이유로 시스템 전체에 적용하는 거예요. 이력을 묻지 않는 곳에서는 비용만 남고 얻는 게 없어요.</p></div><p class="h3"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 20H5.2C4.07989 20 3.51984 20 3.09202 19.782C2.71569 19.5903 2.40973 19.2843 2.21799 18.908C2 18.4802 2 17.9201 2 16.8V7.2C2 6.07989 2 5.51984 2.21799 5.09202C2.40973 4.71569 2.71569 4.40973 3.09202 4.21799C3.51984 4 4.07989 4 5.2 4H5.6C7.84021 4 8.96031 4 9.81596 4.43597C10.5686 4.81947 11.1805 5.43139 11.564 6.18404C12 7.03968 12 8.15979 12 10.4M12 20V10.4M12 20H18.8C19.9201 20 20.4802 20 20.908 19.782C21.2843 19.5903 21.5903 19.2843 21.782 18.908C22 18.4802 22 17.9201 22 16.8V7.2C22 6.07989 22 5.51984 21.782 5.09202C21.5903 4.71569 21.2843 4.40973 20.908 4.21799C20.4802 4 19.9201 4 18.8 4H18.4C16.1598 4 15.0397 4 14.184 4.43597C13.4314 4.81947 12.8195 5.43139 12.436 6.18404C12 7.03968 12 8.15979 12 10.4"/></svg>먼저 풀고 갈 말들</p><dl class="glossary"><dt>이벤트(Event)</dt><dd>이미 일어난 일 하나를 가리켜요. &#39;5만원 출금됨&#39; 같은 거예요. 앞으로 하겠다는 게 아니라 이미 벌어진 일이라는 게 중요해요.</dd><dt>이벤트 스토어(Event Store)</dt><dd>이벤트를 순서대로 쌓아두는 곳이에요. 이름은 거창하지만 하는 일은 장부와 같아요. 새로 적기만 하고 지우지 않아요.</dd><dt>append-only(어펜드 온리)</dt><dd>&#39;덧붙이기만&#39; 이라는 뜻이에요. 새로 쓰는 건 되고 이미 쓴 걸 고치거나 지우는 건 안 돼요.</dd><dt>리플레이(Replay)</dt><dd>쌓인 이벤트를 처음부터 다시 훑어서 지금 상태를 계산하는 걸 말해요. 가계부를 위에서부터 더해 잔액을 내는 것과 같아요.</dd><dt>상태(State)</dt><dd>지금 이 순간의 값이에요. 잔액 30만원처럼요. 이벤트 소싱에서는 이걸 저장하지 않고 그때그때 계산해요.</dd><dt>스냅샷(Snapshot)</dt><dd>중간 결산이에요. 어느 시점까지 더한 값을 따로 적어 두고, 그 뒤에 쌓인 이벤트만 더해요. 가계부 페이지 끝에 적는 &#39;이월 잔액&#39; 과 같아요.</dd></dl><details class="context"><summary class="context__summary"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M22.7 13.5L20.7005 11.5L18.7 13.5M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C15.3019 3 18.1885 4.77814 19.7545 7.42909M12 7V12L15 14"/></svg>이게 어디서 왔는지 (짧은 맥락)</summary><div class="context__body"><p class="p">이벤트 소싱은 누가 딱 발명했다기보다 여러 갈래가 만난 자리에 가까워요. 회계 장부, 데이터베이스가 안에서 쓰는 기록, 개발자들이 쓰는 버전 관리. 전부 같은 생각이에요. 변화를 지우지 말고 쌓아두자는 것이죠. 장부는 틀렸다고 지우지 않아요. 반대 내용을 새로 적어요. 이벤트 소싱은 그 수백 년 된 방식을 프로그램으로 옮겨온 거예요.</p><ul class="timeline"><li><span class="timeline__when">1494년</span><p class="timeline__what">루카 파치올리가 책에 복식부기를 정리해 실었어요. 틀린 기록을 지우지 않고 반대 기록을 새로 적어 바로잡는 방식이 이때 이미 자리 잡고 있었어요.</p></li><li><span class="timeline__when">2005년</span><p class="timeline__what">마틴 파울러가 자기 사이트에 &#39;Event Sourcing&#39; 이라는 글을 올려 이 이름을 널리 알렸어요.</p></li><li><span class="timeline__when">2011년</span><p class="timeline__what">링크드인이 Kafka 를 오픈소스로 공개했어요. 이후 &#39;기록이 곧 진실&#39; 이라는 생각이 여러 회사에서 자연스러워졌어요.</p></li></ul></div></details><aside class="par"><span class="par__badge"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 15L6.92474 18.1137C6.49579 18.548 6.28131 18.7652 6.09695 18.7805C5.93701 18.7938 5.78042 18.7295 5.67596 18.6076C5.55556 18.4672 5.55556 18.162 5.55556 17.5515V15.9916C5.55556 15.444 5.10707 15.0477 4.5652 14.9683V14.9683C3.25374 14.7762 2.22378 13.7463 2.03168 12.4348C2 12.2186 2 11.9605 2 11.4444V6.8C2 5.11984 2 4.27976 2.32698 3.63803C2.6146 3.07354 3.07354 2.6146 3.63803 2.32698C4.27976 2 5.11984 2 6.8 2H14.2C15.8802 2 16.7202 2 17.362 2.32698C17.9265 2.6146 18.3854 3.07354 18.673 3.63803C19 4.27976 19 5.11984 19 6.8V11M19 22L16.8236 20.4869C16.5177 20.2742 16.3647 20.1678 16.1982 20.0924C16.0504 20.0255 15.8951 19.9768 15.7356 19.9474C15.5558 19.9143 15.3695 19.9143 14.9969 19.9143H13.2C12.0799 19.9143 11.5198 19.9143 11.092 19.6963C10.7157 19.5046 10.4097 19.1986 10.218 18.8223C10 18.3944 10 17.8344 10 16.7143V14.2C10 13.0799 10 12.5198 10.218 12.092C10.4097 11.7157 10.7157 11.4097 11.092 11.218C11.5198 11 12.0799 11 13.2 11H18.8C19.9201 11 20.4802 11 20.908 11.218C21.2843 11.4097 21.5903 11.7157 21.782 12.092C22 12.5198 22 13.0799 22 14.2V16.9143C22 17.8462 22 18.3121 21.8478 18.6797C21.6448 19.1697 21.2554 19.5591 20.7654 19.762C20.3978 19.9143 19.9319 19.9143 19 19.9143V22Z"/></svg></span><div><span class="par__name">파르</span><p class="par__note">이걸 처음 보면 &#39;그래서 잔액은 어디에 저장하는데?&#39; 부터 막혀요. 답은 &#39;저장 안 해요&#39; 예요. 매번 계산하거든요. 이 한 줄만 넘기면 나머지는 훨씬 수월해져요.</p></div></aside></div></section><section class="sec sec--core" id="sec-5" data-section="practice"><header class="sec__head"><p class="sec__label"><svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7.5 12L10.5 15L16.5 9M7.8 21H16.2C17.8802 21 18.7202 21 19.362 20.673C19.9265 20.3854 20.3854 19.9265 20.673 19.362C21 18.7202 21 17.8802 21 16.2V7.8C21 6.11984 21 5.27976 20.673 4.63803C20.3854 4.07354 19.9265 3.6146 19.362 3.32698C18.7202 3 17.8802 3 16.2 3H7.8C6.11984 3 5.27976 3 4.63803 3.32698C4.07354 3.6146 3.6146 4.07354 3.32698 4.63803C3 5.27976 3 6.11984 3 7.8V16.2C3 17.8802 3 18.7202 3.32698 19.362C3.6146 19.9265 4.07354 20.3854 4.63803 20.673C5.27976 21 6.11984 21 7.8 21Z"/></svg><span class="sec__num">05</span></p><h2 class="sec__title">연습</h2><p class="sec__lead">새 상황에서 써 봐요</p></header><div class="sec__body"><ol class="quiz"><li class="quiz__item" data-quiz-id="q0" data-response-id="quiz-8" data-response-kind="written"><p class="quiz__q">이벤트 스토어에 저장하는 것은 &#39;지금 상태&#39; 인가요, &#39;일어난 일&#39; 인가요?</p><div class="ink-space" data-ink-space="sm"></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label><details class="quiz__a"><summary><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>적고 나서 열기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span>일어난 일(이벤트)이에요. 지금 상태는 그 일들을 처음부터 더해서 계산해요.</p><p>이게 이벤트 소싱의 정의예요. 상태는 저장하는 대상이 아니라 계산한 결과예요.</p><div class="quiz__mis"><p class="quiz__a-label">이렇게 답했다면</p><ul><li><strong>지금 상태를 저장하고 이벤트는 로그로만</strong> — 그러면 상태가 진실이고 이벤트는 참고가 돼요. 이벤트 소싱은 반대로 이벤트가 진실이에요.</li></ul></div></div></details></li><li class="quiz__item" data-quiz-id="q1" data-response-id="quiz-9" data-response-kind="choice" data-answer="1"><p class="quiz__q">다음 중 이벤트 이름으로 알맞은 것은 무엇일까요?</p><div class="quiz__choices" role="radiogroup"><label class="act__opt" data-feedback="부탁은 거절될 수 있어요. 거절될 수 있는 것은 &#39;일어난 일&#39; 이 아니에요."><input type="radio" name="quiz-9" value="WithdrawMoney"><span class="act__key">①</span><span>WithdrawMoney</span></label><label class="act__opt" data-feedback="부탁은 거절될 수 있어요. 거절될 수 있는 것은 &#39;일어난 일&#39; 이 아니에요."><input type="radio" name="quiz-9" value="MoneyWithdrawn"><span class="act__key">②</span><span>MoneyWithdrawn</span></label><label class="act__opt" data-feedback="부탁은 거절될 수 있어요. 거절될 수 있는 것은 &#39;일어난 일&#39; 이 아니에요."><input type="radio" name="quiz-9" value="WithdrawingMoney"><span class="act__key">③</span><span>WithdrawingMoney</span></label><label class="act__opt" data-feedback="부탁은 거절될 수 있어요. 거절될 수 있는 것은 &#39;일어난 일&#39; 이 아니에요."><input type="radio" name="quiz-9" value="MoneyWithdrawRequest"><span class="act__key">④</span><span>MoneyWithdrawRequest</span></label></div><p class="act__fb" data-feedback-slot hidden></p><button type="button" class="quiz__submit" data-submit>제출</button><details class="quiz__a"><summary><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>제출하면 열려요</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span>MoneyWithdrawn</p><p>이벤트는 이미 일어난 일이라 과거형이에요. WithdrawMoney 는 거절될 수 있는 부탁이고, Request 는 아직 일어나지 않은 요청이에요.</p></div></details></li><li class="quiz__item" data-quiz-id="q2" data-response-id="quiz-10" data-response-kind="written"><p class="quiz__q">배달 앱에서 고객이 &quot;왜 제 주문이 취소됐죠?&quot; 라고 물었어요. 주문 표에 status 칸 하나만 있는 시스템과 이벤트 소싱 시스템은 각각 무엇이라고 답할 수 있을까요?</p><div class="ink-space" data-ink-space="sm"></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label><details class="quiz__a"><summary><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>적고 나서 열기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span>status 만 있으면 &quot;취소됐습니다&quot; 밖에 못 해요. 이벤트 소싱이면 &#39;주문됨 → 가게가 수락함 → 가게가 취소함(재료 소진)&#39; 처럼 순서와 이유를 보여줄 수 있어요.</p><p>기록이 있느냐 없느냐가 답할 수 있느냐를 정해요. 관찰에서 본 포인트 장면과 같은 구조인데 상황만 바뀐 거예요.</p><div class="quiz__mis"><p class="quiz__a-label">이렇게 답했다면</p><ul><li><strong>status 시스템도 로그를 뒤지면 된다</strong> — 별도 로그가 있다면 그게 이미 이벤트를 따로 쌓는 셈이에요. status 칸 하나만 있으면 이유는 사라져요.</li></ul></div></div></details></li><li class="quiz__item" data-quiz-id="q3" data-response-id="quiz-11" data-response-kind="written"><p class="quiz__q">동료가 이벤트에 &#39;이번 거래 후 잔액&#39; 을 함께 넣자고 해요. 6개월 뒤 수수료 계산 규칙이 바뀌면 무슨 일이 생길까요?</p><div class="ink-space" data-ink-space="sm"></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label><details class="quiz__a"><summary><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>적고 나서 열기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span>과거 이벤트에 박힌 잔액이 전부 새 규칙과 어긋나는 거짓 기록이 돼요. 잔액을 안 넣었다면 새 규칙으로 처음부터 다시 계산하면 그만이에요.</p><p>이벤트는 일어난 사실만 담아요. 계산된 값은 규칙이 바뀌면 과거까지 틀리게 만들어요. 필요할 때 계산하면 규칙 변경에도 안전해요.</p><div class="quiz__mis"><p class="quiz__a-label">이렇게 답했다면</p><ul><li><strong>조회가 빨라지니 넣는 게 낫다</strong> — 빠른 조회는 스냅샷이나 읽기용 표로 따로 해결해요. 이벤트 자체에 계산값을 넣으면 안 돼요.</li></ul></div></div></details></li><li class="quiz__item" data-quiz-id="q4" data-response-id="quiz-12" data-response-kind="written"><p class="quiz__q">두 시스템이 있어요. ① 병원의 처방 기록 ② 회사 인트라넷의 점심 메뉴 투표. 각각 이벤트 소싱을 쓸지 말지 정하고, 한 줄씩 이유를 써 보세요.</p><div class="ink-space" data-ink-space="md"></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label><details class="quiz__a"><summary><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>적고 나서 열기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span>① 씁니다 — 누가 언제 무엇을 처방했고 왜 바뀌었는지가 법적으로도 중요해요. ② 안 씁니다 — 오늘 결과만 있으면 되고 과거 투표 경위를 아무도 안 물어요.</p><p>기준은 &#39;어쩌다 이 값이 됐는지를 누군가 묻는가&#39; 예요. 처방 기록은 묻고, 점심 투표는 안 물어요. 기술이 멋져서가 아니라 질문이 있느냐로 정해요.</p><div class="quiz__mis"><p class="quiz__a-label">이렇게 답했다면</p><ul><li><strong>둘 다 쓴다 — 기록은 많을수록 좋으니까</strong> — 점심 투표에 이벤트 소싱을 얹으면 조회만 번거로워지고 배울 것만 늘어요. 이력을 묻지 않는 곳에서는 비용만 남아요.</li></ul></div></div></details></li></ol><p class="h3">더 해보기 (선택)</p><div class="cards"><div class="card"><p class="card__title">내 통장을 이벤트로 옮겨 적어 보기</p><p class="card__why">최근 거래 내역 10건을 종이에 적어 보세요. 한 줄에 하나씩, &#39;무슨 일 / 얼마 / 언제&#39; 이렇게요. 그다음 위에서부터 더해서 지금 잔액을 손으로 계산하고, 실제 잔액과 맞는지 확인해 보세요.</p><p class="card__hint">예상 20분</p></div><div class="card"><p class="card__title">바로잡는 이벤트 만들어 보기</p><p class="card__why">위에서 적은 것 중 하나가 금액을 잘못 적었다고 해봐요. 그 줄을 지우지 않은 채로 바로잡으려면 무엇을 새로 적어야 할까요. 이름은 과거형으로 지어 보세요. 정답은 없어요. 이미 적은 줄을 고치지 않았는지, 새 이름이 과거형인지 두 가지만 확인하면 돼요.</p><p class="card__hint">예상 15분</p></div></div></div></section><section class="sec sec--core" id="sec-6" data-section="exit_ticket"><header class="sec__head"><p class="sec__label"><svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 15C4 15 5 14 8 14C11 14 13 16 16 16C19 16 20 15 20 15V3C20 3 19 4 16 4C13 4 11 2 8 2C5 2 4 3 4 3L4 22"/></svg><span class="sec__num">06</span></p><h2 class="sec__title">나가기 전에</h2><p class="sec__lead">처음 예측으로 돌아가요</p></header><div class="sec__body"><div class="reflect"><p class="reflect__prompt"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M13 5.99985L6.50182 7.29948C6.13883 7.37208 5.95733 7.40838 5.80952 7.49665C5.67886 7.57469 5.56772 7.68152 5.4846 7.80901C5.39057 7.95321 5.34714 8.13314 5.26028 8.49299L2 21.9998M2 21.9998L15.5069 18.7396C15.8667 18.6527 16.0466 18.6093 16.1908 18.5153C16.3183 18.4321 16.4252 18.321 16.5032 18.1903C16.5915 18.0425 16.6278 17.861 16.7004 17.498L18 10.9998M2 21.9998L9.586 14.4138M20.8686 7.86848L16.1314 3.13122C15.7354 2.7352 15.5373 2.53719 15.309 2.46301C15.1082 2.39775 14.8918 2.39775 14.691 2.46301C14.4627 2.53719 14.2646 2.7352 13.8686 3.13122L13.1314 3.86848C12.7354 4.2645 12.5373 4.4625 12.4632 4.69083C12.3979 4.89168 12.3979 5.10802 12.4632 5.30887C12.5373 5.53719 12.7354 5.7352 13.1314 6.13122L17.8686 10.8685C18.2646 11.2645 18.4627 11.4625 18.691 11.5367C18.8918 11.6019 19.1082 11.6019 19.309 11.5367C19.5373 11.4625 19.7354 11.2645 20.1314 10.8685L20.8686 10.1312C21.2646 9.7352 21.4627 9.53719 21.5368 9.30887C21.6021 9.10802 21.6021 8.89168 21.5368 8.69083C21.4627 8.4625 21.2646 8.2645 20.8686 7.86848ZM11 10.9998C12.1046 10.9998 13 11.8953 13 12.9998C13 14.1044 12.1046 14.9998 11 14.9998C9.89543 14.9998 9 14.1044 9 12.9998C9 11.8953 9.89543 10.9998 11 10.9998Z"/></svg>맨 처음 포인트 질문에서 무엇을 골랐나요. 지금은 &quot;상태를 저장하는 시스템&quot; 과 &quot;이벤트를 저장하는 시스템&quot; 이 각각 무엇에 답할 수 있는지 두 줄로 적어 보세요. 처음 생각과 달라진 지점이 있다면 그것도요.</p><div class="ink-space" data-ink-space="md"></div></div><div class="reflect"><p class="reflect__prompt"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M13 5.99985L6.50182 7.29948C6.13883 7.37208 5.95733 7.40838 5.80952 7.49665C5.67886 7.57469 5.56772 7.68152 5.4846 7.80901C5.39057 7.95321 5.34714 8.13314 5.26028 8.49299L2 21.9998M2 21.9998L15.5069 18.7396C15.8667 18.6527 16.0466 18.6093 16.1908 18.5153C16.3183 18.4321 16.4252 18.321 16.5032 18.1903C16.5915 18.0425 16.6278 17.861 16.7004 17.498L18 10.9998M2 21.9998L9.586 14.4138M20.8686 7.86848L16.1314 3.13122C15.7354 2.7352 15.5373 2.53719 15.309 2.46301C15.1082 2.39775 14.8918 2.39775 14.691 2.46301C14.4627 2.53719 14.2646 2.7352 13.8686 3.13122L13.1314 3.86848C12.7354 4.2645 12.5373 4.4625 12.4632 4.69083C12.3979 4.89168 12.3979 5.10802 12.4632 5.30887C12.5373 5.53719 12.7354 5.7352 13.1314 6.13122L17.8686 10.8685C18.2646 11.2645 18.4627 11.4625 18.691 11.5367C18.8918 11.6019 19.1082 11.6019 19.309 11.5367C19.5373 11.4625 19.7354 11.2645 20.1314 10.8685L20.8686 10.1312C21.2646 9.7352 21.4627 9.53719 21.5368 9.30887C21.6021 9.10802 21.6021 8.89168 21.5368 8.69083C21.4627 8.4625 21.2646 8.2645 20.8686 7.86848ZM11 10.9998C12.1046 10.9998 13 11.8953 13 12.9998C13 14.1044 12.1046 14.9998 11 14.9998C9.89543 14.9998 9 14.1044 9 12.9998C9 11.8953 9.89543 10.9998 11 10.9998Z"/></svg>이벤트 소싱이 무엇인지 옆자리 사람에게 말하듯 한 문장으로 적어 보세요. &#39;대신&#39; 이라는 말이 들어가면 좋아요.</p><div class="ink-space" data-ink-space="sm"></div></div><div class="act act--decide" data-response-id="exit-13" data-response-kind="choice"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>골라 보세요</p><p class="act__prompt">다음 중 틀린 문장을 고르세요.</p><div class="act__options" role="radiogroup"><label class="act__opt"><input type="radio" name="exit-13" value="이벤트 이름은 이미 일어난 일이라 과거형으로 지어요"><span class="act__key">①</span><span>이벤트 이름은 이미 일어난 일이라 과거형으로 지어요</span></label><label class="act__opt"><input type="radio" name="exit-13" value="잔액은 저장하지 않고 이벤트를 처음부터 더해서 계산해요"><span class="act__key">②</span><span>잔액은 저장하지 않고 이벤트를 처음부터 더해서 계산해요</span></label><label class="act__opt"><input type="radio" name="exit-13" value="잘못 적은 이벤트는 지우고 맞는 값으로 다시 적어요"><span class="act__key">③</span><span>잘못 적은 이벤트는 지우고 맞는 값으로 다시 적어요</span></label><label class="act__opt"><input type="radio" name="exit-13" value="이력을 아무도 묻지 않는 곳에는 쓰지 않는 게 나아요"><span class="act__key">④</span><span>이력을 아무도 묻지 않는 곳에는 쓰지 않는 게 나아요</span></label></div><p class="act__fb" data-feedback-slot hidden></p><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>고르면 열려요</summary><div class="act__reveal-body">틀린 문장은 세 번째예요. 이벤트는 지우거나 고치지 않고, 바로잡는 이벤트를 새로 덧붙여요. 지우는 순간 예전에 계산했던 값과 어긋나고 &#39;기록이 진실&#39; 이라는 약속이 깨져요. 나머지 셋은 맞는 문장이에요.</div></details></div><p class="h3">스스로 점검</p><ul class="checklist"><li>회원 U7 의 적립·사용·정정 이벤트 세 개를 직접 적고 더해서 잔액을 다시 만들어 봤어요</li><li>잘못된 이벤트를 고치지 않고 정정 이벤트를 하나 설계해 봤어요</li><li>상태만 저장하는 시스템이 답할 수 없는 질문을 하나 적어 봤어요</li><li>이벤트 소싱을 쓰지 말아야 할 상황을 내 주변에서 하나 찾아 봤어요</li></ul><p class="h3">내일 해볼 것</p><p class="p">내일 가계부나 메모 앱에 &#39;남은 돈&#39; 대신 &#39;오늘 쓴 내역&#39; 을 한 줄씩 적어 보세요. 저녁에 위에서부터 더해 잔액을 내 보면, 리플레이를 손으로 한 번 해 본 셈이에요.</p><div class="cards"><div class="card"><p class="card__title">불변성(Immutability)</p><p class="card__why">한 번 만든 값은 바꾸지 않는다는 생각이에요. &#39;그냥 고치면 되잖아?&#39; 에서 자꾸 막힌다면 이걸 먼저 보면 이벤트를 고치지 않는 이유가 편해져요.</p><p class="card__hint">이게 막히면 먼저</p></div><div class="card"><p class="card__title">이벤트를 어느 단위로 묶을까</p><p class="card__why">실무에서 제일 자주 막히는 지점이에요. 어떤 일을 이벤트 하나로 볼지 정하는 기준을 잡으면 이벤트 설계가 한결 수월해져요.</p><p class="card__hint">같은 난이도</p></div><div class="card"><p class="card__title">읽기용 표(프로젝션)</p><p class="card__why">잔액 조회가 매번 리플레이라 번거롭다고 느꼈다면 여기예요. 이벤트에서 조회 전용 표를 따로 만들어 두는 방법을 다뤄요.</p><p class="card__hint">한 단계 더 깊게</p></div><div class="card"><p class="card__title">CQRS</p><p class="card__why">쓰기와 읽기를 아예 다른 길로 나누는 이야기예요. 읽기용 표까지 왔으면 자연스럽게 궁금해지실 거예요.</p><p class="card__hint">한 단계 더 깊게</p></div></div></div></section>
+③ 이 잘못 적힌 것이면 12000 을 13000 으로 덮어씀 #4 PointsSpendReversed corrects #3 #5 PointsSpent -2000 (맞는 금액)
+조회를 빠르게 하려면 이미 balance 한 칸이라 끝 #1~#5 를 훑어 만든 조회용 표를 따로 둠</code></pre></div><p class="h3">여기를 보세요</p><ol class="notice"><li>(a) 에서 ③ 이 끝난 뒤 20,000 과 15,000 이라는 숫자가 어디에 남아 있는지 찾아보세요.</li><li>&quot;왜 12,000 이죠?&quot; 와 &quot;화요일엔 얼마였죠?&quot; 에 (a) 와 (b) 중 어느 쪽만 답할 수 있는지 보세요.</li><li>③ 이 잘못 적힌 것이었을 때 (a) 는 무엇을 잃고 (b) 는 무엇을 더하는지 마지막 두 줄을 보세요.</li><li>맨 아랫줄에서 (b) 도 조회용 표를 따로 저장한다는 점을 보세요. 그 표는 어디서 만들어지나요?</li></ol><div class="act act--decide" data-response-id="compare-3" data-response-kind="choice"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>골라 보세요</p><p class="act__prompt">예측 단계에서 고른 답과 방금 본 표를 비교해 보세요. 예측이 맞았나요?</p><div class="act__options" role="radiogroup"><label class="act__opt"><input type="radio" name="compare-3" value="맞았어요"><span class="act__key">①</span><span>맞았어요</span></label><label class="act__opt"><input type="radio" name="compare-3" value="틀렸어요"><span class="act__key">②</span><span>틀렸어요</span></label><label class="act__opt"><input type="radio" name="compare-3" value="반쯤 맞았어요"><span class="act__key">③</span><span>반쯤 맞았어요</span></label></div><p class="act__fb" data-feedback-slot hidden></p><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>고르면 열려요</summary><div class="act__reveal-body">(a) 처럼 balance 칸 하나만 있으면 &quot;12,000 입니다&quot; 밖에 못 해요. &#39;로그를 뒤지면 된다&#39; 를 골랐다면 반쯤 맞았어요. 남은 반은 개념에서 볼게요. 디버깅용 로그와 (b) 의 스트림은 적는 목적도, 보관 규칙도, 값이 어긋날 때 믿는 쪽도 달라요. &#39;updated_at 칸&#39; 은 언제 바뀌었는지만 남기고 왜 바뀌었는지는 남기지 않아요.</div></details></div></div></section><section class="sec sec--core" id="sec-4" data-section="concept"><header class="sec__head"><p class="sec__label"><svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 10.0001V16.0112C5 16.3702 5 16.5496 5.05465 16.7081C5.10299 16.8482 5.18187 16.9759 5.28558 17.0817C5.40287 17.2015 5.5634 17.2818 5.88446 17.4423L11.2845 20.1423C11.5468 20.2735 11.678 20.3391 11.8156 20.3649C11.9375 20.3877 12.0625 20.3877 12.1844 20.3649C12.322 20.3391 12.4532 20.2735 12.7155 20.1423L18.1155 17.4423C18.4366 17.2818 18.5971 17.2015 18.7144 17.0817C18.8181 16.9759 18.897 16.8482 18.9453 16.7081C19 16.5496 19 16.3702 19 16.0112V10.0001M2 8.50006L11.6422 3.67895C11.7734 3.61336 11.839 3.58056 11.9078 3.56766C11.9687 3.55622 12.0313 3.55622 12.0922 3.56766C12.161 3.58056 12.2266 3.61336 12.3578 3.67895L22 8.50006L12.3578 13.3212C12.2266 13.3868 12.161 13.4196 12.0922 13.4325C12.0313 13.4439 11.9687 13.4439 11.9078 13.4325C11.839 13.4196 11.7734 13.3868 11.6422 13.3212L2 8.50006Z"/></svg><span class="sec__num">04</span></p><h2 class="sec__title">개념</h2><p class="sec__lead">본 것에 이름을 붙여요</p></header><div class="sec__body"><p class="analogy">가계부를 떠올려 보세요. 남은 돈만 적나요, 쓴 내역을 하나씩 적나요? 대부분 내역을 적을 거예요. 그래야 &quot;이 돈 어디 갔지?&quot; 에 답할 수 있으니까요. 그러면서도 페이지 끝에는 이월 잔액을 적어 두죠. 그 숫자는 내역에서 다시 만들 수 있는 사본이에요. 방금 본 (b) 가 바로 이 가계부예요.</p><p class="h3">도메인 이벤트 스트림은 디버깅 로그와 다른 물건이에요</p><p class="p">이벤트는 이미 일어난 업무상 사실 하나예요. 그래서 이름이 과거형이에요. <code>WithdrawMoney</code> 는 &#39;출금해 줘&#39; 라는 부탁이고, <code>MoneyWithdrawn</code> 이 &#39;출금됐다&#39; 는 사실이에요. 그런데 여기서 한 걸음이 더 필요해요. 로그도 &#39;일어난 일&#39; 을 적잖아요. 그래서 둘을 같은 물건으로 보기 쉬워요. 갈림길은 세 가지예요. 무엇을 위해 적는가, 그것만으로 상태를 다시 만들 수 있는가, 값이 어긋날 때 어느 쪽을 믿는가. 아래 표에서 나란히 보세요.</p><div class="example" data-example-kind="compare"><p class="example__caption">같은 &#39;기록&#39; 셋을 네 기준으로 — 운영 로그 / 감사 로그(audit) / 도메인 이벤트 스트림</p><div class="ex-compare"><div class="ex-compare__row"><span class="ex-compare__before">목적</span><span class="ex-compare__arrow" aria-hidden="true">→</span><span class="ex-compare__after">운영 로그: 디버깅 / 감사 로그: 규정 준수와 누가 무엇을 했는지 / 도메인 이벤트 스트림: 도메인 상태의 원천</span></div><div class="ex-compare__row"><span class="ex-compare__before">replay 로 상태 구축</span><span class="ex-compare__arrow" aria-hidden="true">→</span><span class="ex-compare__after">운영 로그: 보통 안 함 / 감사 로그: 반드시는 아님 / 도메인 이벤트 스트림: 핵심</span></div><div class="ex-compare__row"><span class="ex-compare__before">도메인 불변식과의 연결</span><span class="ex-compare__arrow" aria-hidden="true">→</span><span class="ex-compare__after">운영 로그: 약함 / 감사 로그: 중간 / 도메인 이벤트 스트림: 강함</span></div><div class="ex-compare__row"><span class="ex-compare__before">source of truth</span><span class="ex-compare__arrow" aria-hidden="true">→</span><span class="ex-compare__after">운영 로그: 대개 아님 / 감사 로그: 상황에 따라 / 도메인 이벤트 스트림: event-sourced aggregate 에서는 예</span></div></div></div><div class="act act--decide" data-response-id="act-4" data-response-kind="choice"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>골라 보세요</p><p class="act__prompt">다음 세 줄 중 계좌 A1 의 도메인 이벤트 스트림에 들어갈 줄은 어느 것일까요?</p><div class="act__options" role="radiogroup"><label class="act__opt"><input type="radio" name="act-4" value="GET /accounts/A1 200 12ms — 요청 처리 기록"><span class="act__key">①</span><span>GET /accounts/A1 200 12ms — 요청 처리 기록</span></label><label class="act__opt"><input type="radio" name="act-4" value="CancelOrder — 주문을 취소해 달라는 부탁"><span class="act__key">②</span><span>CancelOrder — 주문을 취소해 달라는 부탁</span></label><label class="act__opt"><input type="radio" name="act-4" value="MoneyWithdrawn 50,000 — 계좌 A1 에서 출금됨"><span class="act__key">③</span><span>MoneyWithdrawn 50,000 — 계좌 A1 에서 출금됨</span></label></div><p class="act__fb" data-feedback-slot hidden></p><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>고르면 열려요</summary><div class="act__reveal-body">세 번째예요. 첫 줄은 운영 로그라 잔액을 다시 만드는 데 쓰지 않아요. 둘째 줄은 아직 거절될 수 있는 부탁이라 사실이 아니에요. 셋째 줄만 이미 일어난 도메인 사실이라 원본 줄에 들어가요. 이름이 과거형인 것도 그래서예요.</div></details></div><div class="callout callout--caution"><p class="callout__label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11.9998 8.99999V13M11.9998 17H12.0098M10.6151 3.89171L2.39019 18.0983C1.93398 18.8863 1.70588 19.2803 1.73959 19.6037C1.769 19.8857 1.91677 20.142 2.14613 20.3088C2.40908 20.5 2.86435 20.5 3.77487 20.5H20.2246C21.1352 20.5 21.5904 20.5 21.8534 20.3088C22.0827 20.142 22.2305 19.8857 22.2599 19.6037C22.2936 19.2803 22.0655 18.8863 21.6093 18.0983L13.3844 3.89171C12.9299 3.10654 12.7026 2.71396 12.4061 2.58211C12.1474 2.4671 11.8521 2.4671 11.5935 2.58211C11.2969 2.71396 11.0696 3.10655 10.6151 3.89171Z"/></svg>흔한 실수</p><p class="p">감사 로그를 켜 두었으니 이벤트 소싱을 하고 있다고 여기는 거예요. 그 기록만으로 잔액을 처음부터 다시 만들 수 없다면, 이름이 비슷할 뿐 다른 물건이에요.</p></div><p class="h3">원본은 이벤트 쪽에 두고, 지금 값은 다시 만들어요</p><p class="p">잔액이 필요하면 그 계좌의 이벤트를 위에서부터 더해요. 이걸 <strong>리플레이</strong> 라고 불러요. 코드로는 목록을 접어 값 하나로 만드는 <code>reduce</code> 한 줄이에요. 여기서 오해가 하나 생겨요. &#39;그럼 잔액은 아무 데도 적어 두지 못하나&#39; 싶은 거예요. 그렇지 않아요. 실무에서는 조회용 표와 스냅샷을 아주 많이 저장해요. 다만 그건 사본이에요. 원본은 이벤트 스트림이고, 사본은 언제든 지우고 다시 만들 수 있어야 해요. 관찰 표의 맨 아랫줄이 바로 이 사본이에요.</p><div class="boundary"><p class="boundary__holds">언제 성립하냐면 — 이벤트 스트림이 그 계좌의 원본으로 유지되고, 사본은 언제든 지우고 다시 만들 수 있을 때예요</p><p class="boundary__breaks">이럴 땐 성립하지 않아요 — 운영자가 조회용 표를 손으로 직접 고치기 시작하면 깨져요. 그 값은 이벤트에서 다시 만든 값과 어긋나고, 어느 쪽이 맞는지 알 수 없어요</p></div><div class="example" data-example-kind="code"><p class="example__caption">원본에서 지금 값을 만들고, 사본은 따로 저장해요</p><pre class="ex-code"><code class="lang-javascript">// 원본: 이벤트 스트림. 필요할 때 훑어서 잔액을 만들어요
+const balance = events.reduce((sum, e) =&gt; e.type === &#39;MoneyDeposited&#39; ? sum + e.amount : e.type === &#39;MoneyWithdrawn&#39; ? sum - e.amount : sum
+, 0) // 사본: 조회용 표. 저장해 두고 써요. 지워도 위 코드로 다시 만들어요
+await readModel.upsert({ accountId: &#39;A1&#39;, balance, asOfVersion: 42 })</code></pre></div><div class="act act--compute" data-response-id="act-5" data-response-kind="written"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>직접 계산해 보세요</p><p class="act__prompt">입금 30,000 / 출금 12,000 / 입금 5,000 / 출금 8,000 을 위에서부터 더해 잔액을 구해 보세요. 그리고 그 값을 조회용 표에 적어 두어도 되는지 한 줄로 답해 보세요.</p><div class="answer" data-answer-for="act-5"><textarea class="answer__text" data-answer-text rows="3" placeholder="여기에 타이핑해도 되고, 아래 칸에 펜으로 써도 돼요"></textarea><div class="ink-space" data-ink-space="md" data-ink-anchor="act-5"></div></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>적고 나서 열기</summary><div class="act__reveal-body">15,000 이에요. 30,000 − 12,000 + 5,000 − 8,000 이고, 이게 리플레이예요. 그 값을 조회용 표에 적어 두어도 괜찮아요. 표가 의심스러우면 지우고 이벤트에서 다시 만들면 되니까요. 갈림길은 저장 여부가 아니라 어느 쪽이 원본이냐예요.</div></details></div><div class="callout callout--caution"><p class="callout__label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11.9998 8.99999V13M11.9998 17H12.0098M10.6151 3.89171L2.39019 18.0983C1.93398 18.8863 1.70588 19.2803 1.73959 19.6037C1.769 19.8857 1.91677 20.142 2.14613 20.3088C2.40908 20.5 2.86435 20.5 3.77487 20.5H20.2246C21.1352 20.5 21.5904 20.5 21.8534 20.3088C22.0827 20.142 22.2305 19.8857 22.2599 19.6037C22.2936 19.2803 22.0655 18.8863 21.6093 18.0983L13.3844 3.89171C12.9299 3.10654 12.7026 2.71396 12.4061 2.58211C12.1474 2.4671 11.8521 2.4671 11.5935 2.58211C11.2969 2.71396 11.0696 3.10655 10.6151 3.89171Z"/></svg>흔한 실수</p><p class="p">&#39;지금 값을 어딘가에 적어 두면 이벤트 소싱이 아니다&#39; 로 외우는 거예요. 그렇게 외우면 프로젝션과 스냅샷을 잔뜩 쓰는 실제 시스템을 보고 혼란스러워해요. 적어 두기는 해요. 원본 자리를 내주지 않을 뿐이에요.</p></div><p class="h3">고치는 대신, 무슨 일이 있었는지 남는 정정 사건을 붙여요</p><p class="p">잘못 적었으면 지우개를 쓰는 대신 새 줄을 붙여요. 이때 이름이 중요해요. &#39;출금 정정 +9,000&#39; 처럼 차액만 적으면 무슨 일이 있었는지가 남지 않아요. <code>WithdrawalReversed</code>, <code>PointsRefunded</code>, <code>LedgerAdjustmentRecorded</code> 처럼 사건 이름을 붙이고, <code>correctsEventId</code> 로 어느 줄을 바로잡는지 가리켜요. 그러면 지난 계산을 나중에도 그대로 설명할 수 있어요.</p><div class="boundary"><p class="boundary__holds">언제 성립하냐면 — 그 스트림이 도메인 사실의 원본이고, 지난 계산을 나중에 다시 설명해야 할 때예요</p><p class="boundary__breaks">이럴 땐 성립하지 않아요 — 법이 개인정보를 지우라고 요구하면 줄을 그대로 두기 어려워요. 그때는 값을 암호로 잠가 두고 열쇠를 버리는 식으로 따로 설계해요</p></div><div class="example" data-example-kind="code"><p class="example__caption">잘못 적힌 출금을 되돌리고, 맞는 금액을 새로 적어요</p><pre class="ex-code"><code class="lang-javascript">{ type: &#39;MoneyWithdrawn&#39;, id: &#39;e31&#39;, accountId: &#39;A1&#39;, amount: 12000 } { type: &#39;WithdrawalReversed&#39;, id: &#39;e44&#39;, accountId: &#39;A1&#39;, correctsEventId: &#39;e31&#39;, reason: &#39;teller-entry-error&#39; } { type: &#39;MoneyWithdrawn&#39;, id: &#39;e45&#39;, accountId: &#39;A1&#39;, amount: 21000 }</code></pre></div><div class="act act--decide" data-response-id="act-6" data-response-kind="choice"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>골라 보세요</p><p class="act__prompt">출금 12,000 이 사실은 21,000 이었어요. 어떻게 바로잡을까요?</p><div class="act__options" role="radiogroup"><label class="act__opt"><input type="radio" name="act-6" value="12,000 을 21,000 으로 고쳐요"><span class="act__key">①</span><span>12,000 을 21,000 으로 고쳐요</span></label><label class="act__opt"><input type="radio" name="act-6" value="&#39;출금 정정 -9,000&#39; 한 줄만 붙여요"><span class="act__key">②</span><span>&#39;출금 정정 -9,000&#39; 한 줄만 붙여요</span></label><label class="act__opt"><input type="radio" name="act-6" value="WithdrawalReversed 로 원래 줄을 되돌리고, 맞는 금액을 새로 붙여요"><span class="act__key">③</span><span>WithdrawalReversed 로 원래 줄을 되돌리고, 맞는 금액을 새로 붙여요</span></label></div><p class="act__fb" data-feedback-slot hidden></p><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>고르면 열려요</summary><div class="act__reveal-body">세 번째예요. 첫 번째는 지난 계산을 설명할 수 없게 만들어요. 두 번째는 숫자는 맞지만 &#39;무슨 일이 있었나&#39; 가 남지 않아요. 6개월 뒤에 보면 창구 실수인지 고객 항의인지 알 수 없어요. 되돌린 뒤 다시 적으면 둘 다 남아요.</div></details></div><div class="callout callout--caution"><p class="callout__label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11.9998 8.99999V13M11.9998 17H12.0098M10.6151 3.89171L2.39019 18.0983C1.93398 18.8863 1.70588 19.2803 1.73959 19.6037C1.769 19.8857 1.91677 20.142 2.14613 20.3088C2.40908 20.5 2.86435 20.5 3.77487 20.5H20.2246C21.1352 20.5 21.5904 20.5 21.8534 20.3088C22.0827 20.142 22.2305 19.8857 22.2599 19.6037C22.2936 19.2803 22.0655 18.8863 21.6093 18.0983L13.3844 3.89171C12.9299 3.10654 12.7026 2.71396 12.4061 2.58211C12.1474 2.4671 11.8521 2.4671 11.5935 2.58211C11.2969 2.71396 11.0696 3.10655 10.6151 3.89171Z"/></svg>흔한 실수</p><p class="p">&quot;이번 한 번만 데이터베이스에서 직접 고치자&quot; 는 유혹이에요. 그 순간부터 다시 계산한 값과 예전에 안내한 값이 어긋나고, 원인을 찾는 데 며칠이 걸려요.</p></div><p class="h3">같은 과거를 읽은 두 요청은 버전으로 갈라요</p><p class="p">이제 덧붙이기만 하는 스트림이 단순한 로그와 어디서 갈리는지 볼 차례예요. 계좌에 100원이 있고 스트림 버전은 5예요. A 요청은 80원 출금, B 요청은 70원 출금이에요. 둘 다 같은 순간에 버전 5 를 읽었고, 각자 계산으로는 가능해 보여요. 두 줄이 모두 붙으면 잔액은 마이너스가 돼요. 그래서 붙일 때 <code>append(event, expectedVersion=5)</code> 처럼 &#39;내가 본 버전&#39; 을 같이 내요. 하나는 버전 6 으로 붙고, 다른 하나는 version conflict 로 거절돼요. 거절된 쪽은 다시 읽고 새 잔액으로 판단해요.</p><div class="boundary"><p class="boundary__holds">언제 성립하냐면 — 지켜야 할 규칙이 한 스트림 안에서 끝날 때예요. 계좌 하나의 잔액처럼요</p><p class="boundary__breaks">이럴 땐 성립하지 않아요 — 규칙이 여러 스트림에 걸치면 버전 하나로는 막지 못해요. 그래서 무엇을 한 스트림으로 묶을지가 설계의 절반이에요</p></div><div class="example" data-example-kind="steps"><p class="example__caption">잔액 100원, 버전 5 — 두 출금 요청이 겹칠 때</p><ol class="ex-steps"><li>① A 와 B 가 같은 순간에 계좌 A1 을 읽어요 — 잔액 100원, 스트림 버전 5</li><li>② A 의 계산: 100 − 80 = 20, 이쪽만 보면 가능해 보여요</li><li>③ B 의 계산: 100 − 70 = 30, 이쪽도 가능해 보여요</li><li>④ A 가 append(MoneyWithdrawn 80, expectedVersion=5) — 버전 6 으로 붙어요</li><li>⑤ B 가 append(MoneyWithdrawn 70, expectedVersion=5) — 스트림은 이미 6, version conflict 로 거절</li><li>⑥ B 는 다시 읽어요 — 잔액 20원. 70원 출금은 여기서 막혀요</li></ol></div><div class="act act--compute" data-response-id="act-7" data-response-kind="written"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>직접 계산해 보세요</p><p class="act__prompt">④ 와 ⑤ 를 둘 다 성공시켰다면 잔액은 얼마가 될까요? 그리고 두 요청이 각각 읽은 스트림 버전은 몇이었나요?</p><div class="answer" data-answer-for="act-7"><textarea class="answer__text" data-answer-text rows="3" placeholder="여기에 타이핑해도 되고, 아래 칸에 펜으로 써도 돼요"></textarea><div class="ink-space" data-ink-space="md" data-ink-anchor="act-7"></div></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>적고 나서 열기</summary><div class="act__reveal-body">마이너스 50원이에요. 100 − 80 − 70 이고, 계좌 규칙이 깨진 값이에요. 둘 다 버전 5 를 읽었기 때문에 서로의 출금을 보지 못했어요. expectedVersion 은 &#39;내가 본 5 에서 아무것도 바뀌지 않았을 때만 붙여 주세요&#39; 라는 조건이에요.</div></details></div><div class="callout callout--caution"><p class="callout__label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11.9998 8.99999V13M11.9998 17H12.0098M10.6151 3.89171L2.39019 18.0983C1.93398 18.8863 1.70588 19.2803 1.73959 19.6037C1.769 19.8857 1.91677 20.142 2.14613 20.3088C2.40908 20.5 2.86435 20.5 3.77487 20.5H20.2246C21.1352 20.5 21.5904 20.5 21.8534 20.3088C22.0827 20.142 22.2305 19.8857 22.2599 19.6037C22.2936 19.2803 22.0655 18.8863 21.6093 18.0983L13.3844 3.89171C12.9299 3.10654 12.7026 2.71396 12.4061 2.58211C12.1474 2.4671 11.8521 2.4671 11.5935 2.58211C11.2969 2.71396 11.0696 3.10655 10.6151 3.89171Z"/></svg>흔한 실수</p><p class="p">덧붙이기만 하니까 순서만 맞으면 안전하다고 여기는 거예요. 순서는 남지만, 둘이 같은 과거를 보고 각자 판단하면 규칙이 깨진 상태가 그대로 쌓여요.</p></div><p class="h3">그래서 언제 쓰면 안 될까요</p><p class="p">이 방식은 값이 싸지 않아요. 조회용 표는 이벤트보다 조금 늦게 따라와서, 방금 한 일이 화면에 바로 안 보일 수 있어요. 같은 이벤트가 두 번 도착하는 일도 있어서, 프로젝션은 두 번 처리해도 결과가 같아야 해요. 이벤트 모양이 바뀌어도 몇 년 전 줄을 계속 읽을 수 있어야 하고요. 판단 기준은 하나예요. <strong>&#39;어쩌다 이렇게 됐는지&#39; 를 아무도 묻지 않는 곳이라면 다른 방법이 나아요.</strong> 사내 공지 게시판에 이걸 얹는 건 짐만 늘리는 일이에요. 보통은 계좌나 주문처럼 기록이 중요한 일부에만 써요. 그리고 이 학습지의 예제는 계좌 하나, 스트림 하나짜리로 크게 줄인 모델이에요. 실제 시스템에는 동시성 제어와 프로젝션, 멱등성이 더 붙어요.</p><div class="callout callout--caution"><p class="callout__label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11.9998 8.99999V13M11.9998 17H12.0098M10.6151 3.89171L2.39019 18.0983C1.93398 18.8863 1.70588 19.2803 1.73959 19.6037C1.769 19.8857 1.91677 20.142 2.14613 20.3088C2.40908 20.5 2.86435 20.5 3.77487 20.5H20.2246C21.1352 20.5 21.5904 20.5 21.8534 20.3088C22.0827 20.142 22.2305 19.8857 22.2599 19.6037C22.2936 19.2803 22.0655 18.8863 21.6093 18.0983L13.3844 3.89171C12.9299 3.10654 12.7026 2.71396 12.4061 2.58211C12.1474 2.4671 11.8521 2.4671 11.5935 2.58211C11.2969 2.71396 11.0696 3.10655 10.6151 3.89171Z"/></svg>흔한 실수</p><p class="p">멋져 보인다는 이유로 시스템 전체에 얹는 거예요. 이력을 묻지 않는 곳에서는 배울 것과 다룰 것만 늘어요.</p></div><p class="h3"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 20H5.2C4.07989 20 3.51984 20 3.09202 19.782C2.71569 19.5903 2.40973 19.2843 2.21799 18.908C2 18.4802 2 17.9201 2 16.8V7.2C2 6.07989 2 5.51984 2.21799 5.09202C2.40973 4.71569 2.71569 4.40973 3.09202 4.21799C3.51984 4 4.07989 4 5.2 4H5.6C7.84021 4 8.96031 4 9.81596 4.43597C10.5686 4.81947 11.1805 5.43139 11.564 6.18404C12 7.03968 12 8.15979 12 10.4M12 20V10.4M12 20H18.8C19.9201 20 20.4802 20 20.908 19.782C21.2843 19.5903 21.5903 19.2843 21.782 18.908C22 18.4802 22 17.9201 22 16.8V7.2C22 6.07989 22 5.51984 21.782 5.09202C21.5903 4.71569 21.2843 4.40973 20.908 4.21799C20.4802 4 19.9201 4 18.8 4H18.4C16.1598 4 15.0397 4 14.184 4.43597C13.4314 4.81947 12.8195 5.43139 12.436 6.18404C12 7.03968 12 8.15979 12 10.4"/></svg>먼저 풀고 갈 말들</p><dl class="glossary"><dt>도메인 이벤트(Domain Event)</dt><dd>업무에서 이미 일어난 일 하나예요. &#39;포인트 5,000 사용됨&#39; 처럼요. 앞으로 하겠다는 부탁이 아니라 이미 벌어진 사실이라는 게 중요해요.</dd><dt>이벤트 스트림·이벤트 스토어</dt><dd>한 계좌나 한 주문에 일어난 이벤트를 순서대로 모아 둔 줄이에요. 새로 덧붙이기만 하고 이미 적은 줄은 그대로 둬요. 이 줄이 원본 자리에 놓여요.</dd><dt>append-only(어펜드 온리)</dt><dd>&#39;덧붙이기만&#39; 이라는 뜻이에요. 새로 쓰는 건 되고, 이미 쓴 줄을 고치거나 지우는 건 하지 않아요.</dd><dt>리플레이(Replay)</dt><dd>쌓인 이벤트를 처음부터 훑어 지금 값을 계산하는 걸 말해요. 가계부를 위에서부터 더해 잔액을 내는 것과 같아요.</dd><dt>프로젝션(Projection)·스냅샷</dt><dd>이벤트를 훑어 만들어 둔 조회용 사본이에요. 잔액 표, 목록 화면, 중간 결산이 전부 여기예요. 지워도 이벤트에서 다시 만들 수 있어요.</dd><dt>스트림 버전(Stream version)</dt><dd>그 스트림에 지금까지 몇 줄이 붙었는지 세는 번호예요. 붙일 때 &#39;내가 본 번호&#39; 를 같이 내면, 그사이 다른 요청이 끼어들었는지 알 수 있어요.</dd></dl><details class="context"><summary class="context__summary"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M22.7 13.5L20.7005 11.5L18.7 13.5M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C15.3019 3 18.1885 4.77814 19.7545 7.42909M12 7V12L15 14"/></svg>이게 어디서 왔는지 (짧은 맥락)</summary><div class="context__body"><p class="p">이벤트 소싱은 누가 딱 발명했다기보다 여러 갈래가 만난 자리에 가까워요. 회계 장부, 데이터베이스가 안에서 쓰는 기록, 개발자들이 쓰는 버전 관리. 전부 같은 생각이에요. 변화를 지우지 말고 쌓아 두자는 것이죠. 장부는 틀렸다고 지우지 않아요. 반대 내용을 새로 적어요.</p><ul class="timeline"><li><span class="timeline__when">1494년</span><p class="timeline__what">루카 파치올리가 책에 복식부기를 정리해 실었어요. 틀린 기록을 지우지 않고 반대 기록을 새로 적어 바로잡는 방식이 이때 이미 자리 잡고 있었어요.</p></li><li><span class="timeline__when">2005년</span><p class="timeline__what">마틴 파울러가 자기 사이트에 &#39;Event Sourcing&#39; 이라는 글을 올려 이 이름을 널리 알렸어요.</p></li><li><span class="timeline__when">2011년</span><p class="timeline__what">링크드인이 Kafka 를 오픈소스로 공개했어요. 덧붙이기만 하는 기록을 가운데 두는 설계가 널리 알려진 계기 중 하나였어요.</p></li></ul></div></details><aside class="par"><span class="par__badge"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 15L6.92474 18.1137C6.49579 18.548 6.28131 18.7652 6.09695 18.7805C5.93701 18.7938 5.78042 18.7295 5.67596 18.6076C5.55556 18.4672 5.55556 18.162 5.55556 17.5515V15.9916C5.55556 15.444 5.10707 15.0477 4.5652 14.9683V14.9683C3.25374 14.7762 2.22378 13.7463 2.03168 12.4348C2 12.2186 2 11.9605 2 11.4444V6.8C2 5.11984 2 4.27976 2.32698 3.63803C2.6146 3.07354 3.07354 2.6146 3.63803 2.32698C4.27976 2 5.11984 2 6.8 2H14.2C15.8802 2 16.7202 2 17.362 2.32698C17.9265 2.6146 18.3854 3.07354 18.673 3.63803C19 4.27976 19 5.11984 19 6.8V11M19 22L16.8236 20.4869C16.5177 20.2742 16.3647 20.1678 16.1982 20.0924C16.0504 20.0255 15.8951 19.9768 15.7356 19.9474C15.5558 19.9143 15.3695 19.9143 14.9969 19.9143H13.2C12.0799 19.9143 11.5198 19.9143 11.092 19.6963C10.7157 19.5046 10.4097 19.1986 10.218 18.8223C10 18.3944 10 17.8344 10 16.7143V14.2C10 13.0799 10 12.5198 10.218 12.092C10.4097 11.7157 10.7157 11.4097 11.092 11.218C11.5198 11 12.0799 11 13.2 11H18.8C19.9201 11 20.4802 11 20.908 11.218C21.2843 11.4097 21.5903 11.7157 21.782 12.092C22 12.5198 22 13.0799 22 14.2V16.9143C22 17.8462 22 18.3121 21.8478 18.6797C21.6448 19.1697 21.2554 19.5591 20.7654 19.762C20.3978 19.9143 19.9319 19.9143 19 19.9143V22Z"/></svg></span><div><span class="par__name">파르</span><p class="par__note">저는 여기서 한참 막혔어요. &#39;그래서 잔액은 어디에 저장하죠?&#39; 잔액을 저장하는 것 자체는 괜찮아요. 다만 그 잔액은 이벤트에서 다시 만들 수 있는 사본이고, 원본은 이벤트 쪽이에요. 사본과 원본을 갈라 놓으면 뒤가 편해져요.</p></div></aside></div></section><section class="sec sec--core" id="sec-5" data-section="practice"><header class="sec__head"><p class="sec__label"><svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7.5 12L10.5 15L16.5 9M7.8 21H16.2C17.8802 21 18.7202 21 19.362 20.673C19.9265 20.3854 20.3854 19.9265 20.673 19.362C21 18.7202 21 17.8802 21 16.2V7.8C21 6.11984 21 5.27976 20.673 4.63803C20.3854 4.07354 19.9265 3.6146 19.362 3.32698C18.7202 3 17.8802 3 16.2 3H7.8C6.11984 3 5.27976 3 4.63803 3.32698C4.07354 3.6146 3.6146 4.07354 3.32698 4.63803C3 5.27976 3 6.11984 3 7.8V16.2C3 17.8802 3 18.7202 3.32698 19.362C3.6146 19.9265 4.07354 20.3854 4.63803 20.673C5.27976 21 6.11984 21 7.8 21Z"/></svg><span class="sec__num">05</span></p><h2 class="sec__title">연습</h2><p class="sec__lead">새 상황에서 써 봐요</p></header><div class="sec__body"><ol class="quiz"><li class="quiz__item" data-quiz-id="q0" data-response-id="quiz-8" data-response-kind="written"><p class="quiz__head"><span class="quiz__evidence">원인 진단</span></p><p class="quiz__q">쇼핑몰 재고가 1개 남았어요. 두 주문이 같은 순간에 재고 스트림의 버전 12 를 읽고, 각자 &quot;1개 남았으니 가능&quot; 이라고 판단했어요. 두 주문 이벤트가 모두 붙으면 무엇이 잘못되고, 이걸 붙이는 단계에서 어떻게 막을까요?</p><div class="answer" data-answer-for="quiz-8"><textarea class="answer__text" data-answer-text rows="3" placeholder="여기에 타이핑해도 되고, 아래 칸에 펜으로 써도 돼요"></textarea><div class="ink-space" data-ink-space="sm" data-ink-anchor="quiz-8"></div></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label><details class="quiz__a"><summary><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>적고 나서 열기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span>재고가 마이너스 1이 되고, 한 사람은 받을 수 없는 주문을 받게 돼요. 붙일 때 expectedVersion=12 를 같이 내면 먼저 붙은 쪽만 13 이 되고, 늦은 쪽은 거절돼요. 거절된 쪽은 스트림을 다시 읽고 남은 재고로 판단해요.</p><p>덧붙이기만 하는 것으로는 이런 겹침을 막지 못해요. 두 요청이 같은 과거를 읽었기 때문에 서로의 결정을 보지 못하거든요. &#39;내가 본 버전&#39; 을 조건으로 걸어야 한쪽이 거절되고, 거절이 있어야 다시 읽을 기회가 생겨요.</p><div class="quiz__mis"><p class="quiz__a-label">이렇게 답했다면</p><ul><li><strong>덧붙이기만 하니까 순서대로 쌓이면 문제가 없다</strong> — 순서는 남지만 규칙은 남지 않아요. 둘이 같은 과거를 읽었으면 서로의 결정을 보지 못한 채 각자 붙게 돼요.</li><li><strong>나중에 조회용 표에서 음수 재고를 걸러내면 된다</strong> — 그때는 이미 두 사람이 결제한 뒤예요. 이벤트가 붙는 순간에 막아야 사과할 일이 줄어요.</li></ul></div></div></details></li><li class="quiz__item" data-quiz-id="q1" data-response-id="quiz-9" data-response-kind="written"><p class="quiz__head"><span class="quiz__evidence">예외 찾기</span></p><p class="quiz__q">동료가 주문 이벤트에 두 가지를 넣자고 해요. ① 주문 당시 적용된 환율 ② 이번 주문 뒤 회원의 총 적립금. 둘 중 이벤트에 남기는 게 더 나은 쪽은 무엇이고, 이유는 무엇일까요?</p><div class="answer" data-answer-for="quiz-9"><textarea class="answer__text" data-answer-text rows="3" placeholder="여기에 타이핑해도 되고, 아래 칸에 펜으로 써도 돼요"></textarea><div class="ink-space" data-ink-space="sm" data-ink-anchor="quiz-9"></div></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label><details class="quiz__a"><summary><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>적고 나서 열기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span>①이에요. 그 시점에 실제로 결정된 도메인 사실이라, 나중에 환율표가 바뀌었다고 다시 계산하면 안 되는 값이에요. ②는 다른 이벤트들에서 언제든 다시 만들 수 있는 파생 캐시라, 적립 규칙이 바뀌면 과거 줄들이 서로 어긋나요.</p><p>가르는 질문은 &#39;이 값이 그 순간의 결정인가, 아니면 편하려고 미리 계산해 둔 사본인가&#39; 예요. 주문 당시 가격·세금·환율·할인액은 역사적 사실이라 남겨요. 총합이나 잔액처럼 다시 만들 수 있는 값은 사본이라 조회용 표 쪽이 자리예요.</p><div class="quiz__mis"><p class="quiz__a-label">이렇게 답했다면</p><ul><li><strong>둘 다 넣으면 안 된다 — 이벤트에는 계산 결과를 넣지 않으니까</strong> — 그렇게 외우면 환율을 빼게 되고, 나중에 환율표가 바뀌었을 때 과거 주문 금액이 통째로 달라져요. 그 시점에 결정된 값은 남겨야 해요.</li><li><strong>둘 다 넣는다 — 조회가 빨라지니까</strong> — 빠른 조회는 조회용 표와 스냅샷으로 따로 풀어요. 파생 캐시를 원본 줄에 박아 두면 규칙이 바뀔 때마다 과거가 틀린 말이 돼요.</li></ul></div></div></details></li><li class="quiz__item" data-quiz-id="q2" data-response-id="quiz-10" data-response-kind="written"><p class="quiz__head"><span class="quiz__evidence">계산</span></p><p class="quiz__q">스냅샷에 #1000 까지 더한 잔액 15,000 이 적혀 있어요. 그 뒤 이벤트는 출금 3,000 과 입금 1,000 두 개예요. 지금 잔액은 얼마이고, 스냅샷을 지우고 #1 부터 다시 더하면 값이 달라질까요?</p><div class="answer" data-answer-for="quiz-10"><textarea class="answer__text" data-answer-text rows="3" placeholder="여기에 타이핑해도 되고, 아래 칸에 펜으로 써도 돼요"></textarea><div class="ink-space" data-ink-space="sm" data-ink-anchor="quiz-10"></div></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label><details class="quiz__a"><summary><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>적고 나서 열기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span>13,000 이에요. 15,000 에서 3,000 을 빼고 1,000 을 더해요. 스냅샷을 지우고 처음부터 더해도 같은 13,000 이 나와야 해요. 다른 값이 나오면 스냅샷 쪽을 의심하고 버리면 돼요.</p><p>스냅샷은 지름길이라 결과를 바꾸지 않아요. 더하는 횟수만 두 번으로 줄여 줘요. 두 방법의 값이 다르면 원본이 아니라 사본이 틀린 것이라, 사본을 버리고 다시 만들면 돼요.</p><div class="quiz__mis"><p class="quiz__a-label">이렇게 답했다면</p><ul><li><strong>스냅샷이 있으면 그 앞 이벤트는 지워도 된다</strong> — 지우면 다시 만들어 확인할 방법이 사라져요. 스냅샷이 틀렸을 때 기댈 곳이 없어져요.</li></ul></div></div></details></li><li class="quiz__item" data-quiz-id="q3" data-response-id="quiz-11" data-response-kind="written"><p class="quiz__head"><span class="quiz__evidence">설명하기</span></p><p class="quiz__q">팀 동료가 &quot;우리는 감사 로그를 남기니까 이미 이벤트 소싱을 하고 있는 것 아니냐&quot; 고 해요. 무엇을 확인해 보면 그 말이 맞는지 알 수 있을까요? 두 가지를 적어 보세요.</p><div class="answer" data-answer-for="quiz-11"><textarea class="answer__text" data-answer-text rows="3" placeholder="여기에 타이핑해도 되고, 아래 칸에 펜으로 써도 돼요"></textarea><div class="ink-space" data-ink-space="md" data-ink-anchor="quiz-11"></div></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label><details class="quiz__a"><summary><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>적고 나서 열기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span>첫째, 그 기록만으로 계좌 잔액 같은 값을 처음부터 다시 만들 수 있는지 확인해요. 둘째, 기록과 표의 값이 다를 때 팀이 어느 쪽을 믿는지 확인해요. 다시 만들 수 없고 표 쪽을 믿는다면, 그건 감사 기록이지 원본은 아니에요.</p><p>이름이 아니라 쓰임이 갈라요. 감사 로그는 규정 준수를 위해 남기는 것이라 도메인 규칙과 느슨하게 이어져 있고, 형식이 바뀌거나 일부만 남기도 해요. 원본이라면 그것만으로 상태를 다시 만들 수 있고, 다툼이 생겼을 때 기준이 돼요.</p><div class="quiz__mis"><p class="quiz__a-label">이렇게 답했다면</p><ul><li><strong>기록이 남아 있으면 이벤트 소싱이다</strong> — 기록의 존재가 아니라 그 기록이 원본 자리에 있는지가 기준이에요. 디버깅용 로그도 기록은 남겨요.</li></ul></div></div></details></li><li class="quiz__item" data-quiz-id="q4" data-response-id="quiz-12" data-response-kind="written"><p class="quiz__head"><span class="quiz__evidence">적용</span></p><p class="quiz__q">출금 12,000 이 사실은 21,000 이었어요. 이미 적힌 줄을 고치지 않고 바로잡으려면 어떤 줄을 어떤 순서로 붙일까요? 이름과 필드를 적어 보세요.</p><div class="answer" data-answer-for="quiz-12"><textarea class="answer__text" data-answer-text rows="3" placeholder="여기에 타이핑해도 되고, 아래 칸에 펜으로 써도 돼요"></textarea><div class="ink-space" data-ink-space="sm" data-ink-anchor="quiz-12"></div></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label><details class="quiz__a"><summary><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>적고 나서 열기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span>먼저 되돌리는 사건을 붙여요. WithdrawalReversed 에 correctsEventId 로 원래 줄을 가리키고, 왜 되돌리는지도 함께 적어요. 그다음 MoneyWithdrawn 21,000 을 새로 붙여요. 무슨 일이 있었는지와 맞는 금액이 둘 다 남아요.</p><p>차액 한 줄만 붙이면 숫자는 맞아도 사건이 남지 않아요. 되돌림과 재기록으로 나누면, 나중에 감사나 고객 문의가 왔을 때 어느 줄이 왜 취소됐는지 그대로 보여줄 수 있어요.</p><div class="quiz__mis"><p class="quiz__a-label">이렇게 답했다면</p><ul><li><strong>&#39;출금 정정 -9,000&#39; 한 줄로 끝낸다</strong> — 잔액은 맞지만 무슨 일이 일어난 것인지가 애매해요. 창구 실수인지 고객 항의인지 6개월 뒤에는 알 수 없어요.</li></ul></div></div></details></li><li class="quiz__item" data-quiz-id="q5" data-response-id="quiz-13" data-response-kind="written"><p class="quiz__head"><span class="quiz__evidence">원인 진단</span></p><p class="quiz__q">조회용 표의 잔액이 이벤트를 다시 더한 값과 다르게 나왔어요. 어느 쪽을 먼저 의심하고, 어떻게 되돌려 놓을까요? 그리고 이런 일이 생기는 흔한 원인 하나를 적어 보세요.</p><div class="answer" data-answer-for="quiz-13"><textarea class="answer__text" data-answer-text rows="3" placeholder="여기에 타이핑해도 되고, 아래 칸에 펜으로 써도 돼요"></textarea><div class="ink-space" data-ink-space="sm" data-ink-anchor="quiz-13"></div></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label><details class="quiz__a"><summary><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>적고 나서 열기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span>조회용 표 쪽을 먼저 의심해요. 사본이라 지우고 이벤트에서 다시 만들면 되니까요. 흔한 원인 하나는 같은 이벤트가 두 번 도착해 두 번 더해진 경우예요. 그래서 프로젝션은 같은 줄을 두 번 받아도 결과가 같도록 만들어요.</p><p>원본과 사본을 갈라 두면 고장 났을 때 고칠 곳이 정해져요. 사본은 버리고 다시 만들 수 있으니까요. 이벤트는 한 번만 도착한다고 믿기 어려워서, 프로젝션은 이벤트 번호를 기억해 두고 이미 처리한 줄을 건너뛰는 식으로 만들어요.</p><div class="quiz__mis"><p class="quiz__a-label">이렇게 답했다면</p><ul><li><strong>이벤트 쪽이 틀렸을 테니 이벤트를 손본다</strong> — 원본을 손대면 다시 만들어 확인할 기준이 사라져요. 다른 사본들도 함께 흔들려요.</li></ul></div></div></details></li></ol><p class="h3">더 해보기 (선택)</p><div class="cards"><div class="card"><p class="card__title">내 통장을 이벤트 스트림으로 옮겨 적어 보기</p><p class="card__why">최근 거래 내역 10건을 종이에 적어 보세요. 한 줄에 하나씩, &#39;무슨 일 / 얼마 / 언제&#39; 이렇게요. 그다음 위에서부터 더해서 지금 잔액을 손으로 계산하고, 실제 잔액과 맞는지 확인해 보세요. 마지막에 페이지 끝에 이월 잔액을 한 줄 적어 두고, 그 숫자가 사본이라는 것도 표시해 보세요.</p><p class="card__hint">예상 18분</p></div><div class="card"><p class="card__title">정정 사건에 이름 붙여 보기</p><p class="card__why">위에서 적은 것 중 하나가 금액을 잘못 적었다고 해봐요. 그 줄을 지우지 않은 채로 바로잡으려면 무엇을 새로 적어야 할까요. 이름은 무슨 일이 일어났는지가 드러나게 지어 보세요. 그리고 어느 줄을 바로잡는지 가리키는 칸도 하나 만들어 보세요. 정답은 없어요. 이미 적은 줄을 그대로 두었는지, 새 이름만 보고도 사건이 그려지는지 두 가지만 확인하면 돼요.</p><p class="card__hint">예상 15분</p></div><div class="card"><p class="card__title">같은 이벤트가 두 번 도착하면</p><p class="card__why">위 10줄로 조회용 표를 하나 만든다고 해봐요. 그런데 5번 줄이 두 번 전달돼요. 표를 만드는 규칙을 어떻게 써야 두 번 받아도 결과가 같을까요. 종이에 규칙을 두 줄로 적어 보세요. 여유가 있으면 하나 더요. 6개월 뒤 이벤트에 칸이 하나 늘어난다면, 옛 줄 10개는 어떻게 읽을지도 적어 보세요.</p><p class="card__hint">예상 17분</p></div></div></div></section><section class="sec sec--core" id="sec-6" data-section="exit_ticket"><header class="sec__head"><p class="sec__label"><svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 15C4 15 5 14 8 14C11 14 13 16 16 16C19 16 20 15 20 15V3C20 3 19 4 16 4C13 4 11 2 8 2C5 2 4 3 4 3L4 22"/></svg><span class="sec__num">06</span></p><h2 class="sec__title">나가기 전에</h2><p class="sec__lead">처음 예측으로 돌아가요</p></header><div class="sec__body"><div class="reflect" data-response-id="reflect-14" data-response-kind="written"><p class="reflect__prompt"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M13 5.99985L6.50182 7.29948C6.13883 7.37208 5.95733 7.40838 5.80952 7.49665C5.67886 7.57469 5.56772 7.68152 5.4846 7.80901C5.39057 7.95321 5.34714 8.13314 5.26028 8.49299L2 21.9998M2 21.9998L15.5069 18.7396C15.8667 18.6527 16.0466 18.6093 16.1908 18.5153C16.3183 18.4321 16.4252 18.321 16.5032 18.1903C16.5915 18.0425 16.6278 17.861 16.7004 17.498L18 10.9998M2 21.9998L9.586 14.4138M20.8686 7.86848L16.1314 3.13122C15.7354 2.7352 15.5373 2.53719 15.309 2.46301C15.1082 2.39775 14.8918 2.39775 14.691 2.46301C14.4627 2.53719 14.2646 2.7352 13.8686 3.13122L13.1314 3.86848C12.7354 4.2645 12.5373 4.4625 12.4632 4.69083C12.3979 4.89168 12.3979 5.10802 12.4632 5.30887C12.5373 5.53719 12.7354 5.7352 13.1314 6.13122L17.8686 10.8685C18.2646 11.2645 18.4627 11.4625 18.691 11.5367C18.8918 11.6019 19.1082 11.6019 19.309 11.5367C19.5373 11.4625 19.7354 11.2645 20.1314 10.8685L20.8686 10.1312C21.2646 9.7352 21.4627 9.53719 21.5368 9.30887C21.6021 9.10802 21.6021 8.89168 21.5368 8.69083C21.4627 8.4625 21.2646 8.2645 20.8686 7.86848ZM11 10.9998C12.1046 10.9998 13 11.8953 13 12.9998C13 14.1044 12.1046 14.9998 11 14.9998C9.89543 14.9998 9 14.1044 9 12.9998C9 11.8953 9.89543 10.9998 11 10.9998Z"/></svg>맨 처음 포인트 질문에서 무엇을 골랐나요. 지금은 &quot;지금 값만 저장하는 시스템&quot; 과 &quot;이벤트를 원본으로 두는 시스템&quot; 이 각각 무엇에 답할 수 있는지 두 줄로 적어 보세요. 처음 생각과 달라진 지점이 있다면 그것도요.</p><div class="answer" data-answer-for="reflect-14"><textarea class="answer__text" data-answer-text rows="3" placeholder="여기에 타이핑해도 되고, 아래 칸에 펜으로 써도 돼요"></textarea><div class="ink-space" data-ink-space="md" data-ink-anchor="reflect-14"></div></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label></div><div class="reflect" data-response-id="reflect-15" data-response-kind="written"><p class="reflect__prompt"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M13 5.99985L6.50182 7.29948C6.13883 7.37208 5.95733 7.40838 5.80952 7.49665C5.67886 7.57469 5.56772 7.68152 5.4846 7.80901C5.39057 7.95321 5.34714 8.13314 5.26028 8.49299L2 21.9998M2 21.9998L15.5069 18.7396C15.8667 18.6527 16.0466 18.6093 16.1908 18.5153C16.3183 18.4321 16.4252 18.321 16.5032 18.1903C16.5915 18.0425 16.6278 17.861 16.7004 17.498L18 10.9998M2 21.9998L9.586 14.4138M20.8686 7.86848L16.1314 3.13122C15.7354 2.7352 15.5373 2.53719 15.309 2.46301C15.1082 2.39775 14.8918 2.39775 14.691 2.46301C14.4627 2.53719 14.2646 2.7352 13.8686 3.13122L13.1314 3.86848C12.7354 4.2645 12.5373 4.4625 12.4632 4.69083C12.3979 4.89168 12.3979 5.10802 12.4632 5.30887C12.5373 5.53719 12.7354 5.7352 13.1314 6.13122L17.8686 10.8685C18.2646 11.2645 18.4627 11.4625 18.691 11.5367C18.8918 11.6019 19.1082 11.6019 19.309 11.5367C19.5373 11.4625 19.7354 11.2645 20.1314 10.8685L20.8686 10.1312C21.2646 9.7352 21.4627 9.53719 21.5368 9.30887C21.6021 9.10802 21.6021 8.89168 21.5368 8.69083C21.4627 8.4625 21.2646 8.2645 20.8686 7.86848ZM11 10.9998C12.1046 10.9998 13 11.8953 13 12.9998C13 14.1044 12.1046 14.9998 11 14.9998C9.89543 14.9998 9 14.1044 9 12.9998C9 11.8953 9.89543 10.9998 11 10.9998Z"/></svg>이벤트 소싱이 무엇인지 옆자리 사람에게 말하듯 한 문장으로 적어 보세요. &#39;원본&#39; 이라는 말이 들어가면 좋아요.</p><div class="answer" data-answer-for="reflect-15"><textarea class="answer__text" data-answer-text rows="3" placeholder="여기에 타이핑해도 되고, 아래 칸에 펜으로 써도 돼요"></textarea><div class="ink-space" data-ink-space="sm" data-ink-anchor="reflect-15"></div></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label></div><div class="act act--decide" data-response-id="exit-16" data-response-kind="choice"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>골라 보세요</p><p class="act__prompt">다음 중 틀린 문장을 고르세요.</p><div class="act__options" role="radiogroup"><label class="act__opt"><input type="radio" name="exit-16" value="이벤트는 이미 일어난 일이라 이름을 과거형으로 지어요"><span class="act__key">①</span><span>이벤트는 이미 일어난 일이라 이름을 과거형으로 지어요</span></label><label class="act__opt"><input type="radio" name="exit-16" value="조회용 표나 스냅샷은 저장해도 괜찮아요. 원본이 이벤트 쪽이라면요"><span class="act__key">②</span><span>조회용 표나 스냅샷은 저장해도 괜찮아요. 원본이 이벤트 쪽이라면요</span></label><label class="act__opt"><input type="radio" name="exit-16" value="잘못 적은 이벤트는 지우고 맞는 값으로 다시 적어요"><span class="act__key">③</span><span>잘못 적은 이벤트는 지우고 맞는 값으로 다시 적어요</span></label><label class="act__opt"><input type="radio" name="exit-16" value="같은 과거를 읽은 두 요청은 버전 조건으로 한쪽을 거절해요"><span class="act__key">④</span><span>같은 과거를 읽은 두 요청은 버전 조건으로 한쪽을 거절해요</span></label></div><p class="act__fb" data-feedback-slot hidden></p><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>고르면 열려요</summary><div class="act__reveal-body">틀린 문장은 세 번째예요. 지우는 대신 WithdrawalReversed 처럼 무슨 일이 있었는지 남는 정정 사건을 새로 붙여요. 지우면 예전에 안내한 값을 나중에 설명할 수 없어요. 나머지 셋은 맞는 문장이에요. 두 번째가 특히 헷갈리는데, 사본을 저장하는 것은 이 방식과 어긋나지 않아요.</div></details></div><p class="h3">스스로 점검</p><ul class="checklist"><li>회원 U7 의 적립·사용·정정을 이벤트 줄로 직접 적고 더해서 잔액을 다시 만들어 봤어요</li><li>WithdrawalReversed 처럼 무슨 일이 있었는지 남는 정정 사건 이름을 하나 지어 봤어요</li><li>잔액 100원에 80원과 70원 출금이 겹치는 경우를 손으로 따라가 봤어요</li><li>이벤트 스트림과 감사 로그를 가르는 질문을 하나 적어 봤어요</li></ul><p class="h3">내일 해볼 것</p><p class="p">내일 가계부나 메모 앱에 &#39;남은 돈&#39; 대신 &#39;오늘 쓴 내역&#39; 을 한 줄씩 적어 보세요. 저녁에 위에서부터 더해 잔액을 내 보면, 리플레이를 손으로 한 번 해 본 셈이에요.</p><div class="cards"><div class="card"><p class="card__title">스트림 경계 정하기 (aggregate)</p><p class="card__why">버전 하나로 지킬 수 있는 범위가 곧 스트림의 크기예요. 동시성 문제를 보고 나면 이 질문이 바로 이어져요.</p><p class="card__hint">같은 난이도</p></div><div class="card"><p class="card__title">프로젝션과 CQRS</p><p class="card__why">조회용 표를 어떻게 만들고 언제 다시 만드는지 다뤄요. 쓰기와 읽기를 다른 길로 나누는 이야기이기도 해요.</p><p class="card__hint">한 단계 더 깊게</p></div><div class="card"><p class="card__title">멱등성과 스키마 진화</p><p class="card__why">같은 이벤트가 두 번 와도 괜찮게 만드는 법, 그리고 이벤트 모양이 바뀌어도 옛 줄을 읽는 법이에요.</p><p class="card__hint">한 단계 더 깊게</p></div><div class="card"><p class="card__title">불변성(Immutability)</p><p class="card__why">한 번 만든 값은 바꾸지 않는다는 생각이에요. &#39;그냥 고치면 되잖아?&#39; 에서 자꾸 막힌다면 여기를 먼저 보면 편해져요.</p><p class="card__hint">이게 막히면 먼저</p></div></div></div></section>
+<details class="guards"><summary class="guards__summary">이 학습지가 막으려 한 오해 5가지</summary><ol class="guards__list"><li class="guards__item"><p class="guards__mis">이벤트 소싱은 현재 상태를 아예 저장하지 않는다고 기억해요</p><p class="guards__how"><span class="guards__where">개념</span>블록 제목을 &#39;원본은 이벤트 쪽&#39; 으로 잡고, 조회용 표와 스냅샷을 저장하는 예를 바로 옆에 두고 boundary 로 조건을 적어요</p></li><li class="guards__item"><p class="guards__mis">도메인 이벤트 스트림을 디버깅용 로그와 같은 것으로 봐요</p><p class="guards__how"><span class="guards__where">개념</span>운영 로그·감사 로그·도메인 이벤트 스트림을 네 기준으로 나란히 놓고, 셋 중 어디에 들어갈 줄인지 직접 고르게 해요</p></li><li class="guards__item"><p class="guards__mis">덧붙이기만 하니까 동시에 온 두 요청도 순서대로 쌓이면 안전하다고 여겨요</p><p class="guards__how"><span class="guards__where">개념</span>잔액 100원에 80원과 70원 출금이 겹치는 장면을 넣고, 버전 없이 둘 다 붙였을 때 잔액을 직접 계산하게 해요</p></li><li class="guards__item"><p class="guards__mis">이벤트에는 계산된 값을 절대 넣으면 안 된다고 외워요</p><p class="guards__how"><span class="guards__where">연습</span>주문 당시 환율과 회원 총 적립금 중 무엇을 남길지 고르는 문제로, 역사적 사실과 파생 캐시를 갈라 보게 해요</p></li><li class="guards__item"><p class="guards__mis">잘못 적은 이벤트는 지우고 다시 적으면 된다고 생각해요</p><p class="guards__how"><span class="guards__where">나가기 전에</span>틀린 문장 고르기에 &#39;지우고 다시 적어요&#39; 를 넣고, 정정 사건을 붙이는 쪽이 왜 나은지 reveal 에서 보여줘요</p></li></ol></details>
 <footer class="sheet__footer"><span>이벤트 소싱(Event Sourcing)</span><span>ONPAR</span></footer>
 <canvas class="ink-layer" id="ink-layer" aria-hidden="true"></canvas>
 </article>
 </div>
 <script>(function () {
 'use strict';
+try {
 // 필기 엔진의 순수 로직. DOM 을 건드리지 않는다.
 //
 // DOM 글루(ink-runtime.js)와 분리한 이유는 이 부분이 틀리면 사용자 필기가 어긋나거나
 // 사라지는데, 그런 버그는 브라우저에서 눈으로 잡기 어렵기 때문이다. 여기는 전부 테스트한다.
 //
-// 좌표 규약: 모든 좌표는 "문서 좌표계"다. 단위는 CSS px, 기준은 --ds-sheet-width(820).
-// 화면 크기·줌·기기와 무관한 절대 좌표라, 회전하거나 다른 기기에서 열어도 같은 자리에 남는다.
-// docs/plan/06-annotation.md §2
+// 좌표 규약(v2): 스트로크마다 둘 중 하나다.
+//
+//   anchor: "quiz-3"  → points 는 그 요소 기준 정규화 좌표(0~1). 요소 밖으로 삐져나간 획도
+//                       담아야 하므로 0~1 을 벗어나는 값을 허용한다.
+//   anchor: null      → 예전(v1)처럼 문서 좌표(CSS px, --ds-sheet-width 기준).
+//
+// 앵커를 도입한 이유: v1 은 "필기가 안 어긋나는 것"을 위해 "콘텐츠가 반응형이 되는 것"을
+// 포기한 설계였다. 820px 고정 문서를 390px 폰에서 0.48배로 축소하면 18px 본문이 8.6px 가 된다.
+// 콘텐츠가 주체이고 필기가 따라가야 한다. 요소 기준 좌표면 레이아웃이 바뀌어도
+// "그 문장 위에 그은 밑줄" 이 계속 그 문장 위에 남는다.
+// docs/plan/06-annotation.md §2 (v2 로 갱신 필요)
 
-const FORMAT_VERSION = 1
+const FORMAT_VERSION = 2
 
-/** 좌표 저장 정밀도. 소수점 1자리면 시각적 차이가 없으면서 용량이 크게 준다. */
+/** 문서 좌표 저장 정밀도. 소수점 1자리면 시각적 차이가 없으면서 용량이 크게 준다. */
 const COORD_PRECISION = 1
+
+/**
+ * 정규화 좌표 저장 정밀도. 문서 좌표와 단위가 다르므로 자릿수도 다르다.
+ * 4자리면 820px 요소에서 0.08px, 390px 요소에서 0.04px — 눈에 보이지 않는다.
+ * 1자리로 두면 82px 격자로 뭉개져 필기가 아니라 점묘가 된다.
+ */
+const ANCHOR_COORD_PRECISION = 4
 
 /** 점 간 최소 거리(문서 px). 이보다 촘촘한 점은 버린다. */
 const MIN_POINT_DISTANCE = 0.7
 
+/** 앵커 좌표에서의 최소 거리(요소 폭 대비 비율). 390px 요소에서 약 0.8px. */
+const MIN_ANCHOR_POINT_DISTANCE = 0.002
+
 const TOOLS = ['pen', 'highlighter']
 
-const round = (n) => Math.round(n * 10 ** COORD_PRECISION) / 10 ** COORD_PRECISION
+const roundTo = (n, p) => Math.round(n * 10 ** p) / 10 ** p
+const round = (n) => roundTo(n, COORD_PRECISION)
+
+/** 정규화 좌표 반올림. 두 좌표계가 섞이므로 반올림 함수도 둘이다. */
+function roundAnchorCoord(n) {
+  return roundTo(n, ANCHOR_COORD_PRECISION)
+}
 
 // ── 좌표 변환 ────────────────────────────────────────────────────────────
 
@@ -831,32 +1053,91 @@ function fitScale(viewportWidth, sheetWidth, maxScale = 1) {
   return Math.min(viewportWidth / sheetWidth, maxScale)
 }
 
+/**
+ * 화면 좌표 → 앵커 요소 기준 정규화 좌표.
+ *
+ * rect 는 앵커 요소의 사각형(getBoundingClientRect 든, 캔버스 기준으로 옮긴 것이든
+ * left/top/width/height 만 있으면 된다). 폭·높이로 나누므로 배율(transform: scale)이
+ * 걸려 있어도 결과가 같다 — 이게 반응형에서 필기가 안 어긋나는 이유다.
+ *
+ * 0~1 로 자르지 않는다. 밑줄이 문장 끝을 살짝 넘어가는 건 정상이고, 자르면 획이 뭉개진다.
+ */
+function toAnchorCoords(clientX, clientY, anchorRect) {
+  const w = anchorRect.width || 1
+  const h = anchorRect.height || 1
+  return {
+    x: roundAnchorCoord((clientX - anchorRect.left) / w),
+    y: roundAnchorCoord((clientY - anchorRect.top) / h),
+  }
+}
+
+/** 정규화 좌표 → 화면(또는 캔버스) 좌표. toAnchorCoords 의 역함수. */
+function fromAnchorCoords(nx, ny, anchorRect) {
+  return {
+    x: anchorRect.left + nx * (anchorRect.width || 1),
+    y: anchorRect.top + ny * (anchorRect.height || 1),
+  }
+}
+
+/**
+ * 앵커 스트로크를 그릴 수 있는 좌표계로 편다.
+ * anchorRect 가 없으면(요소가 사라졌으면) null — 버리는 게 아니라 "이번엔 그리지 않는다".
+ */
+function projectStroke(stroke, anchorRect) {
+  if (!stroke.anchor) return stroke
+  if (!anchorRect) return null
+  const points = []
+  for (let i = 0; i < stroke.points.length; i += 3) {
+    const { x, y } = fromAnchorCoords(stroke.points[i], stroke.points[i + 1], anchorRect)
+    points.push(x, y, stroke.points[i + 2])
+  }
+  return { ...stroke, points }
+}
+
+/** 앵커별 스트로크 수. 서술형 응답의 inkStrokes 가 이걸 읽는다. */
+function countByAnchor(strokes) {
+  const out = {}
+  for (const s of strokes) {
+    if (!s.anchor) continue
+    out[s.anchor] = (out[s.anchor] || 0) + 1
+  }
+  return out
+}
+
 // ── 스트로크 ─────────────────────────────────────────────────────────────
 
 /**
  * 스트로크 하나. points 는 [x, y, pressure] 를 3개씩 평탄화한 배열이다.
  * 객체 배열({x,y,p})보다 JSON 크기가 60% 가까이 작다. 필기가 쌓이면 이 차이가 커진다.
  */
-function createStroke(tool, color, width, id, createdAt) {
+function createStroke(tool, color, width, id, createdAt, anchor = null) {
   if (!TOOLS.includes(tool)) throw new Error(`알 수 없는 도구: ${tool}`)
-  return { id, tool, color, width, createdAt, points: [] }
+  return { id, tool, color, width, createdAt, anchor: anchor || null, points: [] }
 }
 
 /**
  * 점을 추가한다. 너무 촘촘하면 버리고 false 를 돌려준다.
  * 첫 점은 언제나 추가한다(탭 한 번도 점으로 남아야 한다).
+ *
+ * 반올림 자릿수와 최소 거리는 스트로크의 좌표계를 따른다 — 앵커 스트로크에 문서 좌표용
+ * 0.7px 을 쓰면 정규화 공간에서 0.7 은 요소의 70% 라 획이 두 점으로 줄어든다.
  */
-function appendPoint(stroke, x, y, pressure, minDistance = MIN_POINT_DISTANCE) {
+function appendPoint(stroke, x, y, pressure, minDistance) {
+  const anchored = !!stroke.anchor
+  const r = anchored ? roundAnchorCoord : round
+  const min = minDistance != null
+    ? minDistance
+    : (anchored ? MIN_ANCHOR_POINT_DISTANCE : MIN_POINT_DISTANCE)
   const p = clampPressure(pressure)
   const n = stroke.points.length
   if (n === 0) {
-    stroke.points.push(round(x), round(y), p)
+    stroke.points.push(r(x), r(y), p)
     return true
   }
   const lastX = stroke.points[n - 3]
   const lastY = stroke.points[n - 2]
-  if (Math.hypot(x - lastX, y - lastY) < minDistance) return false
-  stroke.points.push(round(x), round(y), p)
+  if (Math.hypot(x - lastX, y - lastY) < min) return false
+  stroke.points.push(r(x), r(y), p)
   return true
 }
 
@@ -1005,29 +1286,49 @@ function serialize(strokes, meta) {
       color: s.color,
       width: s.width,
       created_at: s.createdAt,
+      anchor: s.anchor || null,
       points: s.points,
     })),
   }
 }
 
+/**
+ * 옛 포맷을 현재 포맷으로 올린다. 원본은 건드리지 않는다.
+ *
+ * v1 → v2: 스트로크에 anchor: null 을 채운다. v1 좌표는 전부 문서 좌표였고
+ * anchor: null 이 정확히 그 뜻이므로 좌표는 손대지 않는다. 손대면 옛 필기가 움직인다.
+ */
+function migrateStrokes(doc) {
+  if (!doc || typeof doc !== 'object') return doc
+  const v = doc.format_version
+  if (v === FORMAT_VERSION) return doc
+  if (v === 1) {
+    return {
+      ...doc,
+      format_version: FORMAT_VERSION,
+      strokes: (doc.strokes || []).map((s) => ({ ...s, anchor: s.anchor ?? null })),
+    }
+  }
+  // 미래 포맷을 억지로 읽으면 필기가 깨진 채로 저장될 수 있다. 읽지 않는 쪽이 안전하다.
+  throw new Error(`지원하지 않는 필기 포맷 버전: ${v} (지원: ${FORMAT_VERSION} 이하)`)
+}
+
 function deserialize(data) {
   if (!data || typeof data !== 'object') return { strokes: [], deleted: new Set(), meta: null }
-  if (data.format_version !== FORMAT_VERSION) {
-    // 미래 포맷을 억지로 읽으면 필기가 깨진 채로 저장될 수 있다. 읽지 않는 쪽이 안전하다.
-    throw new Error(`지원하지 않는 필기 포맷 버전: ${data.format_version} (지원: ${FORMAT_VERSION})`)
-  }
-  const strokes = (data.strokes || []).map((s) => ({
+  const doc = migrateStrokes(data)
+  const strokes = (doc.strokes || []).map((s) => ({
     id: s.id,
     tool: s.tool,
     color: s.color,
     width: s.width,
     createdAt: s.created_at,
+    anchor: s.anchor || null,
     points: s.points || [],
   }))
   return {
     strokes,
-    deleted: new Set(data.deleted || []),
-    meta: { sheetWidth: data.sheet_width, docHeight: data.doc_height },
+    deleted: new Set(doc.deleted || []),
+    meta: { sheetWidth: doc.sheet_width, docHeight: doc.doc_height },
   }
 }
 
@@ -1119,15 +1420,21 @@ function newStrokeId(now, random) {
   return `s_${t}_${r}`
 }
 
-const core = { FORMAT_VERSION, COORD_PRECISION, MIN_POINT_DISTANCE, TOOLS, round, toDocCoords, fitScale, createStroke, appendPoint, clampPressure, strokeWidthAt, pointCount, pointAt, strokeBounds, catmullRomToBezier, strokePoints, distanceToSegment, strokeHitTest, TILE_HEIGHT, strokeTileRange, visibleTiles, serialize, deserialize, mergeAnnotations, UndoStack, applyUndo, applyRedo, newStrokeId };
+const core = { FORMAT_VERSION, COORD_PRECISION, ANCHOR_COORD_PRECISION, MIN_POINT_DISTANCE, MIN_ANCHOR_POINT_DISTANCE, TOOLS, roundTo, round, roundAnchorCoord, toDocCoords, fitScale, toAnchorCoords, fromAnchorCoords, projectStroke, countByAnchor, createStroke, appendPoint, clampPressure, strokeWidthAt, pointCount, pointAt, strokeBounds, catmullRomToBezier, strokePoints, distanceToSegment, strokeHitTest, TILE_HEIGHT, strokeTileRange, visibleTiles, serialize, migrateStrokes, deserialize, mergeAnnotations, UndoStack, applyUndo, applyRedo, newStrokeId };
 // 필기 런타임의 DOM 계층. 캔버스·포인터 이벤트·Flutter 브리지만 담당한다.
 // 판단이 필요한 로직은 전부 ink-core.js 에 있고 거기서 테스트된다.
 //
 // 학습지 HTML 안에서 돌아간다. 본문과 캔버스가 같은 스크롤 컨테이너에 있으므로
 // 스크롤 동기화 문제가 애초에 생기지 않는다. docs/plan/06-annotation.md §1
+//
+// v2: 획은 가능하면 [data-ink-anchor] 요소에 묶인다(요소 기준 정규화 좌표).
+// 콘텐츠가 주체다 — 레이아웃이 바뀌면 필기가 따라간다. 앵커 밖(여백)에 그은 획만 문서 좌표다.
 
 
 const DPR_CAP = 3   // 초고해상도에서 캔버스 메모리가 터지지 않게 상한을 둔다
+
+const cssEscape = (s) =>
+  (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(s) : String(s).replace(/["\\]/g, '\\$&')
 
 function createInkLayer(opts) {
   const canvas = opts.canvas
@@ -1141,10 +1448,51 @@ function createInkLayer(opts) {
   let tool = { kind: 'pen', color: '#111111', width: 2.4 }
   let scale = 1
   let drawing = null
+  let drawingAnchorRect = null   // 획을 긋는 동안 앵커 요소의 화면 사각형(레이아웃 재측정 방지)
   let activePointerId = null
   let allowFinger = false
   let enabled = false
   let rafPending = false
+
+  // ── 앵커 ───────────────────────────────────────────────────────────────
+  const anchorEl = (id) =>
+    id ? document.querySelector(`[data-ink-anchor="${cssEscape(id)}"]`) : null
+
+  /**
+   * 앵커 요소의 사각형을 캔버스 로컬 좌표(그리기 좌표계)로 옮긴다.
+   * getBoundingClientRect 는 transform: scale 이 반영된 값이라 배율로 나눠야 한다.
+   * 한 프레임 안에서 같은 앵커를 여러 번 묻게 되므로 캐시를 만들어 쓴다(레이아웃 스래싱 방지).
+   */
+  function rectResolver() {
+    const c = canvas.getBoundingClientRect()
+    const memo = new Map()
+    return (id) => {
+      if (!id) return null
+      if (memo.has(id)) return memo.get(id)
+      const el = anchorEl(id)
+      let r = null
+      if (el) {
+        const b = el.getBoundingClientRect()
+        r = {
+          left: (b.left - c.left) / scale, top: (b.top - c.top) / scale,
+          width: b.width / scale, height: b.height / scale,
+        }
+      }
+      memo.set(id, r)     // 요소가 사라졌으면 null 을 기억한다 — 획은 남기되 그리지 않는다
+      return r
+    }
+  }
+
+  /** 포인터 아래에서 가장 가까운 필기 앵커. 없으면 null(= 문서 좌표로 저장). */
+  function anchorAt(clientX, clientY) {
+    if (typeof document.elementsFromPoint !== 'function') return null
+    const hits = document.elementsFromPoint(clientX, clientY) || []
+    for (const el of hits) {
+      const id = el && el.dataset ? el.dataset.inkAnchor : null
+      if (id) return id
+    }
+    return null
+  }
 
   // ── 캔버스 크기 ────────────────────────────────────────────────────────
   function resize() {
@@ -1207,8 +1555,18 @@ function createInkLayer(opts) {
 
   function redraw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
-    for (const s of state.strokes) drawStroke(s)
-    if (drawing) drawStroke(drawing)
+    const rectOf = rectResolver()
+    for (const s of state.strokes) {
+      // 앵커가 사라진 획(콘텐츠가 바뀐 경우)은 이번 프레임에 그리지 않을 뿐, 데이터는 그대로 둔다.
+      const p = core.projectStroke(s, rectOf(s.anchor))
+      if (p) drawStroke(p)
+    }
+    if (drawing) {
+      const live = drawing.anchor
+        ? core.projectStroke(drawing, rectOf(drawing.anchor))
+        : drawing
+      if (live) drawStroke(live)
+    }
   }
 
   function scheduleRedraw() {
@@ -1227,20 +1585,35 @@ function createInkLayer(opts) {
 
   const toDoc = (e) => core.toDocCoords(e.clientX, e.clientY, canvas.getBoundingClientRect(), scale)
 
+  /** 진행 중인 획의 좌표계로 포인터를 옮긴다. 앵커가 있으면 정규화 좌표, 없으면 문서 좌표. */
+  function toStrokeCoords(e) {
+    if (drawing && drawing.anchor && drawingAnchorRect) {
+      return core.toAnchorCoords(e.clientX, e.clientY, drawingAnchorRect)
+    }
+    return toDoc(e)
+  }
+
   function onDown(e) {
     if (!accepts(e) || activePointerId !== null) return
     activePointerId = e.pointerId
     canvas.setPointerCapture(e.pointerId)
-    const { x, y } = toDoc(e)
 
     if (tool.kind === 'eraser') {
+      const { x, y } = toDoc(e)
       eraseAt(x, y)
       return
     }
+    // 획을 시작한 자리 아래에 필기 앵커가 있으면 그 요소에 묶는다.
+    // 한 획이 두 좌표계를 오갈 수는 없으므로 앵커는 시작점에서 한 번만 정한다.
+    const anchor = anchorAt(e.clientX, e.clientY)
+    const el = anchorEl(anchor)
+    drawingAnchorRect = el ? el.getBoundingClientRect() : null
     drawing = core.createStroke(
       tool.kind, tool.color, tool.width,
       core.newStrokeId(Date.now()), Date.now(),
+      drawingAnchorRect ? anchor : null,
     )
+    const { x, y } = toStrokeCoords(e)
     core.appendPoint(drawing, x, y, e.pressure)
     scheduleRedraw()
   }
@@ -1250,10 +1623,15 @@ function createInkLayer(opts) {
     // ProMotion 120Hz 샘플을 놓치면 빠르게 그은 획이 각져 보인다.
     const events = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : [e]
     let changed = false
+    const rectOf = tool.kind === 'eraser' ? rectResolver() : null
     for (const p of events) {
-      const { x, y } = toDoc(p)
-      if (tool.kind === 'eraser') { changed = eraseAt(x, y) || changed }
-      else if (drawing) { changed = core.appendPoint(drawing, x, y, p.pressure) || changed }
+      if (tool.kind === 'eraser') {
+        const { x, y } = toDoc(p)
+        changed = eraseAt(x, y, rectOf) || changed
+      } else if (drawing) {
+        const { x, y } = toStrokeCoords(p)
+        changed = core.appendPoint(drawing, x, y, p.pressure) || changed
+      }
     }
     if (changed) scheduleRedraw()
   }
@@ -1270,16 +1648,23 @@ function createInkLayer(opts) {
         notifyChanged()
       }
       drawing = null
+      drawingAnchorRect = null
       scheduleRedraw()
     }
     flushErase()
   }
 
   // ── 지우개 ─────────────────────────────────────────────────────────────
+  // 히트 테스트는 캔버스 로컬 좌표에서 한다. 앵커 획은 그 좌표계로 펴서 비교한다 —
+  // 정규화 좌표와 문서 좌표를 그냥 비교하면 지우개가 엉뚱한 획을 지운다.
   let erasedInGesture = []
-  function eraseAt(x, y) {
+  function eraseAt(x, y, rectOf) {
     const radius = 12
-    const hit = state.strokes.filter((s) => core.strokeHitTest(s, x, y, radius))
+    const resolve = rectOf || rectResolver()
+    const hit = state.strokes.filter((s) => {
+      const p = core.projectStroke(s, resolve(s.anchor))
+      return p ? core.strokeHitTest(p, x, y, radius) : false   // 안 보이는 획은 못 지운다
+    })
     if (hit.length === 0) return false
     const ids = new Set(hit.map((s) => s.id))
     state.strokes = state.strokes.filter((s) => !ids.has(s.id))
@@ -1298,19 +1683,35 @@ function createInkLayer(opts) {
 
   // ── 브리지 알림 ────────────────────────────────────────────────────────
   function notifyChanged() {
+    const byAnchor = core.countByAnchor(state.strokes)
     bridge('strokesChanged', {
       count: state.strokes.length,
+      byAnchor,
       canUndo: undo.canUndo,
       canRedo: undo.canRedo,
     })
+    // 학습 런타임(worksheet-interact)이 같은 번들의 다른 스코프에 있다. DOM 이벤트로 알린다.
+    // 필기도 "답을 적었다"는 증거이므로 서술형 응답의 inkStrokes 가 이 값을 읽는다.
+    try {
+      document.dispatchEvent(new CustomEvent('onpar:ink', {
+        detail: { count: state.strokes.length, byAnchor },
+      }))
+    } catch { /* CustomEvent 가 없는 아주 오래된 엔진 */ }
   }
 
   // ── 공개 API (Flutter 가 부른다) ────────────────────────────────────────
   const api = {
     setTool(next) {
-      tool = { kind: next.tool, color: next.color || tool.color, width: next.width || tool.width }
+      // 문자열로 부르는 실수가 잦다. 상태를 망가뜨린 뒤 스트로크를 만들 때 터지면
+      // 원인을 찾기 어렵다 — 여기서 바로 막고, 도구는 이전 값을 유지한다.
+      const kind = typeof next === 'string' ? next : next && next.tool
+      if (kind !== 'none' && !core.TOOLS.includes(kind)) {
+        throw new Error(`알 수 없는 도구: ${kind} (${core.TOOLS.join(', ')} 또는 none)`)
+      }
+      const opts = typeof next === 'string' ? {} : next
+      tool = { kind, color: opts.color || tool.color, width: opts.width || tool.width }
       // 필기 모드일 때만 캔버스가 포인터를 먹는다. 아니면 본문 스크롤·선택이 막힌다.
-      enabled = next.tool !== 'none'
+      enabled = kind !== 'none'
       canvas.style.pointerEvents = enabled ? 'auto' : 'none'
     },
     setFingerDrawing(on) { allowFinger = !!on },
@@ -1353,8 +1754,13 @@ function createInkLayer(opts) {
         deleted: state.deleted,
       })
     },
+    /** 앵커별 스트로크 수. 서술형 응답이 "필기로 답했다"를 판단하는 근거. */
+    strokeCountByAnchor() { return core.countByAnchor(state.strokes) },
+    strokeCountFor(anchorId) { return core.countByAnchor(state.strokes)[anchorId] || 0 },
+    /** 레이아웃이 바뀐 뒤 앵커 좌표를 다시 펴서 그린다. */
+    refresh() { scheduleRedraw() },
     scrollToQuiz(quizId) {
-      const el = document.querySelector(`[data-quiz-id="${CSS.escape(quizId)}"]`)
+      const el = document.querySelector(`[data-quiz-id="${cssEscape(quizId)}"]`)
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
       return !!el
     },
@@ -1366,52 +1772,146 @@ function createInkLayer(opts) {
   canvas.addEventListener('pointercancel', onUp)
   globalThis.addEventListener('resize', resize)
 
+  // 앵커 좌표는 요소의 현재 크기에 매달려 있다. 레이아웃이 바뀌면 다시 그려야 제자리에 남는다.
+  // (textarea 가 늘어나거나, 폰트가 늦게 로드되거나, 화면을 돌렸을 때)
+  if (typeof ResizeObserver === 'function') {
+    const ro = new ResizeObserver(() => resize())
+    ro.observe(sheet)
+    for (const el of document.querySelectorAll('[data-ink-anchor]')) ro.observe(el)
+  }
+
   api.setTool({ tool: 'none' })
   resize()
   return api
 }
 
 // 학습지 HTML 안에서 자동 기동한다.
+// 어디서 터지든 문서는 읽을 수 있어야 한다 — 필기가 안 되는 학습지는 불편하지만,
+// 본문이 안 보이는 학습지는 쓸모가 없다.
 if (typeof document !== 'undefined') {
   const boot = () => {
-    const canvas = document.getElementById('ink-layer')
-    const sheet = document.querySelector('.sheet')
-    if (!canvas || !sheet) return
-    globalThis.ONPAR_INK = createInkLayer({
-      canvas,
-      sheet,
-      bridge: (type, payload) => {
-        // Flutter(flutter_inappwebview)가 핸들러를 심어두면 그쪽으로, 없으면 조용히 무시한다.
-        const h = globalThis.flutter_inappwebview
-        if (h && typeof h.callHandler === 'function') h.callHandler('ink', { type, payload })
-      },
-    })
+    try {
+      const canvas = document.getElementById('ink-layer')
+      const sheet = document.querySelector('.sheet')
+      if (!canvas || !sheet) return
+      globalThis.ONPAR_INK = createInkLayer({
+        canvas,
+        sheet,
+        bridge: (type, payload) => {
+          // Flutter(flutter_inappwebview)가 핸들러를 심어두면 그쪽으로, 없으면 조용히 무시한다.
+          const h = globalThis.flutter_inappwebview
+          if (h && typeof h.callHandler === 'function') h.callHandler('ink', { type, payload })
+        },
+      })
+    } catch (e) {
+      try { document.documentElement.dataset.onparRuntime = 'failed' } catch { /* 무시 */ }
+      try { console.error('[onpar] 필기 런타임 기동 실패', e) } catch { /* 무시 */ }
+    }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot)
   else boot()
 }
 
+} catch (e) {
+try { document.documentElement.dataset.onparRuntime = 'failed'; } catch (_) {}
+try { console.error('[onpar] 런타임 기동 실패', e); } catch (_) {}
+}
 })();
 (function () {
 'use strict';
-// 학습 상호작용 런타임. 활동·문제의 선택, 제출, 오답별 피드백, 슬라이더 도형.
+try {
+// 학습 상호작용 런타임. 활동·문제의 선택, 제출, 오답별 피드백, 서술형 답, 슬라이더 도형.
 //
-// 외부 평가: "외형은 interactive worksheet 인데 데이터 모델은 static document".
-// 선택지가 <li> 라서 시스템은 학생이 A 를 골랐는지 답부터 열었는지 모른다.
-// 여기서부터는 라디오로 고르고, 고르기 전에는 답이 열리지 않고, 고른 오답에 맞는 피드백만 뜬다.
-// 모든 응답은 브리지로 나가고 ONPAR_RESPONSES 에 남는다.
+// 외부 평가 1: "'썼다'는 아는데 무엇을 썼는지는 모른다."
+//   - 서술형은 attempted=true 만 남았다. 깊은 학습과 아무 말이나 쓰는 행위가 데이터상 같았다.
+//   - 선택형은 RESPONSES[id] = ... 로 덮어써서, 첫 오답을 고르고 정답으로 고치면
+//     처음 오개념이 사라졌다. 학습분석에서 중요한 건 first → feedback → retry → final 이다.
+//
+// 그래서 응답은 "덮어쓰기"가 아니라 "이력"이다. firstChoice 는 절대 덮어쓰지 않는다.
+//
+//   선택형 { id, kind:'choice', questionId, firstChoice, finalChoice,
+//            attempts:[{choice,text,correct,at,msSincePrompt}],
+//            correct, feedbackSeen, changedMind, firstCorrect }
+//   서술형 { id, kind:'written', questionId, text, chars, inkStrokes,
+//            revisionHistory:[{chars,at}], submittedAt, msSincePrompt }
+//
+// 외부 평가 3: 필기만 강제하지 않는다. 타이핑(textarea)과 필기(ink-space)를 함께 지원하고,
+// 셋 중 하나라도 시도가 있으면 답이 열린다. JS 가 죽어도 본문·문제·선택지·해설은 읽힌다.
 
 const RESPONSES = {}
+const LOAD_AT = Date.now()
+const TEXT_DEBOUNCE_MS = 400
+const MAX_REVISIONS = 100        // 이력이 무한정 늘면 저장이 아니라 로그가 된다
 
+/** 학습지 id. localStorage 키가 학습지마다 갈라져야 다른 학습지의 답이 섞이지 않는다. */
+function worksheetId() {
+  const el = document.querySelector('[data-worksheet-id]')
+  return (el && el.dataset.worksheetId) || 'unknown'
+}
+
+function markRuntimeFailed(e) {
+  try { document.documentElement.dataset.onparRuntime = 'failed' } catch { /* 무시 */ }
+  try { console.error('[onpar] 학습 런타임 오류', e) } catch { /* 무시 */ }
+}
+
+// ── 저장 (새로고침에 답이 사라지면 학습자가 화낸다) ──────────────────────
+const storeKey = (id) => `onpar:${worksheetId()}:${id}`
+
+function loadText(id) {
+  try {
+    const v = globalThis.localStorage ? globalThis.localStorage.getItem(storeKey(id)) : null
+    return typeof v === 'string' ? v : null
+  } catch { return null }        // 사파리 프라이빗 모드 등에서 접근 자체가 throw 한다
+}
+
+function saveText(id, text) {
+  try {
+    if (!globalThis.localStorage) return
+    if (text) globalThis.localStorage.setItem(storeKey(id), text)
+    else globalThis.localStorage.removeItem(storeKey(id))
+  } catch { /* 저장 못 해도 학습은 계속돼야 한다 */ }
+}
+
+// ── 응답 이력 ───────────────────────────────────────────────────────────
+/** 요소가 처음 화면에 보인 시각. 없으면 페이지 로드 시각. 체류시간의 기준점이다. */
+const promptSeenAt = new Map()
+const markSeen = (id) => { if (id && !promptSeenAt.has(id)) promptSeenAt.set(id, Date.now()) }
+const msSincePrompt = (id) => Date.now() - (promptSeenAt.has(id) ? promptSeenAt.get(id) : LOAD_AT)
+
+function record(root) {
+  const id = root.dataset.responseId
+  let rec = RESPONSES[id]
+  if (rec) return rec
+  const questionId = root.dataset.quizId || null
+  rec = root.dataset.responseKind === 'choice'
+    ? {
+        id, kind: 'choice', questionId,
+        firstChoice: null, finalChoice: null, attempts: [],
+        correct: null, feedbackSeen: false, changedMind: false, firstCorrect: null,
+      }
+    : {
+        id, kind: 'written', questionId,
+        text: '', chars: 0, inkStrokes: 0, revisionHistory: [],
+        submittedAt: null, msSincePrompt: null,
+      }
+  RESPONSES[id] = rec
+  return rec
+}
+
+const snapshot = (rec) => JSON.parse(JSON.stringify(rec))
+
+/** Flutter 로 나가는 payload 는 저장 스키마와 같은 모양이다. 두 벌을 유지하면 반드시 어긋난다. */
 function bridge(type, payload) {
-  const h = globalThis.flutter_inappwebview
-  if (h && typeof h.callHandler === 'function') h.callHandler('learn', { type, payload })
-  RESPONSES[payload.id] = { type, ...payload, at: Date.now() }
+  try {
+    const h = globalThis.flutter_inappwebview
+    if (h && typeof h.callHandler === 'function') h.callHandler('learn', { type, payload })
+  } catch { /* 브리지가 없으면 조용히 무시한다 (브라우저에서 그냥 열었을 때) */ }
 }
 
 // ── 활동 / 선택형 문제 ─────────────────────────────────────────────────
 function wireChoice(root) {
   const id = root.dataset.responseId
+  const rec = record(root)
   const reveal = root.querySelector('details.act__reveal, details.quiz__a')
   const submit = root.querySelector('[data-submit]')
   const feedback = root.querySelector('[data-feedback-slot]')
@@ -1430,12 +1930,14 @@ function wireChoice(root) {
   function answer(choiceIdx, choiceText) {
     root.dataset.answered = '1'
     const correct = root.dataset.answer != null ? String(choiceIdx) === root.dataset.answer : null
+
     // 고른 오답에 맞는 피드백만 보여준다. 전부 나열하면 진단이 아니다.
     if (feedback) {
-      const label = radios[choiceIdx]?.closest('label')
-      const fb = label?.dataset.feedback
+      const label = radios[choiceIdx] ? radios[choiceIdx].closest('label') : null
+      const fb = label ? label.dataset.feedback : null
       feedback.textContent = correct === true ? '' : (fb || '')
       feedback.hidden = !feedback.textContent
+      if (!feedback.hidden) rec.feedbackSeen = true   // 실제로 표시됐을 때만 true
     }
     radios.forEach((r, i) => {
       const l = r.closest('label'); if (!l) return
@@ -1447,7 +1949,22 @@ function wireChoice(root) {
     root.classList.add('is-answered')
     if (correct === true) root.classList.add('is-right')
     reveal.open = true
-    bridge('choice', { id, choice: choiceIdx, text: choiceText, correct })
+
+    // ── 이력. 여기가 이 파일의 핵심이다 ──
+    rec.attempts.push({
+      choice: choiceIdx, text: choiceText, correct,
+      at: Date.now(), msSincePrompt: msSincePrompt(id),
+    })
+    if (rec.firstChoice === null) {
+      // 첫 응답은 절대 덮어쓰지 않는다. 첫 오답이 그 학생의 오개념이고,
+      // 그걸 지우면 남는 건 "결국 맞혔다" 뿐이다.
+      rec.firstChoice = choiceIdx
+      rec.firstCorrect = correct === null ? null : correct === true
+    }
+    rec.finalChoice = choiceIdx
+    rec.correct = correct
+    rec.changedMind = rec.firstChoice !== choiceIdx
+    bridge('choice', snapshot(rec))
   }
 
   if (submit) {
@@ -1461,23 +1978,109 @@ function wireChoice(root) {
   }
 }
 
-// ── 서술형: 채점은 못 하지만 시도했는지는 안다 ──────────────────────────
+// ── 서술형: 타이핑과 필기를 나란히 지원한다 ─────────────────────────────
+//
+// 렌더러 계약:
+//   <div class="answer" data-answer-for="{responseId}">
+//     <textarea class="answer__text" data-answer-text rows="3"></textarea>
+//     <div class="ink-space" data-ink-space="sm" data-ink-anchor="{responseId}"></div>
+//   </div>
+//   <label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label>
+//
+// 셋(체크박스·글자·필기) 중 하나라도 있으면 시도로 본다. 손으로만 쓰라고 강요하지 않는다.
 function wireWritten(root) {
   const id = root.dataset.responseId
+  const rec = record(root)
   const reveal = root.querySelector('details.act__reveal, details.quiz__a')
   const attempted = root.querySelector('input[type="checkbox"][data-attempted]')
-  if (!attempted) return
-  // 답이 없는 쓰기 칸(예측 이유, 한 문장)도 있다. 그래도 시도는 기록한다.
+  const box = root.querySelector('[data-answer-for="' + cssAttr(id) + '"]') || root
+  const textarea = box.querySelector('[data-answer-text]') || root.querySelector('[data-answer-text]')
+  const inkEl = root.querySelector('[data-ink-anchor]')
+  const anchorId = inkEl ? inkEl.dataset.inkAnchor : null
+
+  const hasEvidence = () =>
+    (attempted ? attempted.checked : false) ||
+    rec.chars > 0 || rec.inkStrokes > 0
+
+  function markSubmitted() {
+    if (rec.submittedAt != null) return
+    rec.submittedAt = Date.now()
+    rec.msSincePrompt = msSincePrompt(id)
+  }
+
+  /** 시도가 생기면 체크박스를 대신 켜 준다. 끄는 건 사용자 몫이다(직접 풀 수 있어야 한다). */
+  function reflectAttempt(push) {
+    if (!hasEvidence()) return
+    markSubmitted()
+    if (attempted && !attempted.checked) attempted.checked = true
+    root.dataset.answered = '1'
+    root.classList.add('is-answered')
+    if (push) bridge('written', snapshot(rec))
+  }
+
+  // 답은 시도가 있어야 열린다 — 체크박스만 보지 않는다.
   if (reveal) reveal.addEventListener('toggle', () => {
-    if (reveal.open && !attempted.checked) {
+    if (reveal.open && !hasEvidence()) {
       reveal.open = false
       root.classList.add('is-nudge')
       setTimeout(() => root.classList.remove('is-nudge'), 900)
     }
   })
-  attempted.addEventListener('change', () => {
-    if (attempted.checked) { root.dataset.answered = '1'; root.classList.add('is-answered'); bridge('attempt', { id }) }
+
+  if (attempted) attempted.addEventListener('change', () => {
+    if (attempted.checked) { markSubmitted(); root.dataset.answered = '1'; root.classList.add('is-answered'); bridge('written', snapshot(rec)) }
   })
+
+  if (textarea) {
+    // 새로고침 복원. 답이 사라지는 학습지는 두 번 쓰이지 않는다.
+    const saved = loadText(id)
+    if (saved) {
+      textarea.value = saved
+      rec.text = saved
+      rec.chars = saved.trim().length
+      // 언제 썼는지는 모른다. 모르는 값을 지어내지 않는다(submittedAt 은 이 세션 기준).
+      reflectAttempt(false)
+    }
+
+    let timer = null
+    const commit = () => {
+      const value = textarea.value
+      const chars = value.trim().length
+      const changed = value !== rec.text
+      rec.text = value
+      rec.chars = chars
+      if (changed) {
+        rec.revisionHistory.push({ chars, at: Date.now() })
+        // 첫 판은 남기고 그 다음 것부터 버린다 — "처음 얼마나 썼는가"가 이력의 시작점이다.
+        if (rec.revisionHistory.length > MAX_REVISIONS) rec.revisionHistory.splice(1, 1)
+      }
+      saveText(id, value)
+      if (chars > 0) reflectAttempt(false)
+      bridge('written', snapshot(rec))
+    }
+    textarea.addEventListener('input', () => {
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(commit, TEXT_DEBOUNCE_MS)
+    })
+    // 화면을 떠나면 디바운스를 기다리지 않는다.
+    textarea.addEventListener('blur', () => { if (timer) { clearTimeout(timer); timer = null; commit() } })
+  }
+
+  if (anchorId) {
+    // 필기 런타임이 획 수를 알려준다. 필기도 "답을 적었다"는 증거다.
+    document.addEventListener('onpar:ink', (e) => {
+      const by = e && e.detail ? e.detail.byAnchor : null
+      const n = by && by[anchorId] ? by[anchorId] : 0
+      if (n === rec.inkStrokes) return
+      rec.inkStrokes = n
+      if (n > 0) reflectAttempt(true)
+    })
+  }
+}
+
+/** 속성 선택자에 넣을 값. id 는 우리가 만들지만 셀렉터 주입은 원천 차단한다. */
+function cssAttr(v) {
+  return String(v).replace(/["\\]/g, '\\$&')
 }
 
 // ── 슬라이더 도형 ───────────────────────────────────────────────────────
@@ -1516,6 +2119,8 @@ function wirePlot(fig) {
   }
   slider.addEventListener('input', update)
   update()
+  // JS 가 붙었다는 표시. 안 붙었으면 슬라이더는 아무것도 안 하므로 CSS 가 숨긴다.
+  fig.dataset.wired = '1'
 }
 
 /** 마지막 패널을 경로정보 v 로 다시 그린다. 스위치가 아니라 연속이라는 걸 손으로 느끼게. */
@@ -1530,41 +2135,95 @@ function wireDistribution(fig) {
   const pw = +rect.getAttribute('width'), ph = +rect.getAttribute('height')
   const g = (t, c, w) => Math.exp(-((t - c) ** 2) / (2 * w * w))
 
+  // 슬라이더가 움직이는 것은 간섭항의 결맞음 |γ| 다.
+  //   I = I₁ + I₂ + 2|γ|√(I₁I₂)cos φ  —  가운데 항만 줄어든다.
+  //
+  // 여기에 퍼센트를 찍으면 안 된다. 예전 눈금은 "간섭 가시도 = (1 − v) × 100%" 였는데
+  // 그런 보편 법칙은 없다. 표준 상보성이 주는 것은 D² + V² ≤ 1 같은 부등식이고,
+  // 그마저 이 그림에서 계산되는 값이 아니다. 본문에 '대략적 모형' 이라 적어도
+  // 63% 가 움직이면 사람은 그 수를 법칙으로 기억한다. 그래서 낮음/중간/높음 만 낸다.
+  const BANDS = ['낮음', '중간', '높음']
+  const band = (v) => BANDS[v < 1 / 3 ? 0 : v < 2 / 3 ? 1 : 2]
+
   function update() {
-    const v = +slider.value                       // 0 = 경로정보 없음
+    const gamma = +slider.value                   // 1 = 결맞음 최대(간섭 뚜렷), 0 = 경로가 구별됨
     const N = 60, pts = []
     for (let k = 0; k <= N; k++) {
       const t = k / N
       const env = g(t, 0.5, 0.22)
-      const fringes = 0.5 + 0.5 * (1 - v) * Math.cos((t - 0.5) * 2 * Math.PI * 6)
+      const fringes = 0.5 + 0.5 * gamma * Math.cos((t - 0.5) * 2 * Math.PI * 6)
       const humps = 0.9 * (g(t, 0.34, 0.09) + g(t, 0.66, 0.09))
-      const y = (1 - v) * env * fringes + v * humps
+      const y = gamma * env * fringes + (1 - gamma) * humps
       pts.push(`${f2(x + t * pw)} ${f2(top + ph - y * (ph - 8))}`)
     }
     area.setAttribute('d', `M${f2(x)} ${f2(top + ph)}L${pts.join('L')}L${f2(x + pw)} ${f2(top + ph)}Z`)
-    if (out) out.innerHTML = `간섭 가시도 <b>${Math.round((1 - v) * 100)}%</b>`
-    bridge('slider', { id: fig.dataset.figure, pathInfo: v })
+    if (out) out.innerHTML = `간섭 <b>${band(gamma)}</b>`
+    bridge('slider', { id: fig.dataset.figure, coherence: gamma, band: band(gamma) })
   }
   slider.addEventListener('input', update)
   update()
+  fig.dataset.wired = '1'
+}
+
+// ── 기동 ───────────────────────────────────────────────────────────────
+/** 요소가 처음 보인 시각을 잡는다. IntersectionObserver 가 없으면 페이지 로드 시각으로 본다. */
+function observePrompts(roots) {
+  if (typeof IntersectionObserver !== 'function') return
+  const io = new IntersectionObserver((entries) => {
+    for (const en of entries) {
+      if (!en.isIntersecting) continue
+      markSeen(en.target.dataset.responseId)
+      io.unobserve(en.target)
+    }
+  }, { threshold: 0.25 })
+  for (const el of roots) io.observe(el)
+}
+
+/** 하나가 터져도 나머지는 붙어야 한다. 문제 하나 때문에 학습지 전체가 죽지 않게. */
+function each(selector, fn) {
+  for (const el of document.querySelectorAll(selector)) {
+    try { fn(el) } catch (e) { markRuntimeFailed(e) }
+  }
 }
 
 function boot() {
-  document.querySelectorAll('[data-response-id][data-response-kind="choice"]').forEach(wireChoice)
-  document.querySelectorAll('[data-response-id][data-response-kind="written"]').forEach(wireWritten)
-  document.querySelectorAll('figure[data-interactive="plot"]').forEach(wirePlot)
-  document.querySelectorAll('figure[data-interactive="distribution"]').forEach(wireDistribution)
-  globalThis.ONPAR_RESPONSES = RESPONSES
-  globalThis.ONPAR_LEARN = {
-    export: () => ({ ...RESPONSES }),
-    answeredCount: () => Object.keys(RESPONSES).filter((k) => RESPONSES[k].type !== 'slider').length,
+  try {
+    const choices = [...document.querySelectorAll('[data-response-id][data-response-kind="choice"]')]
+    const written = [...document.querySelectorAll('[data-response-id][data-response-kind="written"]')]
+    observePrompts([...choices, ...written])
+    each('[data-response-id][data-response-kind="choice"]', wireChoice)
+    each('[data-response-id][data-response-kind="written"]', wireWritten)
+    each('figure[data-interactive="plot"]', wirePlot)
+    each('figure[data-interactive="distribution"]', wireDistribution)
+
+    globalThis.ONPAR_RESPONSES = RESPONSES
+    globalThis.ONPAR_LEARN = {
+      /** id → 응답 이력 (그대로). */
+      export: () => ({ ...RESPONSES }),
+      /** 저장·전송용 배열. DB 의 responses 행과 1:1 이다. */
+      exportResponses: () => Object.keys(RESPONSES).map((k) => snapshot(RESPONSES[k])),
+      answeredCount: () => Object.keys(RESPONSES).filter((k) => {
+        const r = RESPONSES[k]
+        return r.kind === 'choice' ? r.attempts.length > 0 : (r.chars > 0 || r.inkStrokes > 0 || r.submittedAt != null)
+      }).length,
+    }
+    if (document.documentElement.dataset.onparRuntime !== 'failed') {
+      document.documentElement.dataset.onparRuntime = 'ready'
+    }
+  } catch (e) {
+    markRuntimeFailed(e)
   }
 }
+
 if (typeof document !== 'undefined') {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot)
   else boot()
 }
 
+} catch (e) {
+try { document.documentElement.dataset.onparRuntime = 'failed'; } catch (_) {}
+try { console.error('[onpar] 런타임 기동 실패', e); } catch (_) {}
+}
 })();</script>
 </body>
 </html>

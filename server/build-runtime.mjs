@@ -41,16 +41,20 @@ const interact = toScript(readFileSync(resolve(INK, 'worksheet-interact.js'), 'u
 const CORE_EXPORTS = [...core.matchAll(/^(?:const|let|var|function|class)\s+(\w+)/gm)].map((m) => m[1])
 const namespace = `const core = { ${CORE_EXPORTS.join(', ')} };`
 
-const bundle = `(function () {
+// 두 IIFE 를 각각 try/catch 로 감싼다. 필기가 죽어도 학습 상호작용은 살아야 하고,
+// 둘 다 죽어도 본문·문제·선택지·해설·그림은 읽혀야 한다(점진적 향상).
+// 실패는 <html data-onpar-runtime="failed"> 로 남긴다 — CSS 와 테스트가 이걸 본다.
+const guard = (body) => `(function () {
 'use strict';
-${core}
-${namespace}
-${runtime}
-})();
-(function () {
-'use strict';
-${interact}
+try {
+${body}
+} catch (e) {
+try { document.documentElement.dataset.onparRuntime = 'failed'; } catch (_) {}
+try { console.error('[onpar] 런타임 기동 실패', e); } catch (_) {}
+}
 })();`
+
+const bundle = `${guard(`${core}\n${namespace}\n${runtime}`)}\n${guard(interact)}`
 
 // 문법이 실제로 유효한지 확인한다. 깨진 번들이 학습지에 박히면 필기가 통째로 죽는다.
 try {

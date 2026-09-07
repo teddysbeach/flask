@@ -27,6 +27,7 @@ export interface CriticVerdict {
 export type RubricKey =
   | 'activity' | 'representation' | 'transfer' | 'misconception'
   | 'feedback' | 'alignment' | 'honesty' | 'voice' | 'sequence'
+  | 'robustness' | 'evidence_fit'
 
 /** 6단계(문제 제시 → 예측 → 관찰 → 개념 → 연습 → 나가기 전에) 어휘로 쓴다. "본론" 은 없다. */
 export const RUBRIC: Record<RubricKey, string> = {
@@ -39,6 +40,8 @@ export const RUBRIC: Record<RubricKey, string> = {
   honesty: '시간이 핵심/연습/선택과제로 나뉘어 있고 서로 맞는가. "입문" 이 전제하는 선수지식을 밝히는가. 맥락 노트에 미검증 사실을 내보내지 않는가.',
   voice: '파르가 오개념 교정·힌트에만 쓰였는가. "저도 처음엔…" 이 반복되어 문체 템플릿이 되지 않았는가.',
   sequence: '문제→예측→관찰→개념 순서가 실제로 지켜지는가. 문제 제시가 개념 이름으로 시작하거나, 관찰 단계에 이미 설명이 들어 있거나, 예측 선택지에 흔한 오답이 없으면 0점.',
+  robustness: '단순화가 절대법칙으로 보이지 않는가. 규칙마다 성립 조건과 깨지는 경우가 있는가. 모형이 무엇을 생략했는지 밝히는가. robustness.guards 에 적은 오해를 본문이 실제로 막는가.',
+  evidence_fit: '문제가 목표를 증명하는 증거인가. 서로 다른 표상(그래프·표·진단·예외)에서 확인하는가. 절차 숙련만 재고 개념 이해를 못 재지 않는가.',
 }
 
 /** 정적 린트가 먼저 잡은 것을 함께 넘긴다. 검사관은 그 위에서 판단만 한다. */
@@ -52,7 +55,7 @@ export function buildCriticPrompt(content: WorksheetContent, staticIssues: strin
     rubric,
     '',
     '판정 규칙:',
-    `- 총점은 루브릭 합계를 100점 만점으로 환산합니다. ${PASS_SCORE}점 미만이면 revise.`,
+    `- 총점은 루브릭 합계(${Object.keys(RUBRIC).length}항목 × 10 = ${Object.keys(RUBRIC).length * 10}점 만점)를 100점 만점으로 환산합니다. ${PASS_SCORE}점 미만이면 revise.`,
     '- must_fix 가 하나라도 있으면 점수와 무관하게 revise.',
     '- must_fix 는 "이대로 나가면 학생이 틀린 것을 배운다" 수준만 넣습니다. 취향은 should_fix 로.',
     '- fix 는 구체적으로 씁니다. "더 좋게" 가 아니라 "Q1 을 고전적 입자 모델로는 왜 설명 못 하는지 묻는 문제로 바꾼다".',
@@ -74,6 +77,10 @@ export const CRITIC_SYSTEM_PROMPT = `당신은 학습지 검사관입니다. 예
 - "입문자를 위해" 라는 이유로 핵심 표상(수식·그래프)을 제거한 경우, 그건 배려가 아니라 결함입니다.
 - 쉬운 설명은 정확한 표상으로 가는 다리여야지 표상을 대체하면 안 됩니다.
 - 헤드라인이 오개념을 심으면 개념 단계에서 아무리 정정해도 늦습니다.
+- 이제 위험은 못 만든 것이 아니라 **너무 그럴듯한 것**입니다. UI 와 교수설계가 좋아졌기 때문에
+  남아 있는 단순화와 오류가 더 권위 있게 보입니다. 매끄러운 학습지에서 틀린 한 줄은 거친 학습지에서
+  틀린 한 줄보다 위험합니다 — 학생이 의심하지 않기 때문입니다. 특히 근거 없는 숫자 정밀도
+  (정성 모형에서 나온 퍼센트·소수점, "간섭이 30% 남아요")를 발견하면 must_fix 입니다.
 - 순서가 곧 설계입니다. 문제 제시가 개념 이름으로 시작하거나, 관찰 단계가 이미 설명을 하고 있으면
   "설명 전에 틀릴 기회" 가 사라진 것입니다. 단계 이름만 붙어 있고 내용이 순서를 어기면 sequence 는 0점입니다.
 

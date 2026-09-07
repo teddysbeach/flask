@@ -81,19 +81,27 @@ export interface ScheduleSeed {
 }
 
 /**
- * 학습지 완성 시점에 문제 5개를 5회차에 1:1 배정한다.
- * 문제가 5개보다 적으면 있는 만큼만 만든다(검증기가 5개를 강제하지만 방어적으로).
+ * 학습지 완성 시점에 문항을 망각곡선 회차에 흩어 놓는다.
+ * 문항 수는 분야가 정하므로(4~7) 회차 수(5)와 같지 않다 — 회차를 돌려 쓰되 문항은 다 넣는다.
  */
 export function createInitialSchedules(
   quizItemIds: string[], now: Date, timeZone: string, reviewHour: number,
 ): ScheduleSeed[] {
-  return quizItemIds.slice(0, MAX_REPETITION).map((quizItemId, i) => ({
-    quizItemId,
-    repetition: i,
-    intervalDays: BASE_INTERVALS[i],
-    ease: EASE_DEFAULT,
-    dueAt: atLocalHour(now, BASE_INTERVALS[i], timeZone, reviewHour),
-  }))
+  // 문항 하나가 회차 하나를 맡아 망각곡선 위에 흩어진다.
+  // 예전에는 slice(0, MAX_REPETITION) 이었다 — 문항이 정확히 5개일 때만 우연히 맞았고,
+  // 문항 수가 분야마다 달라지자(4~7) 여섯 번째부터는 복습이 아예 안 잡혔다.
+  // 문항 수와 회차 수는 다른 것이므로 회차는 돌려 쓰고, 문항은 하나도 빠뜨리지 않는다.
+  // 같은 날 겹치는 것은 알림 단계의 하루 상한이 다음 날로 민다.
+  return quizItemIds.map((quizItemId, i) => {
+    const repetition = i % MAX_REPETITION
+    return {
+      quizItemId,
+      repetition,
+      intervalDays: BASE_INTERVALS[repetition],
+      ease: EASE_DEFAULT,
+      dueAt: atLocalHour(now, BASE_INTERVALS[repetition], timeZone, reviewHour),
+    }
+  })
 }
 
 // ── 응답 처리 (SM-2 lite) ────────────────────────────────────────────────

@@ -12,7 +12,7 @@ import { INK_RUNTIME_JS } from './ink-runtime.g.ts'
 import { SECTIONS } from './worksheet-types.ts'
 import { icon } from './icons.g.ts'
 import { renderFigure, FIGURE_CSS } from './figures.ts'
-import type { WorksheetContent, InlineNode, RenderContext, Activity } from './worksheet-types.ts'
+import type { WorksheetContent, InlineNode, RenderContext, Activity, Boundary, EvidenceKind } from './worksheet-types.ts'
 
 /** HTML 텍스트 이스케이프. 속성값까지 안전하도록 따옴표도 처리한다. */
 export function esc(s: string): string {
@@ -41,8 +41,39 @@ const p = (nodes: InlineNode[]) => `<p class="p">${inlineToHtml(nodes)}</p>`
 const ul = (items: string[], cls = 'list') =>
   `<ul class="${cls}">${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`
 
-const inkSpace = (size: 'sm' | 'md' | 'lg') =>
-  `<div class="ink-space" data-ink-space="${size}"></div>`
+/**
+ * 서술형 응답 자리. 타이핑과 필기를 나란히 둔다.
+ *
+ * 필기만 두면 키보드로 쓰는 사람이 답을 남길 방법이 없고(그 답은 시스템도 못 읽는다),
+ * 타이핑만 두면 식·화살표·그림으로 생각하는 사람이 막힌다. 둘 다 둔다.
+ * textarea 는 JS 없이도 쓸 수 있는 진짜 입력칸이다.
+ *
+ * 필기 좌표는 [data-ink-anchor] 요소 기준으로 정규화되므로 리플로우가 나도 획이 따라간다.
+ */
+const ANSWER_PLACEHOLDER = '여기에 타이핑해도 되고, 아래 칸에 펜으로 써도 돼요'
+const answerBlock = (responseId: string, size: 'sm' | 'md', attemptLabel = '내 답을 적었어요') =>
+  `<div class="answer" data-answer-for="${esc(responseId)}">` +
+  `<textarea class="answer__text" data-answer-text rows="3" placeholder="${ANSWER_PLACEHOLDER}"></textarea>` +
+  `<div class="ink-space" data-ink-space="${size}" data-ink-anchor="${esc(responseId)}"></div>` +
+  `</div>` +
+  `<label class="act__attempt"><input type="checkbox" data-attempted> ${esc(attemptLabel)}</label>`
+
+/**
+ * 규칙의 경계. 입문용 단순화가 절대법칙으로 굳는 것을 막는 V6 의 핵심 장치다.
+ * 두 줄 구조(성립 / 안 성립)가 눈에 보여야 한다 — 그래서 콜아웃만큼 존재감이 있되,
+ * '주의' 색(빨강)은 쓰지 않는다. 예외는 경고가 아니라 개념의 일부다.
+ */
+const boundaryBlock = (b: Boundary) =>
+  `<div class="boundary">` +
+  `<p class="boundary__holds">언제 성립하냐면 — ${esc(b.holds_when)}</p>` +
+  `<p class="boundary__breaks">이럴 땐 성립하지 않아요 — ${esc(b.breaks_when)}</p>` +
+  `</div>`
+
+/** 문제가 무엇을 증거로 삼는가. 개수가 아니라 종류가 숙달을 증명한다. */
+const EVIDENCE_LABEL: Record<EvidenceKind, string> = {
+  recall: '되살리기', apply: '적용', compute: '계산', graph: '그래프 판단',
+  table: '표에서 추정', diagnose: '원인 진단', edge_case: '예외 찾기', explain: '설명하기',
+}
 
 /** 콜아웃. 남은 용도는 '흔한 실수' 하나뿐이라 종류를 고정한다. */
 const callout = (label: string, body: string) =>
@@ -130,8 +161,8 @@ const RENDERERS: ((c: WorksheetContent, ctx: RenderContext) => string)[] = [
       hook,
       `<div class="act act--explain" data-response-id="${rid}" data-response-kind="written">` +
       `<p class="act__label">${icon('activity', 15)}왜 그렇게 골랐나요</p>` +
-      `<p class="act__prompt">${esc(c.predict.reasoning_prompt)}</p>${inkSpace('sm')}` +
-      `<label class="act__attempt"><input type="checkbox" data-attempted> 내 생각을 적었어요</label></div>`,
+      `<p class="act__prompt">${esc(c.predict.reasoning_prompt)}</p>` +
+      `${answerBlock(rid, 'sm', '내 생각을 적었어요')}</div>`,
     ].join('')
   },
 
@@ -155,6 +186,8 @@ const RENDERERS: ((c: WorksheetContent, ctx: RenderContext) => string)[] = [
     const blocks = c.concept.blocks.map((b) => [
       `<p class="h3">${esc(b.heading)}</p>`,
       p(b.body),
+      // 규칙 바로 뒤에 경계. 예시·활동보다 앞이라야 "이 규칙은 조건부다" 가 먼저 읽힌다.
+      b.boundary ? boundaryBlock(b.boundary) : '',
       b.figure && figById.has(b.figure) ? renderFigure(figById.get(b.figure)!) : '',
       b.example ? renderExample(b.example) : '',
       b.activity ? renderActivity(b.activity) : '',
@@ -192,8 +225,9 @@ const RENDERERS: ((c: WorksheetContent, ctx: RenderContext) => string)[] = [
               `<input type="radio" name="${rid}" value="${esc(ch)}"><span class="act__key">${String.fromCharCode(9312 + j)}</span><span>${esc(ch)}</span></label>`
           }).join('')}</div><p class="act__fb" data-feedback-slot hidden></p>` +
           `<button type="button" class="quiz__submit" data-submit>제출</button>`
-        : `${inkSpace(q.kind === 'explain' ? 'md' : 'sm')}<label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label>`
+        : answerBlock(rid, q.kind === 'explain' ? 'md' : 'sm')
       return `<li class="quiz__item" data-quiz-id="${esc(id)}" data-response-id="${rid}" data-response-kind="${q.choices ? 'choice' : 'written'}"${answerIdx >= 0 ? ` data-answer="${answerIdx}"` : ''}>
+        <p class="quiz__head"><span class="quiz__evidence">${esc(EVIDENCE_LABEL[q.evidence])}</span></p>
         <p class="quiz__q">${esc(q.question)}</p>
         ${choices}
         <details class="quiz__a">
@@ -220,9 +254,16 @@ const RENDERERS: ((c: WorksheetContent, ctx: RenderContext) => string)[] = [
 
   // ⑥ 나가기 전에 — 처음 예측으로 돌아가고, 한 문장으로 말하고, 틀린 문장을 골라낸다.
   //    완료감이 아니라 증거를 남기는 단계라 필기칸 두 개는 전부 프롬프트 뒤에만 있다.
-  (c) => [
-    `<div class="reflect"><p class="reflect__prompt">${icon('pen', 16)}${esc(c.exit_ticket.revisit)}</p>${inkSpace('md')}</div>`,
-    `<div class="reflect"><p class="reflect__prompt">${icon('pen', 16)}${esc(c.exit_ticket.one_sentence)}</p>${inkSpace('sm')}</div>`,
+  (c) => {
+    // 두 성찰 칸도 응답이다. id 를 주면 런타임이 '적었는지' 를 기록할 수 있고,
+    // 필기 획도 이 id 에 묶인다(리플로우가 나도 획이 따라간다).
+    const revisitId = nextResponseId('reflect')
+    const sentenceId = nextResponseId('reflect')
+    return [
+    `<div class="reflect" data-response-id="${revisitId}" data-response-kind="written">` +
+    `<p class="reflect__prompt">${icon('pen', 16)}${esc(c.exit_ticket.revisit)}</p>${answerBlock(revisitId, 'md')}</div>`,
+    `<div class="reflect" data-response-id="${sentenceId}" data-response-kind="written">` +
+    `<p class="reflect__prompt">${icon('pen', 16)}${esc(c.exit_ticket.one_sentence)}</p>${answerBlock(sentenceId, 'sm')}</div>`,
     renderActivity(c.exit_ticket.misconception_check, { prefix: 'exit' }),
     `<p class="h3">스스로 점검</p>`,
     ul(c.exit_ticket.self_check, 'checklist'),
@@ -234,7 +275,8 @@ const RENDERERS: ((c: WorksheetContent, ctx: RenderContext) => string)[] = [
         <p class="card__why">${esc(n.why)}</p>
         <p class="card__hint">${NEXT_STEP_HINT[n.difficulty_delta] ?? ''}</p>
       </div>`).join('')}</div>`,
-  ].join(''),
+    ].join('')
+  },
 ]
 
 const ACTIVITY_LABEL: Record<string, string> = {
@@ -261,14 +303,13 @@ function renderActivity(a: Activity, opts: { prefix: string; feedbackByOption?: 
       }).join('')}</div>` +
       `<p class="act__fb" data-feedback-slot hidden></p>`
     : ''
-  const ink = a.kind === 'compute' || a.kind === 'draw' || a.kind === 'explain'
-    ? inkSpace(a.kind === 'explain' ? 'sm' : 'md') : ''
+  // 서술형 활동(계산·표시·설명)은 타이핑칸과 필기칸을 나란히 받는다.
   // 채점은 못 하지만 시도했는지는 기록한다. 시도 전에는 답이 열리지 않는다.
-  const attempted = written
-    ? `<label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label>` : ''
+  const answer = written
+    ? answerBlock(rid, a.kind === 'explain' ? 'sm' : 'md') : ''
   return `<div class="act act--${a.kind}" data-response-id="${rid}" data-response-kind="${choice ? 'choice' : 'written'}">` +
     `<p class="act__label">${icon('activity', 15)}${esc(ACTIVITY_LABEL[a.kind])}</p>` +
-    `<p class="act__prompt">${esc(a.prompt)}</p>${opts_}${ink}${attempted}` +
+    `<p class="act__prompt">${esc(a.prompt)}</p>${opts_}${answer}` +
     `<details class="act__reveal"><summary>${icon('info', 14)}${choice ? '고르면 열려요' : '적고 나서 열기'}</summary>` +
     `<div class="act__reveal-body">${esc(a.reveal)}</div></details></div>`
 }
@@ -318,6 +359,18 @@ export function renderWorksheet(c: WorksheetContent, ctx: RenderContext): string
     `연습 ${c.time.practice}분`,
     `선택 과제 ${c.time.optional}분`,
   ].map((m) => `<span>${esc(m)}</span>`).join('')
+  // 로버스트니스 예산. 학습자보다 검토자를 위한 것이라 맨 끝에 조용히 접어 둔다.
+  // 좋은 학습지는 많이 담은 것이 아니라 예상 가능한 실패를 막은 것이다 — 그 목록을 숨기지 않는다.
+  const guards = c.robustness.guards
+  const guardsBlock = guards.length
+    ? `<details class="guards"><summary class="guards__summary">이 학습지가 막으려 한 오해 ${guards.length}가지</summary>` +
+      `<ol class="guards__list">${guards.map((g) => {
+        const where = SECTIONS.find((s) => s.key === g.where)?.title ?? g.where
+        return `<li class="guards__item"><p class="guards__mis">${esc(g.misconception)}</p>` +
+          `<p class="guards__how"><span class="guards__where">${esc(where)}</span>${esc(g.how)}</p></li>`
+      }).join('')}</ol></details>`
+    : ''
+
   const assumes = `<p class="sheet__assumes"><span class="sheet__assumes-label">이 학습지는 이걸 안다고 봐요</span>${
     c.assumes.map((a) => `<span>${esc(a)}</span>`).join('')}</p>`
 
@@ -340,6 +393,7 @@ export function renderWorksheet(c: WorksheetContent, ctx: RenderContext): string
 ${assumes}
 </header>
 ${sections}
+${guardsBlock}
 <footer class="sheet__footer"><span>${esc(c.topic_normalized)}</span><span>ONPAR</span></footer>
 <canvas class="ink-layer" id="ink-layer" aria-hidden="true"></canvas>
 </article>

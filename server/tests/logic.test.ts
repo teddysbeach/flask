@@ -89,8 +89,9 @@ const outline = {
   observation_gist: '관찰 요지',
   concept_blocks: content.concept.blocks.map((b) => ({ heading: b.heading, gist: b.heading, activity_kind: b.activity?.kind ?? null })),
   facts: content.concept.context_note!.facts.map((t) => ({ when: t.when, what: t.what, confidence: t.confidence })),
-  quiz_plan: content.practice.quiz.map((q) => ({ asks: q.question, answer_gist: q.answer, source_block: 0, difficulty: q.difficulty, transfer: q.transfer })),
+  quiz_plan: content.practice.quiz.map((q) => ({ asks: q.question, answer_gist: q.answer, source_block: 0, difficulty: q.difficulty, transfer: q.transfer, evidence: q.evidence })),
   next_steps: content.exit_ticket.next_steps,
+  guards: content.robustness.guards,
 }
 
 test('설계대로 쓴 학습지는 통과한다', () => {
@@ -148,6 +149,88 @@ test('표기 흔들림(공백·괄호)까지 실패로 만들지는 않는다', 
   assert.equal(crossCheck(outline, ok).ok, true, crossCheck(outline, ok).violations.join(' / '))
 })
 
+test('집필이 문제의 증거 종류를 바꾸면 잡는다 (V6)', () => {
+  const bad = structuredClone(content)
+  bad.practice.quiz[0].evidence = bad.practice.quiz[0].evidence === 'recall' ? 'explain' : 'recall'
+  const r = crossCheck(outline, bad)
+  assert.equal(r.ok, false, '증거 종류를 바꿨는데 통과했다')
+  assert.ok(r.violations.some((v) => v.includes('evidence')), r.violations.join(' / '))
+})
+
+test('집필이 막기로 한 오해를 빼면 잡는다 (V6)', () => {
+  const bad = structuredClone(content)
+  bad.robustness.guards = bad.robustness.guards.slice(0, 3)
+  bad.robustness.guards[0].misconception = '설계에 없던 오해예요'
+  const r = crossCheck(outline, bad)
+  assert.equal(r.ok, false, '로버스트니스 예산을 바꿨는데 통과했다')
+})
+
+console.log('\n▸ 로버스트니스 (V6)')
+
+test('규칙의 경계가 하나도 없으면 거부한다', () => {
+  const bad = structuredClone(raw)
+  for (const b of bad.concept.blocks) b.boundary = null
+  assert.throws(() => validateWorksheet(bad), (e) =>
+    e.issues.some((i) => i.includes('boundary') || i.includes('경계')))
+})
+
+test('이상화 그림이 생략한 것을 안 밝히면 거부한다', () => {
+  const bad = structuredClone(raw)
+  const i = bad.figures.findIndex((f) => ['distribution', 'tonecurve', 'swatches'].includes(f.spec.kind))
+  if (i < 0) return
+  bad.figures[i].model_note = null
+  assert.throws(() => validateWorksheet(bad), (e) => e.issues.some((x) => x.includes('model_note')))
+})
+
+test('정성 모형에 정량 눈금을 붙이면 거부한다 (가짜 정밀도)', () => {
+  const bad = structuredClone(raw)
+  const i = bad.figures.findIndex((f) => f.spec.kind !== 'plot')
+  if (i < 0) return
+  bad.figures[i].readout = 'quantitative'
+  assert.throws(() => validateWorksheet(bad), (e) => e.issues.some((x) => x.includes('readout')))
+})
+
+test('문제가 전부 recall/apply 면 거부한다 (절차 숙련은 개념 이해가 아니다)', () => {
+  const bad = structuredClone(raw)
+  bad.practice.quiz.forEach((q, i) => { q.evidence = i % 2 ? 'recall' : 'apply' })
+  assert.throws(() => validateWorksheet(bad), (e) =>
+    e.issues.some((x) => x.includes('recall/apply') || x.includes('증거 종류')))
+})
+
+test('증거 종류가 3가지 미만이면 거부한다', () => {
+  const bad = structuredClone(raw)
+  bad.practice.quiz.forEach((q) => { q.evidence = 'graph' })
+  assert.throws(() => validateWorksheet(bad), (e) => e.issues.some((x) => x.includes('증거 종류')))
+})
+
+test('적어 놓고 안 막은 오해를 잡는다', () => {
+  const bad = structuredClone(content)
+  bad.robustness.guards[0] = {
+    misconception: '해왕성 자기장이 목성 대적점을 밀어낸다고 믿어요',
+    where: 'concept', how: '막았다고 주장만 해요',
+  }
+  const r = pedagogyLint(bad)
+  assert.ok(r.errors.some((e) => e.rule === '오해 방어 미이행'),
+    'guards 에 적기만 하고 본문에서 안 막았는데 통과했다')
+})
+
+test('실제로 막은 오해는 지적하지 않는다', () => {
+  const r = pedagogyLint(content)
+  assert.equal(r.errors.filter((e) => e.rule === '오해 방어 미이행').length, 0,
+    r.errors.map((e) => e.detail).join(' / '))
+  assert.equal(r.metrics.guardsCovered, r.metrics.guards)
+})
+
+test('실물 자극이 필요한 분야는 사진 없이 출고를 막는다 (재작성으로는 못 고친다)', () => {
+  const art = validateWorksheet(JSON.parse(readFileSync(resolve(HERE, 'fixtures/worksheet-color-grading.json'), 'utf8')))
+  const r = pedagogyLint(art)
+  assert.ok(r.releaseBlockers.some((b) => b.rule === '실물 자극 없음'),
+    '색을 판단하는 학습지가 사진 없이 출고 가능으로 나왔다')
+  // 블로커는 errors 가 아니다 — errors 에 넣으면 파이프라인이 두 번 재작성하고 환불한다
+  assert.equal(r.errors.length, 0, '출고 블로커가 재작성 대상으로 새어 들어갔다')
+  assert.equal(r.ok, true, 'ok 는 errors 만 본다')
+})
+
 console.log('\n▸ 복습 스케줄')
 
 const SEOUL = 'Asia/Seoul'
@@ -158,6 +241,20 @@ test('초기 5회차가 1/3/7/16/35일로 잡힌다', () => {
   const s = rev.createInitialSchedules(['a', 'b', 'c', 'd', 'e'], now, SEOUL, 21)
   assert.deepEqual(s.map((x) => x.intervalDays), [1, 3, 7, 16, 35])
   assert.deepEqual(s.map((x) => x.quizItemId), ['a', 'b', 'c', 'd', 'e'], '회차마다 다른 문제를 낸다')
+})
+
+test('문항 수가 회차 수와 달라도 모든 문항이 복습에 들어간다', () => {
+  // 문항 수는 이제 분야가 정한다(4~7). 회차 수(5)와 다르다.
+  for (const n of [4, 5, 6, 7]) {
+    const ids = Array.from({ length: n }, (_, i) => `q${i}`)
+    const s = rev.createInitialSchedules(ids, now, SEOUL, 21)
+    assert.equal(s.length, n, `문항 ${n}개 중 ${s.length}개만 복습이 잡혔다`)
+    assert.deepEqual([...new Set(s.map((x) => x.quizItemId))].sort(), ids.sort(), '빠지거나 중복된 문항이 있다')
+    for (const x of s) {
+      assert.ok(x.repetition >= 0 && x.repetition < rev.MAX_REPETITION, `회차가 범위를 벗어났다: ${x.repetition}`)
+      assert.equal(x.intervalDays, rev.BASE_INTERVALS[x.repetition], '회차와 간격이 어긋났다')
+    }
+  }
 })
 
 test('알림 시각이 사용자 로컬 21시로 정확히 떨어진다', () => {
@@ -429,7 +526,7 @@ test('구조화 출력 스키마의 필수 키가 검증기 출력과 정확히 
   const keys = Object.keys(content).sort()
   const req = [...WORKSHEET_SCHEMA.required].sort()
   assert.deepEqual(req, keys, `스키마 required 와 검증기 출력이 다르다`)
-  assert.equal(WORKSHEET_SCHEMA.properties.schema_version.const ?? WORKSHEET_SCHEMA.properties.schema_version.enum?.[0], 2)
+  assert.equal(WORKSHEET_SCHEMA.properties.schema_version.const ?? WORKSHEET_SCHEMA.properties.schema_version.enum?.[0], 3)
 })
 
 test('설계도 스키마는 흔한 오답과 다음 단계를 요구한다', () => {

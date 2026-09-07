@@ -8,6 +8,7 @@ echo "▸ 생성물 드리프트 검사"
 node "$ROOT/design/build_tokens.mjs" --check
 node "$ROOT/design/build_icons.mjs" --check
 node "$ROOT/server/build-runtime.mjs" --check
+node "$ROOT/server/build-assets.mjs" --check
 
 echo "▸ 필기 코어"
 node "$ROOT/app/tests/ink-core.test.mjs" | tail -2

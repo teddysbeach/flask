@@ -5,6 +5,62 @@ import type { Deps, ErrorCode } from './pipeline.ts'
 import type { LlmClient } from './claude-parse.ts'
 import type { WorksheetContent } from './worksheet-types.ts'
 
+/**
+ * 학습지 런타임(ONPAR_LEARN.exportResponses())이 내는 응답 이력 한 줄.
+ * 이 모양이 worksheet-interact.js 의 RESPONSES 레코드와 그대로 같아야 한다 —
+ * 두 벌을 유지하면 반드시 어긋나고, 어긋나면 조용히 잘못된 학습분석이 나온다.
+ */
+export interface ResponseRow {
+  id: string                       // 문서 내 결정론적 id (quiz-3, reason-1 …)
+  kind: 'choice' | 'written'
+  questionId?: string | null       // quiz_items.id (연습 문제일 때만)
+  firstChoice?: number | null
+  finalChoice?: number | null
+  correct?: boolean | null
+  attempts?: unknown[]
+  text?: string | null
+  chars?: number
+  inkStrokes?: number
+  msSincePrompt?: number | null
+}
+
+/**
+ * 응답 저장. 생성 파이프라인과 무관한 경로라 Deps 밖에 둔다
+ * (파이프라인은 학습지를 만들고, 이건 학습지를 푼 결과를 받는다).
+ *
+ * upsert 키는 (worksheet_id, response_id) — 같은 자리에 두 줄이 생기면
+ * "마지막 응답"이 무엇인지 알 수 없게 된다. 행은 갱신되지만 attempts 는 클라이언트가
+ * 이력 전체를 통째로 보내므로 첫 응답은 그대로 남는다.
+ */
+export function responsesRepo(admin: any) {
+  return {
+    async saveResponses(worksheetId: string, userId: string, rows: ResponseRow[]) {
+      if (!rows || rows.length === 0) return
+      const now = new Date().toISOString()
+      const { error } = await admin.from('responses').upsert(
+        rows.map((r) => ({
+          worksheet_id: worksheetId,
+          user_id: userId,
+          response_id: r.id,
+          quiz_item_id: r.questionId ?? null,
+          kind: r.kind,
+          first_choice: r.firstChoice ?? null,
+          final_choice: r.finalChoice ?? null,
+          correct: r.correct ?? null,
+          attempts: r.attempts ?? [],
+          text: r.text ?? null,
+          chars: r.chars ?? 0,
+          ink_strokes: r.inkStrokes ?? 0,
+          ms_since_prompt: r.msSincePrompt ?? null,
+          updated_at: now,
+        })),
+        { onConflict: 'worksheet_id,response_id' },
+      )
+      if (error) throw error
+    },
+  }
+}
+
 export function makeDeps(admin: any, llm: LlmClient): Deps {
   return {
     llm,

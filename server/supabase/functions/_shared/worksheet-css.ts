@@ -14,13 +14,18 @@ body {
   color: var(--ds-color-text-primary);
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
+  overflow-wrap: break-word;
 }
 
-/* 문서 폭은 고정이다. 리플로우가 일어나면 기존 필기 좌표가 전부 어긋난다.
-   화면 맞춤은 .sheet-scaler 의 transform: scale() 로만 처리한다. */
+/* 문서 폭은 유동이다(V6).
+   예전에는 820px 고정을 .sheet-scaler 의 scale() 로 줄여 화면에 맞췄는데,
+   390px 폰에서 배율이 0.47 이 되어 18px 본문이 8px 로 보였다. 읽을 수 없는 학습지였다.
+   필기 좌표는 이제 [data-ink-anchor] 요소 기준 정규화라 리플로우가 나도 획이 따라간다.
+   --ds-sheet-width 는 최대 폭 토큰으로 그대로 남는다(런타임·테스트가 읽는다). */
 .sheet-scaler { transform-origin: top left; will-change: transform; }
 .sheet {
-  width: var(--ds-sheet-width);
+  width: 100%;
+  max-width: var(--ds-sheet-width, 820px);
   margin: 0 auto;
   padding: var(--ds-sheet-padding);
   background: var(--ds-paper);
@@ -268,6 +273,52 @@ code, .code {
   border-radius: var(--ds-radius-lg);
 }
 
+/* ── 서술형 응답: 타이핑 + 필기 ──
+   둘 중 하나만 두면 한쪽 학습자가 답을 남길 방법을 잃는다.
+   textarea 는 JS 없이도 쓰이는 진짜 입력칸이라 어떤 경우에도 숨기지 않는다. */
+.answer { margin-top: 16px; }
+.answer__text {
+  display: block; width: 100%;
+  font-family: inherit; font-size: 16px; line-height: 1.75;
+  color: var(--ds-color-text-primary);
+  padding: 12px 14px; min-height: 88px; resize: vertical;
+  background: var(--ds-color-surface-raised);
+  border: 1px solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-lg);
+}
+.answer__text::placeholder { color: var(--ds-color-text-placeholder); }
+.answer__text:focus-visible {
+  outline: 2px solid var(--ds-color-border-focus); outline-offset: 1px;
+  border-color: var(--ds-color-border-focus);
+}
+.answer .ink-space { margin-top: 10px; }
+
+/* ── 규칙의 경계 ──
+   V6 의 핵심 장치. 단순화가 절대법칙으로 굳는 것을 막는다.
+   콜아웃만큼 존재감이 있어야 하지만 '주의' 색(빨강)은 쓰지 않는다 —
+   예외는 경고가 아니라 개념의 일부다. 두 줄 구조가 눈에 보이게 가로선으로 나눈다. */
+.boundary {
+  margin: 0 0 var(--ds-sheet-block-gap);
+  padding: 4px 22px;
+  background: var(--ds-color-surface-sunken);
+  border-left: 3px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-lg);
+  max-width: 40em;
+}
+.boundary__holds, .boundary__breaks {
+  display: grid; grid-template-columns: 18px 1fr; gap: 10px; align-items: start;
+  font-size: 16px; line-height: 1.7;
+  margin: 0; padding: 16px 0;
+  color: var(--ds-color-text-primary);
+}
+.boundary__breaks { border-top: 1px solid var(--ds-color-border-subtle); }
+.boundary__holds::before, .boundary__breaks::before {
+  font-size: 15px; font-weight: 700; line-height: 1.8;
+  color: var(--ds-color-text-tertiary);
+}
+.boundary__holds::before { content: "○"; }
+.boundary__breaks::before { content: "×"; }
+
 /* ── 선택지 (라디오) ── */
 .act__opt {
   display: grid; grid-template-columns: auto 26px 1fr; gap: 10px; align-items: start;
@@ -457,19 +508,29 @@ code, .code {
 .quiz { list-style: none; margin: 0; padding: 0; counter-reset: q; }
 .quiz__item { padding: 32px 0; border-top: 1px solid var(--ds-color-border-subtle); }
 .quiz__item:first-child { border-top: 0; padding-top: 0; }
+/* 번호 줄. 번호 옆에 이 문제가 무엇을 증거로 삼는지 작은 라벨로 붙는다.
+   문제는 개수가 아니라 증거 종류로 센다 — 그 사실이 학습자에게도 보여야 한다. */
+.quiz__head {
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 0 8px;
+}
+.quiz__head::before {
+  counter-increment: q; content: "Q" counter(q);
+  font-size: 13px; font-weight: 700; letter-spacing: .1em;
+  color: var(--ds-color-brand-primary);
+}
+.quiz__evidence {
+  font-size: 12px; font-weight: 700; line-height: 1.4;
+  padding: 3px 9px; border-radius: var(--ds-radius-full);
+  background: var(--ds-color-surface-sunken);
+  color: var(--ds-color-text-tertiary);
+}
 .quiz__q {
   font-size: var(--ds-ws-quiz-question-size);
   line-height: var(--ds-ws-quiz-question-lh);
   font-weight: var(--ds-ws-quiz-question-weight);
   letter-spacing: -.2px;
   margin: 0; max-width: 36em;
-}
-.quiz__q::before {
-  counter-increment: q; content: "Q" counter(q);
-  display: block;
-  font-size: 13px; font-weight: 700; letter-spacing: .1em;
-  color: var(--ds-color-brand-primary);
-  margin-bottom: 8px;
 }
 .quiz__choices { list-style: none; margin: 16px 0 0; padding: 0; max-width: 36em; }
 .quiz__choices { margin: 16px 0 0; }
@@ -528,10 +589,44 @@ code, .code {
    스크롤 동기화 문제가 애초에 생기지 않는다. docs/plan/06-annotation.md §1 */
 .ink-layer {
   position: absolute; top: 0; left: 0;
-  width: var(--ds-sheet-width); height: 100%;
+  width: 100%; height: 100%;
   pointer-events: none;
   touch-action: none;
   z-index: 10;
+}
+
+/* ── 로버스트니스 예산 (접힘) ──
+   이 학습지가 막으려 한 오해와 어디서 어떻게 막았는지.
+   학습자보다 검토자를 위한 것이라 맨 끝에서 조용히 있어야 한다 — 회색, 작은 글씨, 접힘. */
+.guards {
+  margin: 56px 0 0; max-width: 40em;
+  border-top: 1px solid var(--ds-color-border-subtle);
+}
+.guards__summary {
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer; list-style: none;
+  padding: 16px 0 0;
+  font-size: 13px; font-weight: 700;
+  color: var(--ds-color-text-tertiary);
+}
+.guards__summary::-webkit-details-marker { display: none; }
+.guards__summary::before { content: "＋"; font-weight: 400; }
+.guards[open] .guards__summary::before { content: "－"; }
+.guards__list { list-style: none; margin: 8px 0 0; padding: 0; }
+.guards__item { padding: 14px 0; border-top: 1px solid var(--ds-color-border-subtle); }
+.guards__item:first-child { border-top: 0; }
+.guards__mis {
+  margin: 0; font-size: 14px; line-height: 1.65;
+  color: var(--ds-color-text-secondary);
+}
+.guards__mis::before { content: "오해 "; color: var(--ds-color-text-tertiary); font-weight: 700; }
+.guards__how {
+  margin: 5px 0 0; font-size: 13px; line-height: 1.65;
+  color: var(--ds-color-text-tertiary);
+}
+.guards__where {
+  display: inline-block; margin-right: 7px;
+  font-weight: 700; color: var(--ds-color-text-secondary);
 }
 
 .sheet__footer {
@@ -541,9 +636,67 @@ code, .code {
   display: flex; justify-content: space-between; align-items: center;
 }
 
+/* ── 좁은 화면 ──
+   축소해서 보여 주는 것은 대응이 아니다. 폰에서도 본문이 본문 크기로 읽혀야 한다. */
+@media (max-width: 900px) {
+  .sheet { padding: 56px 44px; }
+  .sheet__header { margin-bottom: 48px; }
+  .sec { margin-bottom: 56px; }
+}
+@media (max-width: 640px) {
+  :root {
+    --ds-ws-body-size: 17px;
+    --ds-ws-lead-size: 19px;
+    --ds-ws-section-title-size: 22px;
+    --ds-ws-quiz-question-size: 17px;
+    --ds-ink-space-md: 128px;
+    --ds-ink-space-lg: 180px;
+  }
+  .sheet { padding: 36px 20px; }
+  .sheet__header { margin-bottom: 36px; }
+  .sheet__title { font-size: 29px; letter-spacing: -.6px; margin-bottom: 14px; }
+  .sheet__one-liner { font-size: 17px; margin-bottom: 18px; }
+  .sheet__meta { flex-wrap: wrap; gap: 6px; padding-top: 16px; }
+  .sec { margin-bottom: 48px; }
+  .sec__head { margin-bottom: 24px; padding-bottom: 14px; }
+  .h3 { font-size: 18px; margin: 30px 0 14px; }
+  .problem { padding-left: 18px; margin-bottom: 30px; }
+  .problem__q { font-size: 21px; }
+  .analogy { padding-left: 16px; margin-bottom: 28px; }
+  .act { padding: 18px 16px; border-radius: var(--ds-radius-xl); }
+  .act__opt { margin: 0 -8px; padding: 10px 8px; }
+  .callout, .par, .ex-scene { padding: 18px 16px; }
+  .par { grid-template-columns: 32px 1fr; gap: 12px; }
+  .par__badge { width: 32px; height: 32px; }
+  .boundary { padding: 2px 16px; }
+  .quiz__item { padding: 24px 0; }
+  .quiz__a-body, .ex-code, .ex-calc, .ex-steps { padding: 16px; }
+  .ex-compare { padding: 4px 16px; }
+  /* 좁은 폭에서 '전 → 후' 를 세 칸으로 두면 양쪽이 두 글자씩 남는다 */
+  .ex-compare__row { grid-template-columns: 1fr; gap: 4px; }
+  .ex-compare__arrow { text-align: left; }
+  .timeline li { grid-template-columns: 1fr; gap: 2px; }
+  .notice li { grid-template-columns: 26px 1fr; gap: 10px; }
+  .notice li::before { width: 24px; height: 24px; }
+  .answer__text { font-size: 15px; min-height: 76px; }
+  .sheet__footer { margin-top: 48px; }
+}
+
 @media print {
   body { background: #fff; }
   .sec { break-inside: avoid; }
-  .quiz__a { display: none; }
+  /* 접어 둔 보조 정보는 종이에서 열려 있어야 한다 — 종이에는 삼각형을 누를 방법이 없다. */
+  details { display: block; }
+  details > * { display: revert; }
+  details::details-content { content-visibility: visible; display: block; }
+  .context, .guards { break-inside: avoid; }
+  /* 답은 예외다. 문제와 정답이 같은 종이에 인쇄되면 문제가 아니다. */
+  .quiz__a, .act__reveal { display: none; }
+  /* 타이핑칸은 종이 위에서 그냥 줄 없는 빈 칸이다. 배경·그림자 없이 테두리만. */
+  .answer__text {
+    background: none; box-shadow: none; resize: none;
+    border: 1px solid var(--ds-color-border-strong);
+  }
+  .answer__text::placeholder { color: transparent; }
 }
 `

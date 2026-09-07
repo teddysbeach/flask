@@ -3,21 +3,45 @@
 // DOM 글루(ink-runtime.js)와 분리한 이유는 이 부분이 틀리면 사용자 필기가 어긋나거나
 // 사라지는데, 그런 버그는 브라우저에서 눈으로 잡기 어렵기 때문이다. 여기는 전부 테스트한다.
 //
-// 좌표 규약: 모든 좌표는 "문서 좌표계"다. 단위는 CSS px, 기준은 --ds-sheet-width(820).
-// 화면 크기·줌·기기와 무관한 절대 좌표라, 회전하거나 다른 기기에서 열어도 같은 자리에 남는다.
-// docs/plan/06-annotation.md §2
+// 좌표 규약(v2): 스트로크마다 둘 중 하나다.
+//
+//   anchor: "quiz-3"  → points 는 그 요소 기준 정규화 좌표(0~1). 요소 밖으로 삐져나간 획도
+//                       담아야 하므로 0~1 을 벗어나는 값을 허용한다.
+//   anchor: null      → 예전(v1)처럼 문서 좌표(CSS px, --ds-sheet-width 기준).
+//
+// 앵커를 도입한 이유: v1 은 "필기가 안 어긋나는 것"을 위해 "콘텐츠가 반응형이 되는 것"을
+// 포기한 설계였다. 820px 고정 문서를 390px 폰에서 0.48배로 축소하면 18px 본문이 8.6px 가 된다.
+// 콘텐츠가 주체이고 필기가 따라가야 한다. 요소 기준 좌표면 레이아웃이 바뀌어도
+// "그 문장 위에 그은 밑줄" 이 계속 그 문장 위에 남는다.
+// docs/plan/06-annotation.md §2 (v2 로 갱신 필요)
 
-export const FORMAT_VERSION = 1
+export const FORMAT_VERSION = 2
 
-/** 좌표 저장 정밀도. 소수점 1자리면 시각적 차이가 없으면서 용량이 크게 준다. */
+/** 문서 좌표 저장 정밀도. 소수점 1자리면 시각적 차이가 없으면서 용량이 크게 준다. */
 export const COORD_PRECISION = 1
+
+/**
+ * 정규화 좌표 저장 정밀도. 문서 좌표와 단위가 다르므로 자릿수도 다르다.
+ * 4자리면 820px 요소에서 0.08px, 390px 요소에서 0.04px — 눈에 보이지 않는다.
+ * 1자리로 두면 82px 격자로 뭉개져 필기가 아니라 점묘가 된다.
+ */
+export const ANCHOR_COORD_PRECISION = 4
 
 /** 점 간 최소 거리(문서 px). 이보다 촘촘한 점은 버린다. */
 export const MIN_POINT_DISTANCE = 0.7
 
+/** 앵커 좌표에서의 최소 거리(요소 폭 대비 비율). 390px 요소에서 약 0.8px. */
+export const MIN_ANCHOR_POINT_DISTANCE = 0.002
+
 export const TOOLS = ['pen', 'highlighter']
 
-const round = (n) => Math.round(n * 10 ** COORD_PRECISION) / 10 ** COORD_PRECISION
+const roundTo = (n, p) => Math.round(n * 10 ** p) / 10 ** p
+const round = (n) => roundTo(n, COORD_PRECISION)
+
+/** 정규화 좌표 반올림. 두 좌표계가 섞이므로 반올림 함수도 둘이다. */
+export function roundAnchorCoord(n) {
+  return roundTo(n, ANCHOR_COORD_PRECISION)
+}
 
 // ── 좌표 변환 ────────────────────────────────────────────────────────────
 
@@ -39,32 +63,91 @@ export function fitScale(viewportWidth, sheetWidth, maxScale = 1) {
   return Math.min(viewportWidth / sheetWidth, maxScale)
 }
 
+/**
+ * 화면 좌표 → 앵커 요소 기준 정규화 좌표.
+ *
+ * rect 는 앵커 요소의 사각형(getBoundingClientRect 든, 캔버스 기준으로 옮긴 것이든
+ * left/top/width/height 만 있으면 된다). 폭·높이로 나누므로 배율(transform: scale)이
+ * 걸려 있어도 결과가 같다 — 이게 반응형에서 필기가 안 어긋나는 이유다.
+ *
+ * 0~1 로 자르지 않는다. 밑줄이 문장 끝을 살짝 넘어가는 건 정상이고, 자르면 획이 뭉개진다.
+ */
+export function toAnchorCoords(clientX, clientY, anchorRect) {
+  const w = anchorRect.width || 1
+  const h = anchorRect.height || 1
+  return {
+    x: roundAnchorCoord((clientX - anchorRect.left) / w),
+    y: roundAnchorCoord((clientY - anchorRect.top) / h),
+  }
+}
+
+/** 정규화 좌표 → 화면(또는 캔버스) 좌표. toAnchorCoords 의 역함수. */
+export function fromAnchorCoords(nx, ny, anchorRect) {
+  return {
+    x: anchorRect.left + nx * (anchorRect.width || 1),
+    y: anchorRect.top + ny * (anchorRect.height || 1),
+  }
+}
+
+/**
+ * 앵커 스트로크를 그릴 수 있는 좌표계로 편다.
+ * anchorRect 가 없으면(요소가 사라졌으면) null — 버리는 게 아니라 "이번엔 그리지 않는다".
+ */
+export function projectStroke(stroke, anchorRect) {
+  if (!stroke.anchor) return stroke
+  if (!anchorRect) return null
+  const points = []
+  for (let i = 0; i < stroke.points.length; i += 3) {
+    const { x, y } = fromAnchorCoords(stroke.points[i], stroke.points[i + 1], anchorRect)
+    points.push(x, y, stroke.points[i + 2])
+  }
+  return { ...stroke, points }
+}
+
+/** 앵커별 스트로크 수. 서술형 응답의 inkStrokes 가 이걸 읽는다. */
+export function countByAnchor(strokes) {
+  const out = {}
+  for (const s of strokes) {
+    if (!s.anchor) continue
+    out[s.anchor] = (out[s.anchor] || 0) + 1
+  }
+  return out
+}
+
 // ── 스트로크 ─────────────────────────────────────────────────────────────
 
 /**
  * 스트로크 하나. points 는 [x, y, pressure] 를 3개씩 평탄화한 배열이다.
  * 객체 배열({x,y,p})보다 JSON 크기가 60% 가까이 작다. 필기가 쌓이면 이 차이가 커진다.
  */
-export function createStroke(tool, color, width, id, createdAt) {
+export function createStroke(tool, color, width, id, createdAt, anchor = null) {
   if (!TOOLS.includes(tool)) throw new Error(`알 수 없는 도구: ${tool}`)
-  return { id, tool, color, width, createdAt, points: [] }
+  return { id, tool, color, width, createdAt, anchor: anchor || null, points: [] }
 }
 
 /**
  * 점을 추가한다. 너무 촘촘하면 버리고 false 를 돌려준다.
  * 첫 점은 언제나 추가한다(탭 한 번도 점으로 남아야 한다).
+ *
+ * 반올림 자릿수와 최소 거리는 스트로크의 좌표계를 따른다 — 앵커 스트로크에 문서 좌표용
+ * 0.7px 을 쓰면 정규화 공간에서 0.7 은 요소의 70% 라 획이 두 점으로 줄어든다.
  */
-export function appendPoint(stroke, x, y, pressure, minDistance = MIN_POINT_DISTANCE) {
+export function appendPoint(stroke, x, y, pressure, minDistance) {
+  const anchored = !!stroke.anchor
+  const r = anchored ? roundAnchorCoord : round
+  const min = minDistance != null
+    ? minDistance
+    : (anchored ? MIN_ANCHOR_POINT_DISTANCE : MIN_POINT_DISTANCE)
   const p = clampPressure(pressure)
   const n = stroke.points.length
   if (n === 0) {
-    stroke.points.push(round(x), round(y), p)
+    stroke.points.push(r(x), r(y), p)
     return true
   }
   const lastX = stroke.points[n - 3]
   const lastY = stroke.points[n - 2]
-  if (Math.hypot(x - lastX, y - lastY) < minDistance) return false
-  stroke.points.push(round(x), round(y), p)
+  if (Math.hypot(x - lastX, y - lastY) < min) return false
+  stroke.points.push(r(x), r(y), p)
   return true
 }
 
@@ -213,29 +296,49 @@ export function serialize(strokes, meta) {
       color: s.color,
       width: s.width,
       created_at: s.createdAt,
+      anchor: s.anchor || null,
       points: s.points,
     })),
   }
 }
 
+/**
+ * 옛 포맷을 현재 포맷으로 올린다. 원본은 건드리지 않는다.
+ *
+ * v1 → v2: 스트로크에 anchor: null 을 채운다. v1 좌표는 전부 문서 좌표였고
+ * anchor: null 이 정확히 그 뜻이므로 좌표는 손대지 않는다. 손대면 옛 필기가 움직인다.
+ */
+export function migrateStrokes(doc) {
+  if (!doc || typeof doc !== 'object') return doc
+  const v = doc.format_version
+  if (v === FORMAT_VERSION) return doc
+  if (v === 1) {
+    return {
+      ...doc,
+      format_version: FORMAT_VERSION,
+      strokes: (doc.strokes || []).map((s) => ({ ...s, anchor: s.anchor ?? null })),
+    }
+  }
+  // 미래 포맷을 억지로 읽으면 필기가 깨진 채로 저장될 수 있다. 읽지 않는 쪽이 안전하다.
+  throw new Error(`지원하지 않는 필기 포맷 버전: ${v} (지원: ${FORMAT_VERSION} 이하)`)
+}
+
 export function deserialize(data) {
   if (!data || typeof data !== 'object') return { strokes: [], deleted: new Set(), meta: null }
-  if (data.format_version !== FORMAT_VERSION) {
-    // 미래 포맷을 억지로 읽으면 필기가 깨진 채로 저장될 수 있다. 읽지 않는 쪽이 안전하다.
-    throw new Error(`지원하지 않는 필기 포맷 버전: ${data.format_version} (지원: ${FORMAT_VERSION})`)
-  }
-  const strokes = (data.strokes || []).map((s) => ({
+  const doc = migrateStrokes(data)
+  const strokes = (doc.strokes || []).map((s) => ({
     id: s.id,
     tool: s.tool,
     color: s.color,
     width: s.width,
     createdAt: s.created_at,
+    anchor: s.anchor || null,
     points: s.points || [],
   }))
   return {
     strokes,
-    deleted: new Set(data.deleted || []),
-    meta: { sheetWidth: data.sheet_width, docHeight: data.doc_height },
+    deleted: new Set(doc.deleted || []),
+    meta: { sheetWidth: doc.sheet_width, docHeight: doc.doc_height },
   }
 }
 

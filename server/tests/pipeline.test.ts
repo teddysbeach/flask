@@ -20,8 +20,9 @@ const OUTLINE = {
   observation_gist: '관찰 요지',
   concept_blocks: CONTENT.concept.blocks.map((b: any) => ({ heading: b.heading, gist: b.heading, activity_kind: b.activity?.kind ?? null })),
   facts: (CONTENT.concept.context_note?.facts ?? []).map((t: any) => ({ when: t.when, what: t.what, confidence: t.confidence })),
-  quiz_plan: CONTENT.practice.quiz.map((q: any) => ({ asks: q.question, answer_gist: q.answer, source_block: 0, difficulty: q.difficulty, transfer: q.transfer })),
+  quiz_plan: CONTENT.practice.quiz.map((q: any) => ({ asks: q.question, answer_gist: q.answer, source_block: 0, difficulty: q.difficulty, transfer: q.transfer, evidence: q.evidence })),
   next_steps: CONTENT.exit_ticket.next_steps,
+  guards: CONTENT.robustness.guards,
 }
 
 let passed = 0
@@ -116,8 +117,8 @@ await test('설계 → 집필 → 렌더 → 저장 → 복습 스케줄까지 �
   assert.ok(log.uploads[0].path.startsWith('u1/'), `경로 규약 위반: ${log.uploads[0].path}`)
   assert.ok(log.uploads[0].bytes > 20000, '렌더 결과가 비정상적으로 작다')
   assert.equal(log.contents.length, 1)
-  assert.equal(log.contents[0].meta.quizItemIds.length, 5)
-  assert.equal(log.schedules[0].seeds.length, 5, '복습 5회차가 안 생겼다')
+  assert.equal(log.contents[0].meta.quizItemIds.length, CONTENT.practice.quiz.length)
+  assert.equal(log.schedules[0].seeds.length, CONTENT.practice.quiz.length, '문항 수만큼 복습이 안 생겼다')
   assert.equal(log.quotaRefunded, 0, '성공했는데 환불했다')
 })
 
@@ -149,7 +150,7 @@ const failCases: [string, any, string][] = [
   ['모델이 거절하면', { planThrows: new LlmRefusalError('cyber') }, 'llm_refused'],
   ['설계 응답이 깨졌으면', { planThrows: new LlmOutputError('JSON 파싱 실패') }, 'llm_upstream_error'],
   ['설계도에 quiz_plan 이 없으면', { outline: { title: 'x' } }, 'plan_schema_invalid'],
-  ['집필이 스키마를 계속 어기면', { content: { ...CONTENT, practice: { ...CONTENT.practice, quiz: CONTENT.practice.quiz.slice(0, 4) } } }, 'draft_schema_invalid'],
+  ['집필이 스키마를 계속 어기면', { content: { ...CONTENT, practice: { ...CONTENT.practice, quiz: CONTENT.practice.quiz.slice(0, 3) } } }, 'draft_schema_invalid'],
 ]
 
 for (const [label, over, expected] of failCases) {

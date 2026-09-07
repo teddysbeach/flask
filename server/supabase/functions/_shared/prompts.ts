@@ -8,7 +8,7 @@
 // 구조화 출력이 지원하는 키워드: type/properties/required/additionalProperties:false/enum/const/anyOf/minItems/maxItems.
 // (SDK 가 지원하지 않는 제약은 떼어내고 보내므로, 개수·길이는 어차피 validate.ts 가 다시 본다.)
 
-import { SCHEMA_VERSION, SECTION_KEYS, CATEGORIES, EXAMPLE_KINDS } from './worksheet-types.ts'
+import { SCHEMA_VERSION, SECTION_KEYS, CATEGORIES, EXAMPLE_KINDS, EVIDENCE_KINDS } from './worksheet-types.ts'
 
 // ── 공통 조각 ────────────────────────────────────────────────────────────
 
@@ -83,14 +83,37 @@ const FIGURE_SPEC = {
       kind: { type: 'string', const: 'swatches' },
       rows: arr(obj({ label: str, colors: arr(str, 2, 6) }), 1, 6),
     }),
+    /**
+     * 실물 자극. 도식으로 대신할 수 없는 지각 판단(색이 도는 것을 알아보기)에만 쓴다.
+     * assetId 는 server/assets/manifest.json 에 등록된 것만 — 없는 id 는 검증기가 거부한다.
+     */
+    obj({
+      kind: { type: 'string', const: 'photo' },
+      assetId: str,
+      compareAssetId: nullable(str),
+    }),
   ],
 }
 
-const FIGURE = obj({ id: str, title: str, alt: str, spec: FIGURE_SPEC, drawTask: nullable(str) })
+/**
+ * model_note: 이 그림이 생략한 것. 이상화 표상(distribution·tonecurve·swatches)은 필수.
+ * readout: 화면의 수가 그림에서 실제로 계산되는 값일 때만 'quantitative'. 기본은 'qualitative'.
+ */
+const FIGURE = obj({
+  id: str, title: str, alt: str, spec: FIGURE_SPEC, drawTask: nullable(str),
+  model_note: nullable(str),
+  readout: enumOf(['quantitative', 'qualitative']),
+})
+
+/** 규칙의 경계. 조건과 반례가 둘 다 있어야 절대법칙이 되지 않는다. */
+const BOUNDARY = obj({ holds_when: str, breaks_when: str })
+
+const GUARD = obj({ misconception: str, where: enumOf(SECTION_KEYS), how: str })
 
 const CONCEPT_BLOCK = obj({
   heading: str,
   body: INLINE,
+  boundary: nullable(BOUNDARY),
   example: nullable(EXAMPLE),
   figure: nullable(str),
   activity: nullable(ACTIVITY(ACTIVITY_KINDS)),
@@ -105,6 +128,7 @@ const QUIZ_ITEM = obj({
   explanation: str,
   difficulty: int,
   transfer: enumOf(TRANSFER),
+  evidence: enumOf(EVIDENCE_KINDS),
   misconceptions: arr(obj({ wrong: str, why: str }), 0, 3),
 })
 
@@ -123,8 +147,11 @@ export const OUTLINE_SCHEMA = obj({
   facts: arr(FACT, 0, 3),
   quiz_plan: arr(obj({
     asks: str, answer_gist: str, source_block: int, difficulty: int, transfer: enumOf(TRANSFER),
-  }), 5, 5),
+    evidence: enumOf(EVIDENCE_KINDS),
+  }), 4, 7),
   next_steps: arr(NEXT_STEP, 2, 4),
+  /** 이 학습지가 막아야 할 오해 3~5개. 집필은 이걸 막도록 쓴다. */
+  guards: arr(GUARD, 3, 5),
 })
 
 // ── ② 학습지 스키마 (WorksheetContent) ───────────────────────────────────
@@ -132,7 +159,7 @@ export const OUTLINE_SCHEMA = obj({
 /** WorksheetContent 의 최상위 키 전부. 하나라도 빠지면 validate.ts 가 거부하므로 required 와 같아야 한다. */
 export const WORKSHEET_TOP_LEVEL_KEYS = [
   'schema_version', 'title', 'topic_normalized', 'level', 'category', 'one_liner', 'time', 'assumes',
-  'glossary', 'guide_notes', 'figures',
+  'glossary', 'guide_notes', 'figures', 'robustness',
   'problem', 'predict', 'observe', 'concept', 'practice', 'exit_ticket',
 ] as const
 
@@ -149,6 +176,9 @@ export const WORKSHEET_SCHEMA = obj({
   glossary: arr(obj({ term: str, plain: str }), 3, 6),
   guide_notes: arr(obj({ section: enumOf(SECTION_KEYS), note: str }), 1, 2),
   figures: arr(FIGURE, 0, 6),
+
+  /** 로버스트니스 예산. 무엇을 만들지보다 어떤 실패를 막을지를 먼저 적는다. */
+  robustness: obj({ guards: arr(GUARD, 3, 5) }),
 
   problem: obj({
     situation: INLINE,
@@ -173,7 +203,7 @@ export const WORKSHEET_SCHEMA = obj({
     context_note: nullable(obj({ text: INLINE, facts: arr(FACT, 0, 3) })),
   }),
   practice: obj({
-    quiz: arr(QUIZ_ITEM, 5, 5),
+    quiz: arr(QUIZ_ITEM, 4, 7),
     extended: arr(obj({ title: str, detail: str, estimated_minutes: int }), 0, 3),
   }),
   exit_ticket: obj({
@@ -221,10 +251,27 @@ const SEQUENCE_RULES = `## 6단계 — 순서가 곧 설계입니다
 const MISCONCEPTION_RULES = `## 헤드라인이 오개념을 심으면 본문에서 정정해도 늦습니다
 제목·한 줄 정의·블록 제목·활동의 reveal·정답·해설에 다음 같은 문장을 쓰지 않습니다(검사기가 분야별로 거부합니다):
 - 물리: "보는 순간/지켜보면 바뀐다"(관측 = 사람의 시선), "전자는 알갱이가 아니다", "탐지기를 켜면 두 무더기", "슬릿 하나면 봉우리 하나", "둘 다 아니다", "질문이 답의 모양을 정한다".
-- 수학: "극한은 도착은 못 한다", "정확히 되려면 h를 0으로 놓는다", "초등학교 산수", "dx 는 아주 작은 변화량", "시험에 자주 나온다".
-- 미술: "한 번 날아간 건 복구할 수 없다", "스포이드로 찍으면 한 번에 맞는다", "교정은 정답이 있다", "회색 카드는 조명을 덜 받아서", "항상 이 순서대로", "따뜻하게 = 하이라이트 노랑 + 그림자 파랑".
+- 수학: "극한은 도착은 못 한다", "정확히 되려면 h를 0으로 놓는다", "초등학교 산수", "dx 는 아주 작은 변화량", "시험에 자주 나온다", 조건 없는 "두 점을 붙이면 접선"(도함수가 존재할 때만입니다).
+- 미술: "한 번 날아간 건 복구할 수 없다", "스포이드로 찍으면 한 번에 맞는다", "교정은 정답이 있다", "회색 카드는 조명을 덜 받아서", "항상 이 순서대로", "따뜻하게 = 하이라이트 노랑 + 그림자 파랑", "하늘이 파랗면 색온도를 내린 거예요" 같은 단정적 역진단(색보정은 결과에서 원인을 유일하게 되짚을 수 없습니다 — "~일 가능성이 있어요").
+- CS: "상태는 저장하지 않는다"(projection·read model·snapshot 은 실제로 저장합니다), "로그가 곧 이벤트 스트림이다"(운영 로그·감사 로그·도메인 이벤트는 목적도 권위도 다릅니다), "이벤트에는 계산한 값을 절대 넣지 않는다"(그 시점에 결정된 도메인 사실 — 적용 가격·환율·세금 — 은 남겨야 할 수 있습니다. 편의용 파생 캐시만 금지입니다).
 반박하는 문맥("…라고 생각하기 쉽지만 아니에요")은 됩니다. 문제(question)에서 오개념을 인용해 반박하게 하는 것도 됩니다.
 입문용 단순화는 단순화라고 밝힙니다. 비유와 사실의 경계를 표시합니다.`
+
+const ROBUSTNESS_RULES = `## 로버스트니스 — 단순화를 법칙처럼 숨기지 않습니다
+입문교육에서 단순화는 죄가 아닙니다. 단순화를 현실의 법칙처럼 숨기는 것이 문제입니다.
+"정상 케이스에서 잘 설명되는 학습지" 가 아니라 "오해·예외·입력 실패·기기 차이·새로운 문제에서도 개념이 무너지지 않는 학습지" 를 씁니다.
+
+1. 규칙은 3단으로 씁니다: 핵심 규칙 → 적용 조건(boundary.holds_when) → 깨지는 경우(boundary.breaks_when).
+   규칙을 세우는 블록에는 boundary 를 반드시 답니다. 조건 없는 규칙은 학생이 규칙만 떼어 절대법칙으로 기억합니다.
+   예: "두 점을 붙이면 접선" → holds_when "그 점에서 도함수가 존재할 때" / breaks_when "|x| 의 x=0 처럼 양쪽 기울기가 다르면 성립하지 않아요".
+2. 모든 이상화 그림은 model_note 로 자기가 생략한 것을 말합니다. distribution·tonecurve·swatches 는 필수입니다.
+   예: "이 색 견본은 실제 사진의 혼합광을 단순화한 모형이에요. 한 장면에 광원이 둘이면 이렇게 한 줄로 놓을 수 없어요."
+3. 가짜 정밀도 금지. 정성 모형에서 나온 퍼센트·소수점을 쓰지 않습니다. "간섭이 30% 남아요" 는 측정값이 아니라 그림이 만든 눈금인데 학생은 숫자를 법칙으로 기억합니다.
+   정성 모형은 낮음/중간/높음 으로만 말합니다. figures[].readout 은 화면의 수가 그림에서 실제로 계산되는 값일 때(plot 의 할선 기울기 같은)만 "quantitative", 나머지는 전부 "qualitative".
+4. 문제는 개수가 아니라 증거 종류(evidence)로 고릅니다. 목표마다 그것을 증명할 증거를 고르고, 그래서 4~7개 중에서 필요한 만큼만 냅니다. 채우기 위한 문제는 내지 않습니다.
+5. robustness.guards 에 적은 오해는 반드시 그 오해가 막힌다고 적은 섹션(where)의 본문에서 실제로 막습니다. 검사기가 그 섹션 텍스트에서 확인합니다 — 목록만 적고 본문에서 안 막으면 반려됩니다.
+6. 절대화 금지: "언제나·항상·무조건 ~한다", "반드시 ~된다" 로 규칙을 세우지 않습니다. 조건이 있으면 조건을 씁니다.
+   역진단도 단정하지 않습니다 — 하나의 결과에서 원인을 유일하게 역추론할 수 없으면 "~일 가능성이 있어요" 로 씁니다.`
 
 // ── ① 설계 프롬프트 ──────────────────────────────────────────────────────
 
@@ -233,13 +280,27 @@ export const PLAN_SYSTEM_PROMPT = `당신은 ONPAR 학습지의 설계자입니�
 
 ${SEQUENCE_RULES}
 
+## 먼저 정할 것 — guards (무엇에 버티는 학습지인가)
+좋은 학습지는 많은 내용을 담은 것이 아니라 예상 가능한 실패를 얼마나 잘 막는가로 평가됩니다.
+그래서 단계를 짜기 전에 guards 를 먼저 정합니다.
+- guards: 3~5개. 이 주제에서 학생이 흔히 굳히는 오해를 적습니다. "학생이 실제로 그렇게 기억하는 문장" 이어야 합니다 — 아무도 하지 않는 오해는 막을 가치가 없습니다.
+  - misconception: 오해를 학생의 말로. ("이벤트에는 계산한 값을 절대 넣지 않는다")
+  - where: 그 오해를 막을 단계(problem/predict/observe/concept/practice/exit_ticket).
+  - how: 거기서 어떻게 막는지. 경계를 보여줄지, 반례 문제로 낼지, 예측의 오답으로 끌어낼지.
+- guards 를 정한 다음 그것을 막도록 나머지를 설계합니다. prediction 의 흔한 오답, concept_blocks 의 경계, quiz_plan 의 반례 문제가 guards 와 맞물려야 합니다.
+- 집필 단계는 guards 를 바꿀 수 없고, 검사기는 "적어 놓은 오해를 본문이 실제로 막았는지" 를 그 섹션 텍스트에서 확인합니다. 막을 자신이 없는 오해는 적지 마세요.
+
 ## 설계에서 결정할 것
 - problem_gist: 학생이 아직 풀 수 없는 구체적 상황 하나. 정의가 아니라 장면. 학습지 전체가 이 문제로 수렴합니다.
 - prediction: 설명 전에 고를 질문 하나. options 는 2~5개이고 common_wrong(흔한 오답)이 options 안에 글자 그대로 들어 있어야 합니다. 흔한 오답은 "학생이 실제로 그렇게 생각하는 것" 이어야지 말도 안 되는 오답이면 안 됩니다.
 - observation_gist: 예측을 시험할 증거. 어떤 도형(plot/distribution/tonecurve/swatches)이나 예시(code/calc/steps/compare/scene)를 보여줄지. 수학·과학·미술·경제는 도형이 하나는 있어야 합니다.
 - concept_blocks: 2~5개. 각 블록의 heading, 요지(gist), 학생이 할 활동 종류(activity_kind: predict/decide/compute/draw/explain, 없으면 null). 절반 이상에 활동이 있어야 합니다.
 - facts: 맥락 노트(짧은 역사·배경)에 쓸 사실 0~3개. 확실성(confidence) 판단은 여기서 끝납니다. high 만 학습지에 실립니다 — medium/low 는 검증하거나 빼는 것이지 배지를 달아 내보내지 않습니다. 확실하지 않으면 내지 마세요. 사실이 필요 없는 주제면 빈 배열.
-- quiz_plan: 정확히 5개. 각각 무엇을 묻고(asks) 정답의 요지(answer_gist), 근거 블록 번호(source_block, 0부터), 난이도(1~3, 3이 하나는 있게), 전이 거리(transfer). far 가 2개 이상이어야 합니다 — near 는 개념 예시를 숫자만 바꾼 것, far 는 새 상황·반례·오류 분석.
+- quiz_plan: 4~7개. 개수는 목표가 정합니다 — 문제는 개수가 아니라 증거 종류(evidence)로 고릅니다. 목표마다 그것을 증명할 증거를 고르고, 그래서 필요한 만큼만 냅니다.
+  각각 무엇을 묻고(asks) 정답의 요지(answer_gist), 근거 블록 번호(source_block, 0부터), 난이도(1~3, 3이 하나는 있게), 전이 거리(transfer), 증거 종류(evidence).
+  - evidence: recall(정의 되살리기) / apply(배운 절차를 새 숫자에) / compute(직접 계산) / graph(식 없이 그림에서 판단) / table(수치 표에서 추정) / diagnose(결과를 보고 원인 후보 좁히기) / edge_case(규칙이 깨지는 경우 식별) / explain(말로 설명).
+  - 서로 다른 evidence 가 3가지 이상이어야 하고, graph·table·diagnose·edge_case 중 최소 하나는 있어야 합니다. 전부 recall/apply 면 절차 숙련만 재고 개념 이해는 못 잽니다.
+  - far 가 2개 이상 — near 는 개념 예시를 숫자만 바꾼 것, far 는 새 상황·반례·오류 분석.
 - next_steps: 2~4개. easier("이게 막히면 먼저") 를 하나 이상 넣습니다. 강요가 아니라 초대입니다.
 - level 과 category 는 입력을 그대로 따릅니다. category 는 math/science/cs/art/music/language/finance/history/business/health/cooking/psychology 중 하나.
 
@@ -259,12 +320,13 @@ ${SEQUENCE_RULES}
 - problem: situation 은 구체적 상황(InlineNode 배열). 개념 이름·정의로 열지 않습니다. question 은 학습지가 끝나면 답할 수 있어야 하는 질문 하나, 물음표로 끝냅니다. why_it_matters 는 이걸 못 풀면 실제로 무엇이 곤란한지. objectives 는 정확히 3개, "이해한다/알 수 있다" 가 아니라 증거가 남는 행동("…를 계산한다", "…를 그림에 표시한다").
 - predict: hook 은 predict 또는 decide 만. options 에 설계도의 common_wrong 을 글자 그대로 넣습니다. reveal 은 방향만 주고 답을 다 풀지 않습니다(320자 이내). reasoning_prompt 는 왜 그렇게 골랐는지 한 줄 쓰게 합니다.
 - observe: 설명이 없습니다. intro 는 무엇을 보게 되는지, notice 는 "…를 보세요" 관찰 지시 2~4개, compare 는 예측과 비교하는 활동(decide: 맞았나/틀렸나/반만, 또는 explain: 무엇이 달랐나). figure 나 example 중 하나는 반드시. 도형이 있는 분야면 관찰의 증거는 도형이어야 합니다.
-- concept: analogy(일상 비유)가 먼저, 관찰한 것에 이름을 붙입니다. blocks 는 2~5개, 절반 이상에 activity. 각 블록은 비유 → 정의 → 예시 → 경계 순서. common_mistake 는 그 블록에서 자주 틀리는 것. 활동의 reveal 은 정답이 아니라 "왜". context_note 는 없어도 되고(null), 있으면 설계도의 facts 를 confidence 까지 글자 그대로 옮깁니다. confidence 가 high 가 아닌 사실은 검사기가 거부합니다. 맥락 노트는 개념 핵심의 절반을 넘지 않게.
+- concept: analogy(일상 비유)가 먼저, 관찰한 것에 이름을 붙입니다. blocks 는 2~5개, 절반 이상에 activity. 각 블록은 비유 → 정의 → 예시 → 경계 순서. 규칙을 세우는 블록에는 boundary({holds_when, breaks_when})를 답니다 — 최소 한 블록에는 반드시 있어야 하고, 규칙이 여럿이면 규칙마다 답니다. 규칙을 세우지 않는 블록만 null. common_mistake 는 그 블록에서 자주 틀리는 것. 활동의 reveal 은 정답이 아니라 "왜". context_note 는 없어도 되고(null), 있으면 설계도의 facts 를 confidence 까지 글자 그대로 옮깁니다. confidence 가 high 가 아닌 사실은 검사기가 거부합니다. 맥락 노트는 개념 핵심의 절반을 넘지 않게.
 - glossary: 3~6개, 학습지에 나온 어려운 말을 그 자리에서 푸는 한 줄. guide_notes: 1~2개, section 은 problem/predict/observe/concept/practice/exit_ticket 중 하나.
-- practice.quiz: 정확히 5개, 설계도의 quiz_plan 순서·난이도·transfer 를 그대로. far 가 2개 이상. 정답 문구가 개념 텍스트에 그대로 있으면 안 됩니다. 문제마다 misconceptions(자주 나오는 오답 + 왜 그렇게 생각하는지)를 넣습니다 — 난이도 2 이상은 필수. explanation 은 "개념 N번에서 말했어요" 같은 위치 안내가 아니라 왜 그 답인지, 왜 다른 답은 틀리는지. multiple_choice 만 choices(3~5개)를 쓰고 나머지는 null.
+- practice.quiz: 설계도의 quiz_plan 과 같은 개수(4~7개), 순서·난이도·transfer·evidence 를 그대로 옮깁니다. far 가 2개 이상. 서로 다른 evidence 가 3가지 이상이고 graph·table·diagnose·edge_case 중 하나는 있어야 합니다 — 문제는 개수가 아니라 증거 종류로 고릅니다. 정답 문구가 개념 텍스트에 그대로 있으면 안 됩니다. 문제마다 misconceptions(자주 나오는 오답 + 왜 그렇게 생각하는지)를 넣습니다 — 난이도 2 이상은 필수. explanation 은 "개념 N번에서 말했어요" 같은 위치 안내가 아니라 왜 그 답인지, 왜 다른 답은 틀리는지. multiple_choice 만 choices(3~5개)를 쓰고 나머지는 null.
 - practice.extended: 0~3개의 확장 과제, 각각 estimated_minutes(5~180). 손을 움직이는 것. "생각해 보세요" 는 과제가 아닙니다.
 - time: core(10~120, ①~④), practice(0~90, ⑤ 문제), optional 은 extended 의 estimated_minutes 합계와 정확히 같아야 합니다. 확장 과제가 없으면 0.
 - assumes: 1~4개, 이 학습지가 전제하는 것. "입문" 이 무엇에 대한 입문인지 숨기지 않습니다.
+- robustness.guards: 설계도의 guards 를 개수와 오해 문장 그대로 옮깁니다(3~5개). 집필 단계가 막을 오해를 바꿀 수 없습니다. 그리고 각 guard 의 where 로 적은 섹션 본문에서 그 오해를 실제로 막습니다 — 오해에 쓴 낱말이 그 섹션에 나오게, 정면으로.
 - exit_ticket: revisit 은 처음 예측과 지금 생각이 어디서 달라졌는지 쓰게 하고, one_sentence 는 개념을 한 문장으로, misconception_check 는 decide 로 틀린 문장 하나 고르기(options 3개 이상, 맞는 문장 사이에 틀린 문장 하나), self_check 는 2~4개의 증거 기반 점검("…를 직접 해 보았다" 처럼; "~할 수 있어요" 만 나열하지 않습니다), apply_tomorrow 는 내일 해볼 한 가지, next_steps 는 설계도의 것을 제목 그대로 2~4개.
 
 ## 도형 — 구조화된 스펙만
@@ -273,12 +335,18 @@ SVG·HTML·이미지 URL 을 쓰지 않습니다. figures[] 에 스펙을 쓰고
 - distribution: { kind:"distribution", panels:[{title, profile:"two-humps"|"fringes"|"fringes-weak"|"single"}] (1~4개), interactive:boolean, idealized:true } — 나란한 분포/세기 패턴. idealized 는 항상 true(슬릿 폭을 무시한 이상화 모델임을 그림에 밝힙니다).
 - tonecurve: { kind:"tonecurve", curve:"linear"|"s-mild"|"s-strong"|"inverse-s", clipHighlights:boolean } — 톤 커브 + 히스토그램.
 - swatches: { kind:"swatches", rows:[{label, colors:["#RRGGBB"…] (2~6개)}] (1~6줄) } — 색 견본 비교.
+- photo: { kind:"photo", assetId:"…", compareAssetId:"…"|null } — 실물 사진. 도식으로 대신할 수 없는 지각 판단(실제 사진에서 색이 도는 것을 알아보기)에만. assetId 는 등록된 자산 목록에 있는 것만 쓸 수 있고, 없는 id 는 검증기가 거부합니다. 등록된 자산이 없으면 photo 를 쓰지 마세요.
+그리고 도형마다 두 가지를 더 씁니다.
+- model_note: 이 그림이 생략한 것(문장). distribution·tonecurve·swatches 는 반드시 씁니다. 이상화가 아니면 null.
+- readout: "quantitative" 는 화면의 수가 그림에서 실제로 계산되는 값일 때만(plot 의 할선 기울기). 그 외에는 전부 "qualitative" — 정성 모형의 퍼센트는 학생이 법칙으로 기억합니다.
 
 ## 예시(Example)
 kind 는 code/calc/steps/compare/scene 중 분야에 자연스러운 것. 수학은 calc, 과학은 steps 나 compare, 미술은 compare 나 scene, CS 는 code. language 는 code 일 때만 쓰고 나머지는 null.
 
 ## 인라인 텍스트
 situation/intro/body/context_note.text 는 InlineNode 배열입니다: [{type:"text"|"bold"|"em"|"code", value:"…"}]. 마크다운이나 HTML 태그를 쓰지 않습니다. 강조는 bold/em 노드로, 식별자·수식 조각은 code 노드로.
+
+${ROBUSTNESS_RULES}
 
 ${VOICE_RULES}
 

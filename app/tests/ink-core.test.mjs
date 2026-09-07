@@ -40,6 +40,97 @@ test('fitScale 은 축소만 하고 확대하지 않는다', () => {
   assert.equal(ink.fitScale(1640, 820), 1, '큰 화면에서 문서를 늘리면 안 된다')
 })
 
+console.log('\n▸ 요소 기준 좌표 (v2 앵커)')
+
+const rect = (left, top, width, height) => ({ left, top, width, height })
+
+test('정규화 좌표 왕복(round-trip)이 정확하다', () => {
+  const r = rect(40, 200, 820, 120)
+  for (const [cx, cy] of [[40, 200], [450, 260], [860, 320], [123.45, 271.8]]) {
+    const n = ink.toAnchorCoords(cx, cy, r)
+    const back = ink.fromAnchorCoords(n.x, n.y, r)
+    assert.ok(Math.abs(back.x - cx) < 0.06, `x 왕복 오차: ${cx} → ${back.x}`)
+    assert.ok(Math.abs(back.y - cy) < 0.02, `y 왕복 오차: ${cy} → ${back.y}`)
+  }
+})
+
+test('요소 폭이 820 → 390 으로 바뀌어도 같은 상대 위치에 남는다', () => {
+  // 820px 데스크톱에서 문장 한가운데(정확히는 60% 지점)에 밑줄을 긋는다
+  const wide = rect(0, 0, 820, 100)
+  const n = ink.toAnchorCoords(492, 40, wide)          // 60%, 40%
+  assert.deepEqual(n, { x: 0.6, y: 0.4 })
+  // 390px 폰에서 같은 요소가 좁아지고 아래로 밀려도
+  const narrow = rect(12, 640, 390, 180)
+  const p = ink.fromAnchorCoords(n.x, n.y, narrow)
+  assert.equal(p.x, 12 + 390 * 0.6, '가로 상대 위치가 유지되어야 한다')
+  assert.equal(p.y, 640 + 180 * 0.4, '세로 상대 위치가 유지되어야 한다')
+})
+
+test('요소 밖으로 삐져나간 획도 담는다 (0~1 로 자르지 않는다)', () => {
+  const r = rect(100, 100, 200, 50)
+  const n = ink.toAnchorCoords(320, 90, r)
+  assert.ok(n.x > 1 && n.y < 0, `밑줄이 문장 끝을 넘어가는 건 정상이다: ${JSON.stringify(n)}`)
+  const back = ink.fromAnchorCoords(n.x, n.y, r)
+  assert.ok(Math.abs(back.x - 320) < 0.02 && Math.abs(back.y - 90) < 0.02)
+})
+
+test('정규화 좌표는 소수 4자리로 반올림한다 (문서 좌표는 1자리 그대로)', () => {
+  const r = rect(0, 0, 3, 7)                            // 1/3, 1/7 → 무한소수
+  const n = ink.toAnchorCoords(1, 1, r)
+  assert.equal(n.x, 0.3333, `4자리여야 한다: ${n.x}`)
+  assert.equal(n.y, 0.1429, `4자리여야 한다: ${n.y}`)
+  assert.equal(ink.COORD_PRECISION, 1, '문서 좌표 정밀도는 그대로여야 한다')
+  assert.equal(ink.ANCHOR_COORD_PRECISION, 4)
+
+  // 스트로크에 담을 때도 좌표계에 맞는 자릿수를 쓴다 — 섞이면 필기가 뭉개진다
+  const anchored = ink.createStroke('pen', '#111', 2, 'a1', 0, 'quiz-1')
+  ink.appendPoint(anchored, 0.123456, 0.987654, 1, 0)
+  assert.deepEqual(anchored.points.slice(0, 2), [0.1235, 0.9877])
+  const doc = ink.createStroke('pen', '#111', 2, 'd1', 0)
+  ink.appendPoint(doc, 0.123456, 0.987654, 1, 0)
+  assert.deepEqual(doc.points.slice(0, 2), [0.1, 1])
+})
+
+test('앵커 스트로크의 최소 거리는 요소 비율 기준이다', () => {
+  const s = ink.createStroke('pen', '#111', 2, 'a2', 0, 'quiz-1')
+  assert.equal(ink.appendPoint(s, 0.5, 0.5, 1), true)
+  assert.equal(ink.appendPoint(s, 0.5005, 0.5, 1), false, '요소의 0.05% 이동은 버려야 한다')
+  assert.equal(ink.appendPoint(s, 0.52, 0.5, 1), true)
+  assert.equal(ink.pointCount(s), 2, '문서 좌표용 0.7 을 쓰면 획이 두 점으로 줄어든다')
+})
+
+test('앵커 스트로크를 화면 좌표로 편다 (projectStroke)', () => {
+  const s = ink.createStroke('pen', '#111', 2, 'a3', 0, 'q')
+  ink.appendPoint(s, 0, 0, 1, 0)
+  ink.appendPoint(s, 1, 1, 0.5, 0)
+  const p = ink.projectStroke(s, rect(10, 20, 100, 40))
+  assert.deepEqual(p.points, [10, 20, 1, 110, 60, 0.5])
+  assert.deepEqual(s.points, [0, 0, 1, 1, 1, 0.5], '원본은 그대로여야 한다')
+})
+
+test('앵커가 사라진 획은 버리지 않고 이번 프레임만 건너뛴다', () => {
+  const s = ink.createStroke('pen', '#111', 2, 'a4', 0, '사라진-요소')
+  ink.appendPoint(s, 0.5, 0.5, 1, 0)
+  assert.equal(ink.projectStroke(s, null), null, '그릴 수 없다는 신호는 null 이다')
+  const data = ink.serialize([s], { sheetWidth: 820, docHeight: 1000 })
+  const back = ink.deserialize(JSON.parse(JSON.stringify(data)))
+  assert.equal(back.strokes.length, 1, '데이터 손실은 사용자 데이터 손상급이다')
+  assert.equal(back.strokes[0].anchor, '사라진-요소')
+})
+
+test('앵커 없는 획은 예전처럼 문서 좌표 그대로 그린다', () => {
+  const s = stroke([[100, 200]])
+  assert.equal(s.anchor, null)
+  assert.equal(ink.projectStroke(s, null), s, '문서 좌표 획은 앵커 rect 가 없어도 그린다')
+})
+
+test('앵커별 획 수를 센다 (서술형의 inkStrokes)', () => {
+  const a = ink.createStroke('pen', '#111', 2, 'x1', 1, 'quiz-1')
+  const b = ink.createStroke('pen', '#111', 2, 'x2', 2, 'quiz-1')
+  const c = ink.createStroke('pen', '#111', 2, 'x3', 3, null)
+  assert.deepEqual(ink.countByAnchor([a, b, c]), { 'quiz-1': 2 })
+})
+
 console.log('\n▸ 스트로크')
 
 test('점을 [x,y,pressure] 3개씩 평탄화해서 담는다', () => {
@@ -134,9 +225,43 @@ test('직렬화 → 역직렬화가 원본을 보존한다', () => {
   assert.equal(back.meta.sheetWidth, 820)
 })
 
+test('직렬화에 앵커가 실린다', () => {
+  const s = ink.createStroke('pen', '#111', 2, 's9', 5, 'quiz-2')
+  ink.appendPoint(s, 0.25, 0.75, 1, 0)
+  const data = ink.serialize([s], { sheetWidth: 390, docHeight: 4000 })
+  assert.equal(data.format_version, 2)
+  assert.equal(data.strokes[0].anchor, 'quiz-2')
+  assert.equal(ink.deserialize(data).strokes[0].anchor, 'quiz-2')
+})
+
+test('v1(문서좌표) 데이터를 읽어도 깨지지 않는다', () => {
+  const v1 = {
+    format_version: 1, sheet_width: 820, doc_height: 7000, deleted: ['gone'],
+    strokes: [{ id: 'old', tool: 'pen', color: '#111', width: 2.4, created_at: 900, points: [120.4, 331.2, 0.42] }],
+  }
+  const migrated = ink.migrateStrokes(v1)
+  assert.equal(migrated.format_version, ink.FORMAT_VERSION)
+  assert.equal(migrated.strokes[0].anchor, null, 'v1 좌표는 전부 문서 좌표였다')
+  assert.deepEqual(migrated.strokes[0].points, [120.4, 331.2, 0.42], '좌표를 손대면 옛 필기가 움직인다')
+  assert.equal(v1.format_version, 1, '원본을 변형하면 안 된다')
+
+  const back = ink.deserialize(v1)
+  assert.equal(back.strokes.length, 1)
+  assert.equal(back.strokes[0].anchor, null)
+  assert.deepEqual(back.strokes[0].points, [120.4, 331.2, 0.42])
+  assert.ok(back.deleted.has('gone'))
+})
+
+test('이미 v2 인 데이터는 그대로 통과한다', () => {
+  const v2 = { format_version: 2, strokes: [] }
+  assert.equal(ink.migrateStrokes(v2), v2)
+})
+
 test('모르는 포맷 버전은 읽지 않는다', () => {
   assert.throws(() => ink.deserialize({ format_version: 99, strokes: [] }),
     /지원하지 않는 필기 포맷/, '억지로 읽으면 깨진 채로 덮어쓸 수 있다')
+  assert.throws(() => ink.migrateStrokes({ format_version: 99, strokes: [] }),
+    /지원하지 않는 필기 포맷/)
 })
 
 test('빈 데이터도 안전하다', () => {

@@ -6,11 +6,20 @@
 //
 // V5: 11개 섹션 템플릿을 버리고 학습 순서 6단계로 바꿨다.
 //   문제 제시 → 예측 → 관찰 → 개념 → 연습 → 나가기 전에(exit ticket)
-// 두 번째 외부 평가의 결론이 "구조 자체를 해체하라" 였고, 사용자가 그 제안을 받아들였다.
-// 역사·상황극·꿀팁·사전학습 섹션은 사라졌다. 남길 가치가 있는 것은 개념 단계의
-// 짧은 맥락 노트(context_note)와 다음 단계(next_steps, easier 포함)로 흡수했다.
+//
+// V6: 6단계는 그대로 두고 **로버스트니스**를 계약에 넣었다.
+// 세 번째 외부 평가의 요지: "UI 와 교수설계가 좋아졌기 때문에 남아 있는 단순화가
+// 훨씬 더 권위 있게 보인다." 즉 이제 위험은 못 만든 것이 아니라 **너무 그럴듯한 것**이다.
+//
+// 그래서 아래 네 가지가 선택이 아니라 필드가 됐다.
+//   1. Boundary      — 규칙마다 "언제 성립하고 언제 깨지는가". 단순화를 절대법칙으로 두지 않는다.
+//   2. model_note    — 모든 이상화 표상이 "무엇을 생략했는지" 스스로 말한다.
+//   3. evidence      — 문제는 개수가 아니라 증거 종류로 센다. 5문제 정량은 없앴다.
+//   4. robustness    — 이 학습지가 막아야 할 대표 오개념을 미리 적고, 어디서 어떻게 막는지 밝힌다.
+//
+// 그리고 정직성 규칙 하나: 근거 없는 숫자 정밀도를 만들지 않는다(readout: 'qualitative').
 
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
 
 /** 6단계 키. SECTIONS 상수는 파일 하단에 있고 값이 같아야 한다(테스트가 검사). */
 export type SectionKey = 'problem' | 'predict' | 'observe' | 'concept' | 'practice' | 'exit_ticket'
@@ -36,6 +45,40 @@ export const CATEGORIES: readonly Category[] = [
 export type ExampleKind = 'code' | 'calc' | 'steps' | 'compare' | 'scene'
 export const EXAMPLE_KINDS: readonly ExampleKind[] = ['code', 'calc', 'steps', 'compare', 'scene']
 
+/**
+ * 규칙의 경계. 입문용 단순화가 절대법칙으로 굳는 것을 막는 장치다.
+ *
+ * 세 번째 평가의 지적: "핵심 규칙 → 적용 조건 → 깨지는 경우" 3단이 없으면
+ * 학생은 규칙만 떼어 기억한다. 그래서 규칙을 진술하는 블록은 이걸 달아야 한다.
+ *
+ *   holds_when  "그 점에서 도함수가 존재할 때"
+ *   breaks_when "|x| 의 x=0 처럼 양쪽 기울기가 다르면 성립하지 않아요"
+ */
+export interface Boundary {
+  holds_when: string
+  breaks_when: string
+}
+
+/**
+ * 문제가 무엇을 증거로 삼는가. 개수가 아니라 종류가 숙달을 증명한다.
+ * 같은 개념을 서로 다른 표상에서 반복해 성공해야 "배웠다" 고 말할 수 있다.
+ *
+ *   recall     정의·용어를 되살린다 (가장 약한 증거)
+ *   apply      배운 절차를 새 숫자에 적용한다
+ *   compute    직접 계산한다
+ *   graph      식 없이 그림·그래프에서 판단한다
+ *   table      수치 표에서 추정한다
+ *   diagnose   결과를 보고 원인 후보를 좁힌다
+ *   edge_case  규칙이 깨지는 경우를 식별한다
+ *   explain    말로 설명한다
+ */
+export type EvidenceKind =
+  | 'recall' | 'apply' | 'compute' | 'graph' | 'table' | 'diagnose' | 'edge_case' | 'explain'
+
+export const EVIDENCE_KINDS: readonly EvidenceKind[] = [
+  'recall', 'apply', 'compute', 'graph', 'table', 'diagnose', 'edge_case', 'explain',
+]
+
 export interface Example {
   kind: ExampleKind
   caption: string
@@ -60,12 +103,18 @@ export type FigureSpec =
       /** true 면 두 번째 점을 슬라이더로 움직여 할선이 접선으로 가는 것을 직접 본다 (h 는 양쪽 다) */
       interactive?: boolean }
   | { kind: 'distribution'; panels: { title: string; profile: 'two-humps' | 'fringes' | 'fringes-weak' | 'single' }[]
-      /** true 면 경로정보 슬라이더로 간섭 가시도가 연속적으로 줄어드는 것을 본다 */
+      /** true 면 결맞음 슬라이더로 간섭이 연속적으로 약해지는 것을 본다 */
       interactive?: boolean
       /** 슬릿 폭을 무시한 이상화 모델임을 그림에 밝힌다. distribution 은 항상 true 여야 한다(검증기). */
       idealized?: boolean }
   | { kind: 'tonecurve'; curve: 'linear' | 's-mild' | 's-strong' | 'inverse-s'; clipHighlights?: boolean }
   | { kind: 'swatches'; rows: { label: string; colors: string[] }[] }
+  /**
+   * 실물 자극. 색보정처럼 "눈으로 판단하는 능력" 을 가르치는 분야는 도식으로 대신할 수 없다.
+   * 이미지는 assets/manifest.json 에 등록된 것만 쓴다(라이선스·출처가 확인된 것).
+   * 렌더러가 data URI 로 박아 넣으므로 외부 요청은 여전히 0회다.
+   */
+  | { kind: 'photo'; assetId: string; /** 비교용 두 번째 이미지 */ compareAssetId?: string }
 
 export interface Figure {
   id: string
@@ -75,6 +124,18 @@ export interface Figure {
   spec: FigureSpec
   /** 학생이 그림에 직접 표시해야 하는 것. 있으면 그림 위에 필기 여백을 겹친다. */
   drawTask: string | null
+  /**
+   * 이 그림이 생략한 것. 이상화 표상(distribution·tonecurve·swatches)은 필수(검증기).
+   * "이 색 견본은 실제 사진의 혼합광을 단순화한 모형이에요" 처럼.
+   */
+  model_note: string | null
+  /**
+   * 슬라이더가 붙은 그림의 눈금 표시 방식.
+   *   quantitative — 화면의 수가 그림에서 실제로 계산되는 값일 때만 (예: 할선의 기울기)
+   *   qualitative  — 정성 모형. 낮음/중간/높음 으로만 보여준다.
+   * 근거 없는 퍼센트는 사람이 법칙으로 기억한다. 그래서 기본값은 qualitative 다.
+   */
+  readout: 'quantitative' | 'qualitative'
 }
 
 /**
@@ -98,6 +159,11 @@ export type InlineNode = {
 export interface ConceptBlock {
   heading: string
   body: InlineNode[]
+  /**
+   * 이 블록이 세운 규칙의 경계. 규칙을 진술하는 블록에는 반드시 있어야 한다(린트).
+   * 없으면 학생은 "두 점을 붙이면 접선이 된다" 만 떼어 기억한다.
+   */
+  boundary: Boundary | null
   example: Example | null
   /** 이 블록에서 보여줄 도형 id (figures[] 참조) */
   figure: string | null
@@ -116,9 +182,11 @@ export interface QuizItem {
   difficulty: number
   /**
    * near: 본문의 예를 숫자만 바꾼 것. far: 새 상황·반례·오류 분석.
-   * 5개 중 far 가 2개 이상이어야 한다. 전부 near 면 점수와 실력이 분리된다.
+   * far 가 2개 이상이어야 한다. 전부 near 면 점수와 실력이 분리된다.
    */
   transfer: 'near' | 'far'
+  /** 이 문제가 무엇을 증거로 삼는가. 서로 다른 종류가 3가지 이상이어야 한다(검증기). */
+  evidence: EvidenceKind
   /** 자주 나오는 오답과 그 이유. 학생 답을 진단하는 데 쓴다. 선택형은 선택지별 피드백이 된다. */
   misconceptions: { wrong: string; why: string }[]
 }
@@ -146,8 +214,11 @@ export interface WorksheetOutline {
   concept_blocks: { heading: string; gist: string; activity_kind: Activity['kind'] | null }[]
   /** 맥락 노트에 쓸 사실. 확실성 판단은 여기서 끝난다. */
   facts: { when: string; what: string; confidence: Confidence }[]
-  quiz_plan: { asks: string; answer_gist: string; source_block: number; difficulty: number; transfer: 'near' | 'far' }[]
+  quiz_plan: { asks: string; answer_gist: string; source_block: number; difficulty: number
+               transfer: 'near' | 'far'; evidence: EvidenceKind }[]
   next_steps: NextStep[]
+  /** 이 주제에서 학생이 흔히 굳히는 오해 3~5개. 집필은 이걸 막도록 써야 한다. */
+  guards: { misconception: string; where: SectionKey; how: string }[]
 }
 
 /** ② 집필 단계(claude-sonnet-5)의 출력. 실제 학습지. */
@@ -173,6 +244,15 @@ export interface WorksheetContent {
   guide_notes: { section: SectionKey; note: string }[]
   /** 과목 특유의 표상. 수학·과학·미술·경제는 최소 1개. */
   figures: Figure[]
+
+  /**
+   * 로버스트니스 예산. "이 학습지는 어떤 오해에 버티는가" 를 만들기 전에 적는다.
+   * 좋은 학습지는 많은 내용을 담은 것이 아니라 예상 가능한 실패를 막은 것이다.
+   * 3~5개. 각각 어디서(where) 어떻게(how) 막는지 밝혀야 하고, 검사관이 실제로 막혔는지 본다.
+   */
+  robustness: {
+    guards: { misconception: string; where: SectionKey; how: string }[]
+  }
 
   /**
    * ① 문제 제시 — 학생이 아직 풀 수 없는 구체적 상황.

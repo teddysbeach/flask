@@ -40,7 +40,7 @@ LLM 출력 문자열은 **전부 HTML 이스케이프** 후 삽입한다. 예외
 
 ```jsonc
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "title": "string",                       // 학습지 제목
   "topic_normalized": "string",            // 사용자 입력 정규화
   "level": "beginner|intermediate|advanced",
@@ -52,6 +52,15 @@ LLM 출력 문자열은 **전부 HTML 이스케이프** 후 삽입한다. 예외
   "glossary": [ { "term": "string", "plain": "string" } ],      // 3~6개. 개념 단계에 놓인다
   "guide_notes": [ { "section": SectionKey, "note": "string" } ], // 1~2개. 파르 — 오개념 교정·힌트에만
   "figures": [ Figure ],                   // 0~6개. 구조화 스펙만 (아래)
+
+  // 로버스트니스 예산 (V6). 만들기 전에 막을 오해를 적는다. 15-robustness.md §6
+  "robustness": {
+    "guards": [                            // 3~5개
+      { "misconception": "평균 속도와 순간 속도가 같다고 생각해요",
+        "where": SectionKey,               // 어느 단계에서 막는가
+        "how": "예측 선택지에 평균 속도 답을 넣고 관찰 표에서 갈리는 것을 보게 해요" }
+    ]
+  },
 
   "problem": {                             // ① 문제 제시
     "situation": [InlineNode],             // 숫자·이름이 있는 구체적 장면
@@ -77,6 +86,9 @@ LLM 출력 문자열은 **전부 HTML 이스케이프** 후 삽입한다. 예외
     "analogy": "string",                   // 일상 비유. 관찰 뒤에 온다
     "blocks": [                            // 2~5개, 절반 이상에 activity
       { "heading": "string", "body": [InlineNode], "figure": "string|null",
+        // 규칙의 경계 (V6). 최소 한 블록에 필수 — 조건 없는 규칙은 절대법칙으로 기억된다
+        "boundary": { "holds_when": "그 점에서 도함수가 존재할 때예요",
+                      "breaks_when": "|x| 의 x=0 처럼 양쪽 기울기가 다르면 성립하지 않아요" } | null,
         "example": Example|null, "activity": Activity|null, "common_mistake": "string|null" }
     ],
     "context_note": {                      // null 가능. 접힌 채로 나간다
@@ -86,10 +98,12 @@ LLM 출력 문자열은 **전부 HTML 이스케이프** 후 삽입한다. 예외
   },
 
   "practice": {                            // ⑤ 연습
-    "quiz": [                              // 정확히 5개
+    "quiz": [                              // 4~7개. 개수가 아니라 증거로 정한다 (V6)
       { "kind": "short_answer|multiple_choice|explain", "question": "string", "choices": ["string"]|null,
         "answer": "string", "explanation": "string", "difficulty": 1,
         "transfer": "near|far",            // far 2개 이상
+        // 무엇을 증거로 삼는가 (V6). 서로 다른 종류 3가지 이상, 전부 recall/apply 이면 거부
+        "evidence": "recall|apply|compute|graph|table|diagnose|edge_case|explain",
         "misconceptions": [ { "wrong": "string", "why": "string" } ] }   // 선택형은 선택지별 피드백이 된다
     ],
     "extended": [ { "title": "string", "detail": "string", "estimated_minutes": 15 } ]   // 0~3개
@@ -110,14 +124,25 @@ LLM 출력 문자열은 **전부 HTML 이스케이프** 후 삽입한다. 예외
 `Activity` = `{ "kind": "predict|decide|compute|draw|explain", "prompt": "string", "options": ["string"]|null, "reveal": "string" }`
 — predict/decide 는 `options` 필수(라디오로 렌더), 나머지는 필기 칸 + "적었어요" 체크.
 `Example` = `{ "kind": "code|calc|steps|compare|scene", "caption": "string", "body": "string", "language": "string|null" }` — language 는 code 에만.
-`Figure` = `{ "id", "title", "alt", "drawTask": "string|null", "spec": plot | distribution | tonecurve | swatches }`
+`Figure` = `{ "id", "title", "alt", "drawTask", "model_note", "readout": "quantitative|qualitative", "spec": … }`
 — `plot {fn: x^2|x^3|sin|exp|linear|abs, xRange, secant?, tangentAt?, interactive?}`,
   `distribution {panels[{title, profile: single|two-humps|fringes|fringes-weak}], idealized: true(필수), interactive?}`,
-  `tonecurve {curve: linear|s-mild|s-strong|inverse-s, clipHighlights?}`, `swatches {rows[{label, colors[#rrggbb]}]}`.
+  `tonecurve {curve: linear|s-mild|s-strong|inverse-s, clipHighlights?}`, `swatches {rows[{label, colors[#rrggbb]}]}`,
+  `photo {assetId, compareAssetId?}` — 실물 사진. `assets/manifest.json` 에 등록된 것만 (`14-stimulus-assets.md`).
 
-**검증 규칙**: 개수 제약(objectives=3, quiz=5, far≥2, blocks 2~5 & 활동 ≥ 절반, notice 2~4, self_check 2~4, next_steps 2~4)과
-정합성(`time.optional` = extended 합계, `observe` 에 증거 필수, `problem.question` 은 물음표, `distribution.idealized`)은 검증기가 거부한다.
+**V6 의 두 정직성 규칙**
+- `model_note` — 이 그림이 **생략한 것**. `distribution`·`tonecurve`·`swatches` 는 필수.
+- `readout` — 슬라이더 눈금. **`plot` 만 `quantitative`** 가능하다(할선 기울기는 그림에서 실제로 계산되는 값).
+  나머지는 `qualitative`(낮음/중간/높음). 모형에서 나온 퍼센트는 사람이 법칙으로 기억한다.
+
+**검증 규칙**: 개수 제약(objectives=3, quiz 4~7 & far≥2 & evidence 3종 이상, blocks 2~5 & 활동 ≥ 절반 & boundary ≥ 1,
+notice 2~4, self_check 2~4, next_steps 2~4, guards 3~5)과 정합성(`time.optional` = extended 합계,
+`observe` 에 증거 필수, `problem.question` 은 물음표, `distribution.idealized`, 이상화 표상의 `model_note`,
+`readout: quantitative` 는 `plot` 만, `photo.assetId` 는 매니페스트에 등록된 것만)은 검증기가 거부한다.
 실패 메시지가 그대로 재요청 프롬프트가 된다.
+
+출고 게이트(`releaseBlockers`)는 이와 다르다. 모델이 다시 써도 못 고치는 것 — 예를 들어
+art 분야에 실물 사진이 없는 것 — 은 재작성 루프에 넣지 않고 출고만 막는다. `14-stimulus-assets.md` §3.
 
 ## 4. LLM 호출 설계 — 2단계 하이브리드
 
@@ -155,7 +180,8 @@ LLM 출력 문자열은 **전부 HTML 이스케이프** 후 삽입한다. 예외
 - `observation_gist` — 예측을 시험할 증거로 무엇을 보여줄지
 - `concept_blocks` — 개념 블록의 제목·요지·활동 종류
 - `facts` — 맥락 노트에 쓸 사실 + **`confidence` 확정** ← 이 판단은 여기서 끝난다
-- `quiz_plan` — 문제 5개의 골격(무엇을 묻는지 + 정답 요지 + 근거 블록 + 난이도 + near/far)
+- `quiz_plan` — 문제의 골격(무엇을 묻는지 + 정답 요지 + 근거 블록 + 난이도 + near/far + 증거 종류)
+- `guards` — 이 주제에서 학생이 흔히 굳히는 오해 3~5개. 집필이 이걸 막도록 쓰고, 린트가 실제로 막혔는지 본다
 - `next_steps` — easier/same/harder
 
 ### ② 집필 단계 — `claude-sonnet-5`
@@ -164,7 +190,8 @@ LLM 출력 문자열은 **전부 HTML 이스케이프** 후 삽입한다. 예외
 
 **Sonnet 이 뒤집을 수 없는 것** (프롬프트 + `cross-check.ts` 로 고정):
 - `facts[].confidence` — 사실성 판단은 ①에서 확정된 것을 **그대로 옮긴다**
-- 문제 5개의 난이도와 near/far — 새 문제를 지어내지 않는다
+- 문제의 난이도·near/far·증거 종류 — 새 문제를 지어내지 않는다
+- `robustness.guards` — 설계가 정한 오해 목록
 - 예측 선택지의 흔한 오답, 다음 단계 제목
 - 6단계 순서
 
@@ -278,7 +305,7 @@ const draft = await sonnet.messages.stream({
   <style>/* GENERATED from design_tokens.json — 02-design-system.md §1 */</style>
 </head>
 <body>
-<article class="sheet" data-worksheet-id="..." data-schema-version="2">
+<article class="sheet" data-worksheet-id="..." data-schema-version="3">
 
   <header class="sheet__header">
     <h1 class="sheet__title">...</h1>
