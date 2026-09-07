@@ -19,7 +19,7 @@ begin
 
   -- ── 사용자 토큰으로는 아무것도 못 한다 ──
   set local role authenticated;
-  perform set_config('request.jwt.claims', json_build_object('sub', u)::text, true);
+  perform set_config('request.jwt.claim.sub', u::text, true);
 
   begin
     select count(*) into n from public.telemetry_events;

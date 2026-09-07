@@ -22,9 +22,9 @@ create table if not exists public.notices (
   constraint notices_body_len check (char_length(body) between 1 and 8000)
 );
 
+-- 부분 인덱스에 now() 를 못 쓴다(IMMUTABLE 이 아니다). 목록이 짧아 전체 인덱스로 충분하다.
 create index if not exists notices_visible_idx
-  on public.notices (pinned desc, published_at desc)
-  where expires_at is null or expires_at > now();
+  on public.notices (pinned desc, published_at desc);
 
 alter table public.notices enable row level security;
 

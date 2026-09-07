@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/app_error.dart';
 import '../core/request_guard.dart';
 import '../domain/models.dart';
+import 'offline_store.dart';
 import 'supabase.dart';
 
 /// 학습지를 만들어 달라고 했을 때 서버가 하는 답 두 가지.
@@ -44,10 +45,11 @@ CreateDuplicate? duplicateFromError(Object e) {
 
 /// 학습지 목록·생성·본문. 생성은 쿼터를 깎으므로 중복 요청을 여기서 막는다.
 class WorksheetRepository {
-  WorksheetRepository(this._client, this._guard);
+  WorksheetRepository(this._client, this._guard, this._offline);
 
   final SupabaseClient _client;
   final RequestGuard _guard;
+  final OfflineStore _offline;
 
   static const pageSize = 20;
 
@@ -126,6 +128,43 @@ class WorksheetRepository {
     }
     throw AppError.of(AppErrorKind.timeout,
         message: '학습지를 만드는 데 예상보다 오래 걸리고 있어요. 목록에서 다시 확인해 주세요.');
+  }
+
+  /// 제목 바꾸기.
+  ///
+  /// 서버는 진작 허용하고 있었다 — `grant update (title) on worksheets to authenticated`.
+  /// 정작 앱에 부르는 곳이 없어서, 모델이 붙인 제목을 사용자가 고칠 방법이 없었다.
+  /// 다른 컬럼은 서버 소유라 여기서도 title 만 보낸다.
+  Future<void> rename(String id, String title) async {
+    final clean = title.trim();
+    if (clean.isEmpty) {
+      throw AppError.of(AppErrorKind.validation, message: '제목을 한 글자 이상 적어 주세요.');
+    }
+    if (clean.length > 120) {
+      throw AppError.of(AppErrorKind.validation, message: '제목이 너무 길어요. 120자까지 쓸 수 있어요.');
+    }
+    try {
+      await _client.from('worksheets').update({'title': clean}).eq('id', id).withTimeout();
+    } catch (e, st) {
+      throw mapSupabaseError(e, st);
+    }
+  }
+
+  /// 학습지 한 장을 지운다.
+  ///
+  /// 서버 함수를 거치는 이유는 **스토리지** 때문이다. 행만 지우면 학습지 HTML 과 필기
+  /// 파일이 주인 없이 남는다 — 사용자는 지웠다고 믿는데 데이터는 남아 있는 상태다.
+  /// 기기에 둔 사본도 여기서 같이 지운다. 서버에서 지운 것이 기기에 남아 있으면
+  /// 오프라인에서 그 학습지가 되살아난다.
+  Future<void> delete(String id) async {
+    try {
+      await _client.functions
+          .invoke('delete-worksheet', body: {'worksheet_id': id})
+          .withTimeout(kTransferTimeout);
+    } catch (e, st) {
+      throw mapSupabaseError(e, st);
+    }
+    await _offline.forget(id);
   }
 
   /// 학습지 HTML. Storage 의 비공개 파일이라 서명 URL 로 연다.
@@ -243,5 +282,9 @@ class WorksheetRepository {
 final requestGuardProvider = Provider<RequestGuard>((ref) => RequestGuard());
 
 final worksheetRepositoryProvider = Provider<WorksheetRepository>(
-  (ref) => WorksheetRepository(ref.watch(supabaseProvider), ref.watch(requestGuardProvider)),
+  (ref) => WorksheetRepository(
+    ref.watch(supabaseProvider),
+    ref.watch(requestGuardProvider),
+    ref.watch(offlineStoreProvider),
+  ),
 );

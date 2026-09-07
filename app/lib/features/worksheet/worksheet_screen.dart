@@ -625,6 +625,80 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
     await _eval('window.ONPAR_INK.clearAll()');
   }
 
+  // ── 제목 · 인쇄 · 삭제 ───────────────────────────────────────────────
+
+  /// 제목 바꾸기. 모델이 붙인 제목이 항상 사용자의 말은 아니다.
+  Future<void> _rename(WorksheetViewData? data) async {
+    if (data == null) return;
+    final next = await AppFeedback.prompt(
+      context,
+      title: '제목 바꾸기',
+      initial: data.sheet.displayTitle,
+      hint: '학습지 제목',
+      confirmLabel: '저장',
+      maxLength: 120,
+    );
+    if (next == null || next.trim() == data.sheet.displayTitle) return;
+    try {
+      await ref.read(worksheetRepositoryProvider).rename(widget.worksheetId, next);
+      // 제목은 뷰어·서재·홈이 같이 들고 있다. 한 곳만 고치면 서로 다른 제목이 보인다.
+      ref.invalidate(worksheetViewProvider(widget.worksheetId));
+      if (mounted) AppFeedback.toast(context, '제목을 바꿨어요.');
+    } on AppError catch (e) {
+      if (mounted) AppFeedback.toast(context, e.message, danger: true);
+    }
+  }
+
+  /// 인쇄(그리고 "PDF로 저장").
+  ///
+  /// 학습지 CSS 에는 진작 `@media print` 가 있었다 — 정답을 숨기고, 접어 둔 것을 펴고,
+  /// 구역이 페이지 경계에서 잘리지 않게. 그걸 부를 버튼이 앱에 없었을 뿐이다.
+  /// **필기는 저장하고 나서 연다.** 인쇄 대화상자가 뜨는 동안의 저장 실패는 조용히 사라진다.
+  Future<void> _print() async {
+    final web = _web;
+    if (web == null) return;
+    await _flush(reason: 'print');
+    try {
+      await web.printCurrentPage();
+      ref.read(analyticsProvider).track(AnalyticsEvent.worksheetOpen, props: {'source': 'print'});
+    } catch (e, st) {
+      AppLogger.error('인쇄를 열지 못했어요', error: e, stack: st);
+      if (mounted) {
+        AppFeedback.toast(context, '인쇄 화면을 열지 못했어요. 잠시 뒤에 다시 시도해 주세요.',
+            danger: true);
+      }
+    }
+  }
+
+  /// 학습지 삭제. **되돌릴 수 없다** — 필기도 같이 사라진다.
+  Future<void> _delete(WorksheetViewData? data) async {
+    if (data == null) return;
+    final ok = await AppFeedback.confirm(
+      context,
+      title: '이 학습지를 지울까요?',
+      message: '학습지와 여기에 쓴 필기·답안이 모두 사라져요. 되돌릴 수 없어요.\n'
+          '사용한 장수는 돌아오지 않아요.',
+      confirmLabel: '지우기',
+      cancelLabel: '그대로 두기',
+      destructive: true,
+    );
+    if (!ok || !mounted) return;
+
+    try {
+      await ref.read(worksheetRepositoryProvider).delete(widget.worksheetId);
+      if (!mounted) return;
+      // 지운 학습지의 뷰어에 남아 있을 이유가 없다.
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go(Routes.library);
+      }
+      AppFeedback.toast(context, '학습지를 지웠어요.');
+    } on AppError catch (e) {
+      if (mounted) AppFeedback.toast(context, e.message, danger: true);
+    }
+  }
+
   // ── 화면 ────────────────────────────────────────────────────────────
 
   @override
@@ -645,7 +719,17 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
         backgroundColor: p.surfaceBase,
         appBar: AppBar(
           title: Text(view.valueOrNull?.sheet.displayTitle ?? '학습지'),
-          actions: [_SaveIndicator(saving: _saving, dirty: _inkDirty || _pendingResponses.isNotEmpty)],
+          actions: [
+            _SaveIndicator(saving: _saving, dirty: _inkDirty || _pendingResponses.isNotEmpty),
+            // 제목 바꾸기·인쇄·삭제. 서버는 진작 셋 다 허용하고 있었는데
+            // 앱에 부르는 곳이 없어서, 사용자가 할 수 있는 일이 "읽기" 뿐이었다.
+            _SheetMenu(
+              enabled: view.hasValue,
+              onRename: () => unawaited(_rename(view.valueOrNull)),
+              onPrint: () => unawaited(_print()),
+              onDelete: () => unawaited(_delete(view.valueOrNull)),
+            ),
+          ],
         ),
         body: SafeArea(
           child: Column(
@@ -1229,6 +1313,46 @@ class _InkBlockedBanner extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 학습지 하나에 할 수 있는 일. 필기 중에는 잘 안 쓰므로 메뉴 뒤에 둔다 —
+/// 툴바에 늘어놓으면 펜을 든 손이 잘못 누른다.
+class _SheetMenu extends StatelessWidget {
+  const _SheetMenu({
+    required this.enabled,
+    required this.onRename,
+    required this.onPrint,
+    required this.onDelete,
+  });
+
+  final bool enabled;
+  final VoidCallback onRename;
+  final VoidCallback onPrint;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = DsTheme.of(context);
+    return PopupMenuButton<String>(
+      enabled: enabled,
+      tooltip: '학습지 메뉴',
+      icon: DsIcon(DsIcons.more, size: 22, color: p.textSecondary, semanticLabel: '더 보기'),
+      onSelected: (v) => switch (v) {
+        'rename' => onRename(),
+        'print' => onPrint(),
+        _ => onDelete(),
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem(value: 'rename', child: Text('제목 바꾸기')),
+        const PopupMenuItem(value: 'print', child: Text('인쇄 · PDF로 저장')),
+        PopupMenuItem(
+          value: 'delete',
+          // 위험한 것은 색만으로 알리지 않는다. 스크린리더에도 같은 말이 가야 한다.
+          child: Text('학습지 지우기', style: TextStyle(color: p.statusDanger)),
+        ),
+      ],
     );
   }
 }

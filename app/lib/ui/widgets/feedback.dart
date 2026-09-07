@@ -57,6 +57,50 @@ class AppFeedback {
     return ok ?? false;
   }
 
+  /// 한 줄을 고쳐 받는 창. 취소하면 null 이다.
+  ///
+  /// 이름을 바꾸는 일은 화면을 새로 띄울 만큼 크지 않다. 그렇다고 목록에서 바로 편집하게
+  /// 하면 잘못 눌러 고쳐 놓고 모른다 — 확인 버튼이 있는 창이 그 중간이다.
+  static Future<String?> prompt(
+    BuildContext context, {
+    required String title,
+    required String initial,
+    String? hint,
+    String confirmLabel = '저장',
+    String cancelLabel = '취소',
+    int maxLength = 120,
+  }) async {
+    final p = DsTheme.of(context);
+    final controller = TextEditingController(text: initial);
+    // 창을 열면 바로 고칠 수 있게 전체를 선택해 둔다.
+    controller.selection = TextSelection(baseOffset: 0, extentOffset: initial.length);
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title, style: dsTextStyle(DsType.h3, p.textPrimary)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: maxLength,
+          textInputAction: TextInputAction.done,
+          decoration: InputDecoration(hintText: hint),
+          onSubmitted: (v) => Navigator.of(ctx).pop(v),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text(cancelLabel)),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text),
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    final trimmed = result?.trim();
+    return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
+  }
+
   static Future<T?> sheet<T>(BuildContext context, {required WidgetBuilder builder}) {
     return showModalBottomSheet<T>(
       context: context,

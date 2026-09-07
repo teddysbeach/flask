@@ -116,6 +116,20 @@ class OfflineStore {
     }
   }
 
+  /// 학습지 한 장에 대한 기기 사본을 전부 지운다(본문 + 못 올린 필기).
+  ///
+  /// 서버에서 지운 학습지가 기기에 남아 있으면 오프라인에서 되살아난다 —
+  /// 사용자는 지웠다고 믿는데 비행기 모드에서 다시 보이는 상태다.
+  Future<void> forget(String worksheetId) async {
+    await clearInkSpool(worksheetId);
+    try {
+      final f = await _file(sheetsDir, worksheetId, 'html');
+      if (await f.exists()) await f.delete();
+    } catch (e, st) {
+      AppLogger.error('보관된 학습지를 못 지웠다', error: e, stack: st);
+    }
+  }
+
   /// 로그아웃·탈퇴에서 부른다. 남의 기기가 아니라 **같은 기기의 다음 사람**을 막는 것이다.
   Future<void> clearAll() async {
     for (final kind in [sheetsDir, spoolDir]) {
