@@ -103,5 +103,16 @@ test('앱이 실제로 쓰는 props 키가 전부 허용 목록에 있다', () =
   assert.deepEqual(missing, [], `서버 허용 목록에 없는 키: ${missing.join(', ')}`)
 })
 
+test('열린 입구에 상한이 걸려 있다', () => {
+  // 이 엔드포인트는 로그인 없이 열려 있다(온보딩·로그인 화면의 크래시를 받아야 하므로).
+  // 열려 있는 입구는 반드시 두들겨 맞는다 — 상한이 없으면 남의 돈으로 테이블이 찬다.
+  const src = readFileSync(resolve(HERE, '../supabase/functions/ingest-telemetry/index.ts'), 'utf8')
+  assert.ok(/RATE_LIMIT/.test(src), '속도 제한이 없다')
+  assert.ok(/MAX_BODY_BYTES/.test(src), '본문 크기 상한이 없다')
+  assert.ok(/content-length/.test(src), '파싱 전에 크기를 재지 않는다')
+  // 429 를 주면 앱이 큐를 들고 계속 재시도한다. 조용히 버리는 편이 낫다.
+  assert.ok(/stored: 0/.test(src), '상한에 걸렸을 때 조용히 버리지 않는다')
+})
+
 console.log(`\n${failures.length ? '실패 ' + failures.length + '개' : '전부 통과'} (통과 ${passed}개)\n`)
 if (failures.length) process.exit(1)

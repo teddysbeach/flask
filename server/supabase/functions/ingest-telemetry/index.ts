@@ -16,11 +16,40 @@ import { cleanCrashes, cleanEvents, cleanInstallId } from '../_shared/telemetry.
 
 const PLATFORMS = ['ios', 'android', 'other']
 
+/**
+ * 한 설치(install_id)가 이 창 안에 넣을 수 있는 행 수.
+ *
+ * 이 엔드포인트는 **로그인 없이 열려 있다**(온보딩과 로그인 화면의 크래시를 받아야 한다).
+ * 열려 있는 입구는 반드시 두들겨 맞는다 — 상한이 없으면 아무나 반복 호출로 테이블을
+ * 채워 스토리지 비용을 밀어 올릴 수 있다.
+ *
+ * 앱은 20초마다 배치로 보내고 한 배치는 50건이 상한이다. 정상 사용은 5분에 750건을
+ * 넘길 수 없으므로, 1000 은 정상을 막지 않으면서 도배는 끊는다.
+ */
+const RATE_WINDOW_MS = 5 * 60_000
+const RATE_LIMIT = 1000
+
+/** 본문 크기 상한. 상한이 없으면 한 번의 요청으로 메모리를 밀어붙일 수 있다. */
+const MAX_BODY_BYTES = 256 * 1024
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: CORS })
   if (req.method !== 'POST') return errorResponse('method_not_allowed', 405)
 
-  const body = await req.json().catch(() => ({}))
+  // 크기부터 본다. 파싱한 뒤에 재면 이미 읽은 뒤다.
+  const declared = Number(req.headers.get('content-length') ?? '0')
+  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
+    return errorResponse('payload_too_large', 413)
+  }
+  const raw = await req.text()
+  if (raw.length > MAX_BODY_BYTES) return errorResponse('payload_too_large', 413)
+
+  let body: Record<string, unknown>
+  try {
+    body = JSON.parse(raw) as Record<string, unknown>
+  } catch {
+    body = {}
+  }
   const installId = cleanInstallId(body.install_id)
   if (!installId) return errorResponse('invalid_install_id', 400)
 
@@ -46,6 +75,22 @@ Deno.serve(async (req: Request) => {
   // 쓰기는 service_role 이 한다. 테이블에는 정책이 하나도 없어서 사용자 토큰으로는 못 쓴다 —
   // 열어 두면 남의 계정 이름으로 이벤트를 넣을 수 있게 된다.
   const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+
+  // 도배 방지. 로그인 없이 열린 입구라 상한이 없으면 테이블이 남의 돈으로 찬다.
+  {
+    const since = new Date(Date.now() - RATE_WINDOW_MS).toISOString()
+    const { count, error } = await admin
+      .from('telemetry_events')
+      .select('id', { count: 'exact', head: true })
+      .eq('install_id', installId)
+      .gte('created_at', since)
+    // 세는 데 실패했다고 막지는 않는다. 크래시 한 건을 놓치는 쪽이 더 아깝다.
+    if (!error && (count ?? 0) >= RATE_LIMIT) {
+      // 429 를 주면 앱이 큐를 들고 계속 재시도한다. 200 으로 조용히 버린다 —
+      // 도배하는 쪽에는 아무 신호도 주지 않는 편이 낫다.
+      return json({ ok: true, stored: 0 }, 200)
+    }
+  }
 
   const common = { user_id: userId, install_id: installId, app_version: appVersion, platform }
   let stored = 0
