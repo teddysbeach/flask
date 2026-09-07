@@ -52,9 +52,13 @@ class _FakeWorksheets implements WorksheetRepository {
   String? lastTopic;
 
   @override
-  Future<String> create({required String topic, required String level}) async {
+  Future<CreateResult> create({
+    required String topic,
+    required String level,
+    bool force = false,
+  }) async {
     lastTopic = topic;
-    return 'ws-0001';
+    return const CreateAccepted('ws-0001');
   }
 
   @override

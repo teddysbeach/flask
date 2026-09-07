@@ -8,6 +8,7 @@ import { extractResult, PLAN_MODEL_DEFAULT, DRAFT_MODEL_DEFAULT, CRITIC_MODEL_DE
 import { CRITIC_SYSTEM_PROMPT, CRITIC_OUTPUT_SCHEMA, buildCriticPrompt } from './critic.ts'
 import type { LlmClient } from './claude-parse.ts'
 import { fingerprint } from './fingerprint.ts'
+import { topicBlock } from './http.ts'
 
 export interface ClaudeConfig {
   planModel?: string
@@ -48,7 +49,7 @@ export function createLlmClient(cfg: ClaudeConfig): LlmClient {
     ]),
     plan: (topic, level, opts) => call(
       planModel, cfg.planSystemPrompt, cfg.outlineSchema,
-      `주제: ${topic}\n난이도: ${level}`,
+      topicBlock(topic, level),
       opts.maxTokens, opts.effort,
     ),
     draft: (outline, opts) => call(

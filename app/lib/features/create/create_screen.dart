@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -84,11 +85,47 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
     setState(() {});
   }
 
+  /// 같은 주제가 있을 때 묻는다. **막지 않는다** — 다시 만들 이유는 사용자에게 있을 수 있고
+  /// (난이도를 바꾸고 싶다, 지난번이 마음에 안 들었다) 그건 우리가 판단할 일이 아니다.
+  /// 우리가 막아야 하는 것은 "모르고 한 장을 더 쓰는 것" 뿐이다.
+  Future<bool> _askDuplicate(CreateDuplicate dupe) async {
+    final when = dupe.createdAt;
+    final made = when == null ? '' : ' (${DateFormat('M월 d일').format(when)})';
+    final again = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('같은 주제로 만든 학습지가 있어요'),
+        content: Text(
+          '“${dupe.title ?? _trimmed}”$made\n\n'
+          '그 학습지를 열어 볼 수도 있고, 새로 만들 수도 있어요. 새로 만들면 1장을 써요.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('열어 보기'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('새로 만들기'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted) return false;
+    if (again != true) {
+      // 열어 보기. 만들기 화면은 여기서 역할을 마친다.
+      context.pushReplacement(Routes.worksheet(dupe.worksheetId));
+      return false;
+    }
+    return true;
+  }
+
   String get _trimmed => _topic.text.trim();
   bool get _valid => _trimmed.isNotEmpty && _trimmed.length <= _topicMaxLength;
   bool get _dirty => _trimmed.isNotEmpty && _trimmed != (widget.initialTopic ?? '').trim();
 
-  Future<void> _submit() async {
+  Future<void> _submit({bool force = false}) async {
     if (!_valid) return;
     FocusScope.of(context).unfocus();
     setState(() => _error = null);
@@ -100,10 +137,18 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
         'level': _level.value,
         'topic_length': _trimmed.runes.length,
       });
-      final id = await ref
+      final result = await ref
           .read(worksheetRepositoryProvider)
-          .create(topic: _trimmed, level: _level.value);
+          .create(topic: _trimmed, level: _level.value, force: force);
       if (!mounted) return;
+
+      // 같은 주제로 만든 것이 이미 있다. 장수는 아직 안 깎였다 — 여기서 묻는다.
+      if (result is CreateDuplicate) {
+        final again = await _askDuplicate(result);
+        if (!mounted || !again) return;
+        return _submit(force: true);
+      }
+      final id = (result as CreateAccepted).worksheetId;
 
       // 쿼터가 줄었다. 홈이 옛 숫자를 들고 있으면 사용자는 한 장을 더 쓸 수 있다고 믿는다.
       ref.invalidate(profileProvider);

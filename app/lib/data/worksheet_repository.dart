@@ -8,6 +8,40 @@ import '../core/request_guard.dart';
 import '../domain/models.dart';
 import 'supabase.dart';
 
+/// 학습지를 만들어 달라고 했을 때 서버가 하는 답 두 가지.
+sealed class CreateResult {
+  const CreateResult();
+}
+
+/// 접수됐다. 생성은 뒤에서 돈다.
+class CreateAccepted extends CreateResult {
+  const CreateAccepted(this.worksheetId);
+  final String worksheetId;
+}
+
+/// 같은 주제로 이미 만든 학습지가 있다. **장수는 아직 깎이지 않았다.**
+class CreateDuplicate extends CreateResult {
+  const CreateDuplicate({required this.worksheetId, this.title, this.createdAt});
+  final String worksheetId;
+  final String? title;
+  final DateTime? createdAt;
+}
+
+/// Edge Function 의 409(duplicate_topic) 응답을 결과로 옮긴다.
+/// 여기서 못 알아보면 "알 수 없는 오류" 가 뜨고, 사용자는 같은 주제를 또 만든다.
+CreateDuplicate? duplicateFromError(Object e) {
+  if (e is! FunctionException) return null;
+  final d = e.details;
+  if (d is! Map || d['error'] != 'duplicate_topic') return null;
+  final id = d['worksheet_id'];
+  if (id is! String || id.isEmpty) return null;
+  return CreateDuplicate(
+    worksheetId: id,
+    title: d['title'] as String?,
+    createdAt: DateTime.tryParse('${d['created_at']}')?.toLocal(),
+  );
+}
+
 /// 학습지 목록·생성·본문. 생성은 쿼터를 깎으므로 중복 요청을 여기서 막는다.
 class WorksheetRepository {
   WorksheetRepository(this._client, this._guard);
@@ -41,22 +75,30 @@ class WorksheetRepository {
   /// 생성 요청. 서버는 202 로 바로 답하고 뒤에서 만든다(40~120초).
   ///
   /// 같은 주제로 두 번 눌러도 한 번만 나간다. 이게 없으면 사용자가 두 장을 잃는다.
-  Future<String> create({required String topic, required String level}) {
-    final key = 'create:${topic.trim()}:$level';
+  Future<CreateResult> create({
+    required String topic,
+    required String level,
+    bool force = false,
+  }) {
+    final key = 'create:${topic.trim()}:$level:$force';
     return _guard.dedupe(key, () async {
       try {
         // 서버는 202 로 바로 답한다. 여기서 오래 기다릴 이유가 없다 —
         // 생성이 끝나는 것은 watch() 가 지켜본다.
         final res = await _client.functions.invoke(
           'generate-worksheet',
-          body: {'topic': topic.trim(), 'level': level},
+          body: {'topic': topic.trim(), 'level': level, if (force) 'force': true},
         ).withTimeout();
         final data = res.data;
         if (data is Map && data['worksheet_id'] is String) {
-          return data['worksheet_id'] as String;
+          return CreateAccepted(data['worksheet_id'] as String);
         }
         throw AppError.of(AppErrorKind.unknown, cause: data);
       } catch (e, st) {
+        // 같은 주제로 이미 만든 것이 있다. 오류가 아니라 **물어볼 일**이다 —
+        // 장수는 아직 안 깎였고, 다시 만들지 말지는 사용자가 정한다.
+        final dupe = duplicateFromError(e);
+        if (dupe != null) return dupe;
         throw mapSupabaseError(e, st);
       }
     });

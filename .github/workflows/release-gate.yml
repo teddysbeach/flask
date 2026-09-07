@@ -1,0 +1,42 @@
+# 출시 직전에만 도는 검사.
+#
+# 평소 CI 와 나눈 이유가 있다. 저장소에는 **일부러 출고 보류 상태인 것**이 있고
+# (색보정 학습지 — 라이선스 사진을 아직 못 넣었다), 그걸로 모든 PR 이 빨간불이면
+# 그 빨간불은 곧 아무도 안 보는 신호가 된다.
+#
+# 그래서 보류는 평소에 경고로 두고, 태그를 끊는 순간에만 실패로 만든다.
+name: release gate
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: 출고 게이트
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # docs/plan/17-release-ops.md §1 의 게이트 중 코드로 확인할 수 있는 것들.
+      # 나머지(실기기 필압, 스토어 샌드박스)는 사람이 확인하고 체크리스트에 적는다.
+      - name: 분야 픽스처 · 출고 보류 검사
+        run: node --experimental-strip-types server/tests/selfcheck.ts --release
+
+      - name: 생성물 드리프트
+        run: |
+          node design/build_tokens.mjs --check
+          node design/build_icons.mjs --check
+          node design/build_brand.mjs --check
+          node server/build-runtime.mjs --check
+          node server/build-assets.mjs --check

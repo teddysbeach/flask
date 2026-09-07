@@ -5,7 +5,7 @@
 // docs/plan/01-architecture.md §3
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { json, errorResponse, CORS, validateTopic, validateLevel } from '../_shared/http.ts'
+import { json, errorResponse, CORS, validateTopic, validateLevel, normalizeTopicForMatch } from '../_shared/http.ts'
 import { acceptGeneration, runGeneration, toErrorCode, isRetryable, MAX_ATTEMPTS, backoffMs, newCostBudget } from '../_shared/pipeline.ts'
 import { createLlmClient } from '../_shared/claude.ts'
 import { makeDeps } from '../_shared/deps.ts'
@@ -44,6 +44,23 @@ Deno.serve(async (req: Request) => {
   const { error: reapError } = await admin.rpc('reap_stale_generations', { p_user: user.id })
   // 청소에 실패해도 생성 요청 자체를 막지는 않는다. 아래 가드가 어차피 한 번 더 본다.
   if (reapError) console.error('[generate] 청소 실패', reapError.message)
+
+  // 같은 주제로 이미 만든 것이 있으면 먼저 알려 준다. 막지는 않는다 —
+  // 다시 만들 이유는 사용자에게 있을 수 있고(난이도를 바꾸고 싶다, 지난번이 마음에 안 들었다)
+  // 그건 우리가 판단할 일이 아니다. 다만 **모르고 한 장을 더 쓰는 것**은 막아야 한다.
+  if (body.force !== true) {
+    const { data: dupes } = await admin.from('worksheets')
+      .select('id, topic, title, created_at')
+      .eq('user_id', user.id).eq('status', 'ready')
+      .order('created_at', { ascending: false }).limit(50)
+    const key = normalizeTopicForMatch(topic)
+    const hit = (dupes ?? []).find((w: { topic: string }) => normalizeTopicForMatch(w.topic) === key)
+    if (hit) {
+      return errorResponse('duplicate_topic', 409, {
+        worksheet_id: hit.id, title: hit.title, created_at: hit.created_at,
+      })
+    }
+  }
 
   // 사용자당 진행 중인 생성은 하나만
   const { count } = await admin.from('worksheets')

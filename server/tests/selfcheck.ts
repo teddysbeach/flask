@@ -201,4 +201,19 @@ if (warned.length) {
 }
 
 console.log()
+
+// ── 출고 게이트 ──────────────────────────────────────────────────────────
+// 평소(CI·개발)에는 출고 보류를 경고로만 둔다. 지금 저장소에는 일부러 보류 상태인 픽스처가 있고
+// (색보정 — 라이선스 사진이 없다), 그것 때문에 모든 PR 이 빨간불이면 그 신호는 곧 무시된다.
+//
+// 대신 릴리스 직전에 `--release` 로 부르면 보류가 실패가 된다.
+// 문서에만 적힌 게이트는 게이트가 아니다 — 사람이 바쁠 때 가장 먼저 건너뛰는 것이 문서다.
+const releaseMode = process.argv.includes('--release')
+if (releaseMode && blocked.length) {
+  console.error(`출고 게이트: 보류 ${blocked.length}장이 남아 있어 내보낼 수 없습니다.`)
+  console.error('재작성으로 풀리지 않는 것들입니다 — 자산을 넣거나, 그 학습지를 빼고 내보내세요.')
+  process.exit(1)
+}
+if (releaseMode) console.log('출고 게이트: 통과 (보류 0장)')
+
 process.exit(failed.length ? 1 : 0)

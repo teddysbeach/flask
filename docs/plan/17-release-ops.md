@@ -16,13 +16,17 @@
 | 3 | 앱 테스트 전부 통과 | `flutter test` | ✅ |
 | 3-b | 네이티브가 실제로 빌드된다 | CI 의 `app`(release APK · R8) · `ios`(pod install + build) 잡 | ⏳ CI 첫 실행에서 확인 |
 | 4 | 12개 카테고리 픽스처가 검사 루프를 통과 | `node --experimental-strip-types server/tests/selfcheck.ts` | ✅ 12/12 |
-| 5 | **실물 자극이 필요한 카테고리에 자산이 있다** | `pedagogyLint.releaseBlockers` 가 빔 | ❌ 색보정 사진 미확보 |
+| 5 | **실물 자극이 필요한 카테고리에 자산이 있다** | `node --experimental-strip-types server/tests/selfcheck.ts --release` (태그를 끊으면 CI 가 자동으로 돈다) | ❌ 색보정 사진 미확보 |
 | 6 | 실기기 Apple Pencil 필압이 WKWebView 안에서 살아있다 | iPad 실기기 수기 확인 | ❌ 미검증 |
 | 7 | 결제 영수증 검증이 샌드박스에서 왕복 | Apple 샌드박스 · Play 라이선스 테스터 | ❌ 스토어 계정 필요 |
 | 8 | 계정 삭제가 실제로 지운다 | `delete-account` 후 재로그인 불가 확인 | ✅ 코드 · ❌ 실환경 |
 
 5·6·7 은 **코드로 풀 수 없는 항목**이다. 자산 구매·실기기·스토어 계정이라는 외부 의존이 있고,
 그래서 "코드가 다 됐으니 출시 가능" 이라고 말하지 않는다. 게이트는 게이트다.
+
+**이 게이트는 문서가 아니라 워크플로다.** `v*` 태그를 밀면 `release gate` 잡이 돌고,
+출고 보류가 남아 있으면 거기서 멈춘다. 평소 CI 에서는 경고로만 둔다 —
+일부러 보류 상태인 것 때문에 모든 PR 이 빨간불이면 그 신호는 곧 아무도 안 본다.
 
 ### 로버스트니스 예산
 `15-robustness.md` 의 예산을 출시 시점에 한 번 정산한다.
