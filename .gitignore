@@ -42,3 +42,6 @@ packages/*/build/
 # 로컬 실행 설정(--dart-define-from-file). 키가 들어가므로 절대 커밋하지 않는다
 app/env.json
 packages/design_system/pubspec.lock
+
+# 글꼴 서브셋 작업 디렉터리 (design/build_font.mjs)
+.font-build/

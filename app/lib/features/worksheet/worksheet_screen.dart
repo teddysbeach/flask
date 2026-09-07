@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -19,6 +20,7 @@ import '../../data/supabase.dart';
 import '../../data/worksheet_repository.dart';
 import '../../domain/models.dart';
 import '../../ui/states/app_state_views.dart';
+import 'worksheet_assets.dart';
 import '../../ui/widgets/feedback.dart';
 import 'worksheet_response_mapping.dart';
 
@@ -759,6 +761,14 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
           // 문서를 통째로 넘긴다. 외부 요청이 0회라 baseUrl 이 필요 없고,
           // 그래서 오프라인에서도 온라인과 똑같이 열린다.
           initialData: InAppWebViewInitialData(data: data.html, mimeType: 'text/html', encoding: 'utf-8'),
+          // 본문 글꼴은 앱 번들에 있다. 문서에 굽지 않고 열면서 얹는다 —
+          // 이유는 worksheet_assets.dart 에 적어 두었다.
+          initialUserScripts: UnmodifiableListView([
+            UserScript(
+              source: kWorksheetFontUserScript,
+              injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+            ),
+          ]),
           initialSettings: InAppWebViewSettings(
             // 학습지는 우리가 만든 문서다. 바깥으로 나갈 일이 없다.
             javaScriptEnabled: true,
@@ -767,7 +777,20 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
             // 애플펜슬 필기는 WebView 안에서 한다. 브라우저 제스처가 가로채면 획이 끊긴다.
             disableLongPressContextMenuOnLinks: true,
             allowsInlineMediaPlayback: true,
+            // 본문 글꼴을 앱 번들에서 먹인다(아래 onLoadResourceWithCustomScheme).
+            // 학습지 HTML 에 글꼴을 굽지 않는 이유는 용량이다 — 한 장에 200KB 가 붙으면
+            // 오프라인 보관과 스토리지 비용이 같이 세 배가 된다. 앱이 한 벌만 들고 먹인다.
+            resourceCustomSchemes: [kAssetScheme],
           ),
+          onLoadResourceWithCustomScheme: (c, request) async {
+            final bytes = await loadWorksheetAsset(request.url);
+            if (bytes == null) return null;
+            return CustomSchemeResponse(
+              data: bytes,
+              contentType: 'font/ttf',
+              contentEncoding: 'utf-8',
+            );
+          },
           onWebViewCreated: (c) {
             _web = c;
             _registerBridges(c);

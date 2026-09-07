@@ -48,11 +48,26 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  # pubspec 자체를 테스트가 읽는다(글꼴 선언이 실제 파일과 맞는지).
+  yaml: ^3.1.2
 
 flutter:
   uses-material-design: true
 
-  # 번들할 에셋이 없다. 로고·심볼은 디자인 시스템이 도형(SvgPicture.string)으로 들고 있고,
+  # 로고·심볼은 디자인 시스템이 도형(SvgPicture.string)으로 들고 있고,
   # 런처 아이콘과 스플래시는 네이티브 리소스에 있다
   # (ios/Runner/Assets.xcassets, android/app/src/main/res).
   # 원본과 생성기는 design/brand/ 와 design/build_brand.mjs 다.
+  assets:
+    # 학습지 WebView 가 onpar-asset:// 로 같은 파일을 가져다 쓴다.
+    # 앱과 학습지가 한 파일을 보게 해야 두 화면의 글자 모양이 갈라지지 않는다.
+    - assets/fonts/PretendardVariable.subset.ttf
+    # OFL 1.1 은 서브셋(파생물)에도 라이선스 전문 동봉을 요구한다. 라이선스 화면이 읽는다.
+    - assets/fonts/Pretendard-OFL.txt
+
+  fonts:
+    # design_tokens.json 이 이름으로 부르는 그 글꼴. 생성기는 design/build_font.mjs.
+    # 가변 축(wght 45~930)이라 파일 하나로 400·500·600·700 을 다 쓴다.
+    - family: Pretendard Variable
+      fonts:
+        - asset: assets/fonts/PretendardVariable.subset.ttf

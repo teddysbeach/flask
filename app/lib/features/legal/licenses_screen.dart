@@ -88,6 +88,25 @@ class BundledNotice {
 /// pub 패키지가 아니라 소스에 섞여 들어온 저작물. 여기 없으면 아무 데도 표시되지 않는다.
 const bundledNotices = <BundledNotice>[
   BundledNotice(
+    name: 'Pretendard',
+    license: 'SIL Open Font License 1.1',
+    copyright: 'Copyright (c) 2021, Kil Hyung-jin',
+    usage: '앱과 학습지의 본문 글꼴이에요. 한국어 문장에 필요한 글자만 골라 담은 '
+        '서브셋을 앱에 넣어 두고(design/build_font.mjs), 학습지 화면도 같은 파일을 써요.',
+    // OFL 1.1 은 파생물(서브셋) 배포에도 라이선스 전문 동봉을 요구한다.
+    // 전문은 assets/fonts/Pretendard-OFL.txt 에 함께 들어 있다.
+    text: 'Copyright (c) 2021, Kil Hyung-jin\n'
+        '(https://github.com/orioncactus/pretendard),\n'
+        'with Reserved Font Name Pretendard.\n\n'
+        'This Font Software is licensed under the SIL Open Font License, Version 1.1.\n'
+        'This license is copied below, and is also available with a FAQ at:\n'
+        'https://scripts.sil.org/OFL\n\n'
+        'Permission is hereby granted, free of charge, to any person obtaining a copy of the\n'
+        'Font Software, to use, study, copy, merge, embed, modify, redistribute, and sell\n'
+        'modified and unmodified copies of the Font Software, subject to the conditions in\n'
+        'the license. The full text ships with the app at assets/fonts/Pretendard-OFL.txt.',
+  ),
+  BundledNotice(
     name: 'SEED Design System',
     license: 'Apache License 2.0',
     copyright: 'Copyright 2025 주식회사 당근마켓',
