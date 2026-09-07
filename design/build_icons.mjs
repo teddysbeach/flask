@@ -8,15 +8,50 @@
  * 출처: untitledui-js (MIT, Copyright (c) 2025 Emmanuel C. Alozie)
  *       Untitled UI Icons 를 MIT 로 포팅한 패키지다.
  *
+ * 원본은 저장소에 두지 않는다(1,172개 아이콘, 수 MB). 버전을 고정해 npm 에서 받는다 —
+ * design/build_font.mjs 가 Pretendard 를 다루는 방식과 같다.
+ *
+ * **예전에는 `node_modules/` 를 그냥 읽었다.** 그 폴더는 커밋되지 않으므로 개발자 기계에서만
+ * 통과하고 CI 에서는 매번 죽었다. 그리고 이 검사가 server/tests/run.sh 의 첫 줄이라,
+ * **서버 테스트 전체가 CI 에서 한 번도 안 돌았다** — 로컬만 초록이었던 것이다.
+ *
  * 1,172개를 전부 담지 않는다. 학습지 HTML 에 인라인으로 들어가므로 파일 크기가 곧 비용이고,
  * 실제로 쓰는 것만 있어야 어떤 아이콘이 어디에 쓰이는지 추적할 수 있다.
  */
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const SRC = resolve(ROOT, 'node_modules/untitledui-js/dist/react/index.mjs')
+const VERSION = '2.2.232'
+const VENDOR = resolve(ROOT, '.icon-build')
+
+/**
+ * 아이콘 원본을 손에 넣는다.
+ *
+ * 이미 받아 둔 node_modules 가 있으면 그걸 쓴다(오프라인에서도 돌아간다).
+ * 없으면 버전을 고정해 npm 에서 받는다 — CI 에는 node_modules 가 없다.
+ */
+function iconSourcePath() {
+  const local = resolve(ROOT, 'node_modules/untitledui-js/dist/react/index.mjs')
+  if (existsSync(local)) return local
+
+  const vendored = resolve(VENDOR, 'package/dist/react/index.mjs')
+  if (existsSync(vendored)) return vendored
+
+  mkdirSync(VENDOR, { recursive: true })
+  const tgz = execFileSync('npm', ['pack', `untitledui-js@${VERSION}`, '--silent'],
+    { cwd: VENDOR, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }).trim().split('\n').pop()
+  execFileSync('tar', ['xzf', tgz], { cwd: VENDOR, stdio: 'inherit' })
+  if (!existsSync(vendored)) {
+    console.error(`untitledui-js@${VERSION} 의 구조가 바뀌었습니다: ${vendored}`)
+    process.exit(1)
+  }
+  return vendored
+}
+
+const SRC = iconSourcePath()
 const OUT_DART = resolve(ROOT, 'packages/design_system/lib/src/tokens/icons.g.dart')
 const OUT_TS = resolve(ROOT, 'server/supabase/functions/_shared/icons.g.ts')
 

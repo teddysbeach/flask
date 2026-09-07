@@ -35,6 +35,9 @@ deno.lock
 *.dump
 node_modules/
 
+# design/build_icons.mjs 가 npm 에서 받아 푸는 아이콘 원본 (1,172개, 수 MB)
+.icon-build/
+
 # 디자인 시스템 패키지도 앱과 같은 산출물이 생긴다
 packages/*/.dart_tool/
 packages/*/build/
