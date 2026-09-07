@@ -14,6 +14,7 @@
 | 1 | 서버 테스트 전부 통과 | `bash server/tests/run.sh` | ✅ |
 | 2 | 앱 정적 분석 무경고 | `flutter analyze` | ✅ |
 | 3 | 앱 테스트 전부 통과 | `flutter test` | ✅ |
+| 3-c | **분석·크래시가 실제로 서버에 쌓인다** | `daily_funnel` · `crash_summary` 뷰에 오늘 자 행이 있는지 | ✅ 코드 · ❌ 실환경 |
 | 3-b | 네이티브가 실제로 빌드된다 | CI 의 `app`(release APK · R8) · `ios`(pod install + build) 잡 | ⏳ CI 첫 실행에서 확인 |
 | 4 | 12개 카테고리 픽스처가 검사 루프를 통과 | `node --experimental-strip-types server/tests/selfcheck.ts` | ✅ 12/12 |
 | 5 | **실물 자극이 필요한 카테고리에 자산이 있다** | `node --experimental-strip-types server/tests/selfcheck.ts --release` (태그를 끊으면 CI 가 자동으로 돈다) | ❌ 색보정 사진 미확보 |

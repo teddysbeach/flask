@@ -180,9 +180,15 @@ class _ExportTileState extends ConsumerState<_ExportTile> {
       final file = await ref.read(dataExportProvider).writeFile();
       if (!mounted) return;
       // 어디로 보낼지는 사용자가 고른다 — 메일·파일 앱·클라우드. 우리가 정할 일이 아니다.
+      // 아이패드에서는 공유 시트가 **어디서 나올지**를 줘야 한다. 안 주면 iOS 가
+      // 팝오버를 그릴 자리를 못 정해 그 자리에서 죽는다 — 이 앱은 아이패드가 1순위다.
+      final box = context.findRenderObject() as RenderBox?;
       await Share.shareXFiles(
         [XFile(file.path, mimeType: 'application/json')],
         subject: 'ONPAR 내 데이터',
+        sharePositionOrigin: box == null
+            ? null
+            : box.localToGlobal(Offset.zero) & box.size,
       );
     } on AppError catch (e) {
       if (mounted) AppFeedback.toast(context, e.message, danger: true);
