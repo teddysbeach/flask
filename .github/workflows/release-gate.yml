@@ -84,8 +84,18 @@ jobs:
           else
             echo "ok  apple-app-site-association"
           fi
-          check "https://$host/.well-known/assetlinks.json" 200 application/json
-          if ! grep -q 'me.popol.onpar' /tmp/body; then
+          # assetlinks 도 리다이렉트를 따라가지 않는다(안드로이드가 안 따라간다).
+          # check() 를 재사용하지 않는 이유: 앞 단계가 실패하면 /tmp/body 에 엉뚱한 문서가 남아
+          # 지문 검사가 그걸 보게 된다.
+          code=$(curl -sS -o /tmp/al -w '%{http_code}' --max-time 20 \
+                 "https://$host/.well-known/assetlinks.json" 2>/dev/null || true)
+          if [ "$code" != "200" ]; then
+            echo "::error::assetlinks.json → HTTP $code (리다이렉트도 실패로 본다)"; fail=1
+          elif ! grep -q 'me.popol.onpar' /tmp/al; then
             echo "::error::assetlinks.json 에 me.popol.onpar 가 없다"; fail=1
+          elif ! grep -q 'sha256_cert_fingerprints' /tmp/al; then
+            echo "::error::assetlinks.json 에 서명 지문이 없다"; fail=1
+          else
+            echo "ok  assetlinks.json"
           fi
           exit $fail
