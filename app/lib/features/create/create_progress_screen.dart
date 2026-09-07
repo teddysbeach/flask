@@ -131,8 +131,8 @@ class _CreateProgressScreenState extends ConsumerState<CreateProgressScreen> {
             return ErrorView(
               error: err,
               onRetry: () => ref.invalidate(worksheetProgressProvider(widget.worksheetId)),
-              secondaryLabel: '서재에서 보기',
-              onSecondary: () => context.go(Routes.library),
+              secondaryLabel: '홈에서 보기',
+              onSecondary: () => context.go(Routes.home),
             );
           },
           data: (w) => switch (w.status) {
@@ -223,8 +223,8 @@ class _CreateProgressScreenState extends ConsumerState<CreateProgressScreen> {
 
         const SizedBox(height: DsSpace.s4),
         OutlinedButton(
-          onPressed: () => context.go(Routes.library),
-          child: const Text('서재로 가기'),
+          onPressed: () => context.go(Routes.home),
+          child: const Text('홈으로 가기'),
         ),
       ],
     );
@@ -281,8 +281,8 @@ class _CreateProgressScreenState extends ConsumerState<CreateProgressScreen> {
         ),
         const SizedBox(height: DsSpace.s2),
         TextButton(
-          onPressed: () => context.go(Routes.library),
-          child: const Text('서재로 가기'),
+          onPressed: () => context.go(Routes.home),
+          child: const Text('홈으로 가기'),
         ),
       ],
     );
@@ -303,12 +303,12 @@ class _CreateProgressScreenState extends ConsumerState<CreateProgressScreen> {
               textAlign: TextAlign.center, style: dsTextStyle(DsType.bodyLg, p.textPrimary)),
         ),
         const SizedBox(height: DsSpace.s3),
-        Text('취소된 건 아니에요. 다 만들어지면 서재에 나타나요.',
+        Text('취소된 건 아니에요. 다 만들어지면 홈에 나타나요.',
             textAlign: TextAlign.center, style: dsTextStyle(DsType.body, p.textSecondary)),
         const SizedBox(height: DsSpace.s6),
         FilledButton(
-          onPressed: () => context.go(Routes.library),
-          child: const Text('서재에서 확인하기'),
+          onPressed: () => context.go(Routes.home),
+          child: const Text('홈에서 확인하기'),
         ),
         const SizedBox(height: DsSpace.s2),
         TextButton(

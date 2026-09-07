@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/env.dart';
 import '../../core/logger.dart';
 import '../../core/routes.dart';
+import '../../data/supabase.dart';
 import '../../core/version_gate.dart';
 import '../../ui/widgets/feedback.dart';
 import '../settings/settings_tile.dart';
@@ -23,6 +24,7 @@ class SupportScreen extends ConsumerWidget {
     final p = DsTheme.of(context);
     final info = ref.watch(appInfoProvider);
     final version = info.valueOrNull?.display ?? '알 수 없음';
+    final signedIn = ref.watch(currentUserProvider) != null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('고객센터')),
@@ -51,6 +53,15 @@ class SupportScreen extends ConsumerWidget {
                   icon: DsIcons.guide,
                   onTap: () => context.push(Routes.contact),
                 ),
+                // 로그인했을 때만. 로그아웃 상태에서 보낸 문의는 계정에 안 붙어서
+                // 여기 나올 것이 없다 — 빈 화면으로 보내는 길을 만들지 않는다.
+                if (signedIn)
+                  SettingsTile(
+                    label: '내 문의',
+                    description: '보낸 문의와 받은 답',
+                    icon: DsIcons.glossary,
+                    onTap: () => context.push(Routes.tickets),
+                  ),
                 SettingsTile(
                   label: '이메일로 문의하기',
                   description: Env.supportEmail,

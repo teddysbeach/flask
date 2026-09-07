@@ -82,6 +82,10 @@
 
 	<!-- 밖으로 나가는 링크. launchUrl(externalApplication) 자체는 이 목록이 없어도 되지만,
 	     canLaunchUrl 로 미리 물어볼 때는 필요하다. 여는 것만 하고 데이터를 주고받지 않는다. -->
+	<!-- Google 로그인을 켤 때 URL 스킴을 하나 더 넣어야 한다.
+	     역방향 클라이언트 ID(com.googleusercontent.apps.XXXX) 를 CFBundleURLSchemes 에
+	     추가하지 않으면 구글 로그인 화면에서 앱으로 돌아오지 못한다.
+	     앱은 GOOGLE_IOS_CLIENT_ID 가 비어 있으면 버튼 자체를 감춘다(core/env.dart). -->
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>https</string>

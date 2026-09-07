@@ -12,6 +12,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../core/app_error.dart';
 import '../../core/env.dart';
 import '../../core/logger.dart';
+import '../../core/routes.dart';
 import '../../core/version_gate.dart';
 import '../../data/app_config_repository.dart';
 import '../../data/supabase.dart';
@@ -141,10 +142,20 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
           style: dsTextStyle(DsType.caption, p.textTertiary),
         ),
         const SizedBox(height: DsSpace.s8),
-        FilledButton(
-          onPressed: () => context.pop(),
-          child: const Text('닫기'),
-        ),
+        // 접수 번호를 적어 두라고만 하고 볼 곳이 없으면 그 번호는 쓸모가 없다.
+        // 로그인한 사람은 여기서 바로 문의함으로 간다.
+        if (ref.watch(currentUserProvider) != null) ...[
+          FilledButton(
+            onPressed: () => context.pushReplacement(Routes.tickets),
+            child: const Text('내 문의 보기'),
+          ),
+          const SizedBox(height: DsSpace.s2),
+          TextButton(onPressed: () => context.pop(), child: const Text('닫기')),
+        ] else
+          FilledButton(
+            onPressed: () => context.pop(),
+            child: const Text('닫기'),
+          ),
       ],
     );
   }

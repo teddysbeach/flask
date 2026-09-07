@@ -41,6 +41,7 @@ class Routes {
   static const support = '/support';
   static const faq = '/support/faq';
   static const contact = '/support/contact';
+  static const tickets = '/support/tickets';
 
   static const terms = '/legal/terms';
   static const privacy = '/legal/privacy';

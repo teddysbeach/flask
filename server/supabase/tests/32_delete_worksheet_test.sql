@@ -247,3 +247,49 @@ begin
 
   raise notice '── 공지·이벤트·추천 테스트 전부 통과 ──';
 end $$;
+
+-- ── 문의 답변 ────────────────────────────────────────────────────────────
+-- 여태 status 만 있고 답을 담을 자리가 없었다. "답변됨" 이라고 표시해도 답이 어디에도
+-- 없었다는 뜻이다. 문의는 보내는 것이 아니라 답을 받는 것이다.
+do $$
+declare u uuid; t uuid; r record; n int;
+begin
+  select id into u from auth.users where email = 'del@onpar.test';
+  insert into public.support_tickets (user_id, topic, body)
+  values (u, 'payment', '결제했는데 장수가 안 늘어요') returning id into t;
+
+  -- 답과 시각은 함께 있어야 한다. 하나만 있으면 화면이 "언제 온 답인지" 를 못 쓴다.
+  begin
+    update public.support_tickets set answer = '확인했습니다' where id = t;
+    raise exception '답만 있고 시각이 없는 행이 만들어졌다';
+  exception when check_violation then null;
+  end;
+
+  perform public.answer_support_ticket(t, '영수증을 확인했어요. 장수를 넣어 드렸습니다.');
+  select * into r from public.support_tickets where id = t;
+  assert r.status = 'answered', format('상태가 %s', r.status);
+  assert r.answer is not null and r.answered_at is not null, '답이 안 들어갔다';
+
+  -- ── 본인만 읽는다 ──
+  set local role authenticated;
+  perform set_config('request.jwt.claim.sub', u::text, true);
+  select count(*) into n from public.support_tickets where id = t;
+  assert n = 1, '본인 문의를 못 읽는다';
+
+  -- 사용자가 답을 고칠 수 있으면 그건 문의함이 아니라 게시판이다.
+  begin
+    update public.support_tickets set answer = '내가 쓴 답' where id = t;
+    raise exception '사용자가 답변을 고쳤다';
+  exception when insufficient_privilege then null;
+  end;
+  reset role;
+
+  -- 남의 문의는 안 보인다.
+  set local role authenticated;
+  perform set_config('request.jwt.claim.sub', gen_random_uuid()::text, true);
+  select count(*) into n from public.support_tickets where id = t;
+  assert n = 0, '남의 문의가 보인다';
+  reset role;
+
+  raise notice '── 문의 답변 테스트 전부 통과 ──';
+end $$;

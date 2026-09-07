@@ -8,6 +8,7 @@ import 'package:onpar_design_system/onpar_design_system.dart';
 
 import '../../core/analytics.dart';
 import '../../core/app_error.dart';
+import '../../core/env.dart';
 import '../../core/routes.dart';
 import '../../data/auth_repository.dart';
 import '../../ui/widgets/feedback.dart';
@@ -111,10 +112,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _signInWithGoogle() async {
     _clearErrors();
     try {
-      // TODO(env): Google 클라이언트 ID 는 아직 Env 에 없다. 값이 생기면 여기로 넘긴다.
-      await ref
-          .read(authRepositoryProvider)
-          .signInWithGoogle(iosClientId: null, serverClientId: null);
+      // 값은 진작 Env 에 있었는데 여기서 null 을 넘기고 있었다. iOS 의 google_sign_in 은
+      // 클라이언트 ID 없이는 시작조차 못 하므로, 이 버튼은 눌러도 아무 일이 안 일어났다.
+      await ref.read(authRepositoryProvider).signInWithGoogle(
+            iosClientId: Env.googleIosClientIdOrNull,
+            serverClientId: Env.googleServerClientIdOrNull,
+          );
       ref.read(analyticsProvider).track(AnalyticsEvent.loginComplete, props: {'method': 'google'});
     } catch (e, st) {
       if (!mounted) return;
@@ -196,11 +199,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: DsSpace.s3),
                     ],
-                    SocialButton(
-                      label: 'Google 로 계속하기',
-                      icon: Icons.g_mobiledata,
-                      onPressed: _signInWithGoogle,
-                    ),
+                    // 설정이 없는 빌드에서는 아예 안 띄운다. Apple 로그인을 안드로이드에서
+                    // 숨기는 것과 같은 규칙이다 — 안 되는 버튼을 두는 편이 더 나쁘다.
+                    if (Env.isGoogleSignInConfigured)
+                      SocialButton(
+                        label: 'Google 로 계속하기',
+                        icon: Icons.g_mobiledata,
+                        onPressed: _signInWithGoogle,
+                      ),
                   ],
                 ),
               ),

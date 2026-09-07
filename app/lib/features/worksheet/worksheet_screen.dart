@@ -64,7 +64,7 @@ final worksheetViewProvider =
   if (sheet.status != WorksheetStatus.ready || path == null || path.isEmpty) {
     throw AppError.of(
       AppErrorKind.notFound,
-      message: '아직 열 수 있는 학습지가 아니에요. 다 만들어지면 서재에서 열 수 있어요.',
+      message: '아직 열 수 있는 학습지가 아니에요. 다 만들어지면 홈에서 열 수 있어요.',
     );
   }
 
@@ -700,7 +700,7 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
       if (context.canPop()) {
         context.pop();
       } else {
-        context.go(Routes.library);
+        context.go(Routes.home);
       }
       AppFeedback.toast(context, '학습지를 지웠어요.');
     } on AppError catch (e) {
@@ -812,8 +812,8 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
       return ErrorView(
         error: error,
         onRetry: _reloadEverything,
-        secondaryLabel: '서재로 가기',
-        onSecondary: () => context.go(Routes.library),
+        secondaryLabel: '홈으로 가기',
+        onSecondary: () => context.go(Routes.home),
       );
     }
 
@@ -836,8 +836,8 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
                 textAlign: TextAlign.center, style: dsTextStyle(DsType.body, p.textSecondary)),
             const SizedBox(height: DsSpace.s6),
             FilledButton(
-              onPressed: () => context.go(Routes.library),
-              child: const Text('서재로 가기'),
+              onPressed: () => context.go(Routes.home),
+              child: const Text('홈으로 가기'),
             ),
           ],
         ),

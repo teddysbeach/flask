@@ -46,6 +46,7 @@ import 'features/stats/stats_screen.dart';
 import 'features/support/contact_screen.dart';
 import 'features/support/faq_screen.dart';
 import 'features/support/support_screen.dart';
+import 'features/support/ticket_list_screen.dart';
 import 'features/withdraw/withdraw_screen.dart';
 import 'features/worksheet/worksheet_screen.dart';
 
@@ -226,6 +227,8 @@ List<RouteBase> _routes(Ref ref) => [
       GoRoute(path: Routes.support, builder: (_, __) => const SupportScreen()),
       GoRoute(path: Routes.faq, builder: (_, __) => const FaqScreen()),
       GoRoute(path: Routes.contact, builder: (_, __) => const ContactScreen()),
+      // 내 문의와 받은 답. 로그인이 필요하다 — 남의 문의가 보이면 안 된다.
+      GoRoute(path: Routes.tickets, builder: (_, __) => const TicketListScreen()),
 
       // 학습지 뷰어는 탭 위에 통째로 올라온다. 필기 중에 탭 막대가 보이면 손이 닿는다.
       GoRoute(

@@ -491,8 +491,8 @@ class _ErrorNotice extends StatelessWidget {
                   if (inProgress) ...[
                     const SizedBox(height: DsSpace.s2),
                     TextButton(
-                      onPressed: () => context.go(Routes.library),
-                      child: const Text('서재에서 보기'),
+                      onPressed: () => context.go(Routes.home),
+                      child: const Text('홈에서 보기'),
                     ),
                   ],
                 ],

@@ -20,6 +20,7 @@
 | 5 | **실물 자극이 필요한 카테고리에 자산이 있다** | `node --experimental-strip-types server/tests/selfcheck.ts --release` (태그를 끊으면 CI 가 자동으로 돈다) | ❌ 색보정 사진 미확보 |
 | 6 | 실기기 Apple Pencil 필압이 WKWebView 안에서 살아있다 | iPad 실기기 수기 확인 | ❌ 미검증 |
 | 7 | 결제 영수증 검증이 샌드박스에서 왕복 | Apple 샌드박스 · Play 라이선스 테스터 | ❌ 스토어 계정 필요 |
+| 8-c | **Google 로그인이 실제로 왕복한다** | `GOOGLE_IOS_CLIENT_ID` dart-define **과** Info.plist 의 역방향 클라이언트 ID URL 스킴 둘 다 필요. 없으면 앱이 버튼을 감춘다 | ❌ 계정 필요 |
 | 8-b | **iOS 개인정보 매니페스트가 앱 번들에 들어간다** | `ios/Runner/PrivacyInfo.xcprivacy` (Resources 빌드 단계에 등록됨) · App Store Connect 신고 내용과 같은지 대조 | ✅ 코드 |
 | 8 | 계정 삭제가 실제로 지운다 | `delete-account` 후 재로그인 불가 확인 | ✅ 코드 · ❌ 실환경 |
 
