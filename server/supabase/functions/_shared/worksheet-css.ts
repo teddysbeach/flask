@@ -88,6 +88,12 @@ body {
   letter-spacing: -.5px;
   margin: 0;
 }
+/* 단계가 무엇을 하는 자리인지 한 줄. 제목 아래에 조용히 놓인다. */
+.sec__lead {
+  font-size: 15px; line-height: 1.6;
+  color: var(--ds-color-text-tertiary);
+  margin: 6px 0 0;
+}
 .sec__body > *:first-child { margin-top: 0; }
 .sec__body > *:last-child  { margin-bottom: 0; }
 
@@ -124,8 +130,52 @@ code, .code {
 }
 .list li::marker { color: var(--ds-color-text-tertiary); }
 
+/* ── 문제 제시 ──
+   학습지 전체가 수렴하는 질문 하나. 제목 다음으로 가장 눈에 띄는 글줄이어야 한다.
+   상자가 아니라 굵은 브랜드 색 세로선과 큰 활자로 세운다. */
+.problem {
+  margin: 0 0 40px;
+  padding: 4px 0 4px 28px;
+  border-left: 4px solid var(--ds-color-brand-primary);
+  max-width: 34em;
+}
+.problem__q {
+  font-size: 25px; line-height: 1.5; font-weight: 700; letter-spacing: -.5px;
+  margin: 0;
+  color: var(--ds-color-text-primary);
+  text-wrap: balance;
+}
+.problem__why {
+  font-size: 16px; line-height: 1.7; margin: 14px 0 0;
+  color: var(--ds-color-text-secondary);
+}
+
+/* ── 관찰 지시 ──
+   "여기를 보세요" 목록. 번호가 곧 순서라 크게 세우고 항목 사이를 넉넉히 띄운다. */
+.notice {
+  list-style: none; counter-reset: notice;
+  margin: 0 0 var(--ds-sheet-block-gap); padding: 0; max-width: 38em;
+}
+.notice li {
+  display: grid; grid-template-columns: 32px 1fr; gap: 14px; align-items: start;
+  font-size: var(--ds-ws-body-size); line-height: var(--ds-ws-body-lh);
+  padding: 12px 0;
+  border-top: 1px solid var(--ds-color-border-subtle);
+}
+.notice li:first-child { border-top: 0; padding-top: 0; }
+.notice li::before {
+  counter-increment: notice; content: counter(notice);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; margin-top: 2px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-brand-primary-subtle);
+  color: var(--ds-color-brand-text-on-subtle);
+  font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+
 /* ── 일상 비유 ──
-   학습지에서 가장 먼저 읽는 문장. 상자에 가두지 않고 리드 문단으로 세운다. */
+   관찰한 것에 이름을 붙이는 첫 문장. 상자에 가두지 않고 리드 문단으로 세운다.
+   문제 제시의 질문보다는 한 단계 낮게 — 세로선을 가늘게 둔다. */
 .analogy {
   display: block;
   font-size: var(--ds-ws-lead-size);
@@ -134,7 +184,7 @@ code, .code {
   letter-spacing: -.2px;
   margin: 0 0 36px;
   padding-left: 24px;
-  border-left: 3px solid var(--ds-color-brand-primary);
+  border-left: 2px solid var(--ds-color-brand-primary);
   max-width: 36em;
 }
 .analogy .ico { display: none; }   /* 리드 문단에는 아이콘을 넣지 않는다 */
@@ -248,22 +298,28 @@ code, .code {
 .is-nudge { animation: nudge .3s ease 2; }
 .is-nudge .act__reveal summary, .is-nudge .quiz__a summary { color: var(--ds-callout-caution-accent); border-color: var(--ds-callout-caution-accent); }
 
-/* ── 보조 섹션 (접힘) ──
-   핵심 경로와 보조 경로를 시각적으로 나눈다. 역사·상황극·꿀팁은 원하면 편다. */
-.sec--aside { margin-bottom: 28px; }
-.sec__fold { border: 1px dashed var(--ds-color-border-default); border-radius: var(--ds-radius-xl); padding: 0 22px; }
-.sec__fold[open] { padding-bottom: 28px; }
-.sec__fold-summary {
-  display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none;
-  padding: 16px 0; font-size: 16px; font-weight: 700; color: var(--ds-color-text-secondary);
+/* ── 맥락 노트 (접힘) ──
+   개념 안의 짧은 역사. 핵심 경로가 아니라 접어 두고, 원하면 편다. 섹션 자체는 접지 않는다. */
+.context {
+  margin: 36px 0 0; max-width: 40em;
+  border: 1px dashed var(--ds-color-border-default);
+  border-radius: var(--ds-radius-xl);
+  padding: 0 22px;
 }
-.sec__fold-summary::-webkit-details-marker { display: none; }
-.sec__fold-hint { margin-left: auto; font-size: 13px; font-weight: 500; color: var(--ds-color-text-tertiary); }
-.sec__fold[open] .sec__fold-hint { display: none; }
-.sec__fold[open] .sec__fold-summary { display: none; }
-.sec__aside { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: var(--ds-radius-full); background: var(--ds-color-surface-sunken); color: var(--ds-color-text-tertiary); }
+.context[open] { padding-bottom: 22px; }
+.context__summary {
+  display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none;
+  padding: 16px 0; font-size: 15px; font-weight: 700;
+  color: var(--ds-color-text-secondary);
+}
+.context__summary::-webkit-details-marker { display: none; }
+.context__summary .ico { color: var(--ds-color-text-tertiary); }
+.context[open] .context__summary { border-bottom: 1px solid var(--ds-color-border-subtle); margin-bottom: 18px; }
+.context__body .p { font-size: 16px; }
+.context__body > *:last-child { margin-bottom: 0; }
 
-/* ── 마무리 성찰 ── */
+/* ── 나가기 전에: 성찰 ── */
+.reflect + .reflect { margin-top: 32px; }
 .reflect { margin-top: 28px; max-width: 40em; }
 .reflect__prompt { display: flex; gap: 8px; align-items: start; font-size: 16px; font-weight: 700; line-height: 1.6; margin: 0; }
 .reflect__prompt .ico { color: var(--ds-color-brand-primary); margin-top: 3px; }
@@ -293,21 +349,17 @@ code, .code {
   border-radius: var(--ds-radius-2xl);
   max-width: 40em;
 }
-.callout--story   { background: var(--ds-callout-story-bg); }
-.callout--tip     { background: var(--ds-callout-tip-bg); }
 .callout--caution { background: var(--ds-callout-caution-bg); }
 .callout__label {
   display: flex; align-items: center; gap: 7px;
   font-size: 13px; font-weight: 700; letter-spacing: -.01em;
   margin: 0 0 10px;
 }
-.callout--story   .callout__label { color: var(--ds-callout-story-accent); }
-.callout--tip     .callout__label { color: var(--ds-callout-tip-accent); }
 .callout--caution .callout__label { color: var(--ds-callout-caution-accent); }
 .callout .p, .callout .list { margin-bottom: 0; font-size: 16px; }
 .callout .list li:last-child { margin-bottom: 0; }
 
-/* ── 카드 (사전학습 / 다음 단계 / 숙제) ── */
+/* ── 카드 (다음 단계 / 확장 과제) ── */
 .cards { display: grid; gap: 14px; margin: 0 0 var(--ds-sheet-block-gap); max-width: 40em; }
 .card {
   padding: 20px 22px;
@@ -321,7 +373,7 @@ code, .code {
   font-size: 14px; color: var(--ds-color-text-tertiary); margin: 10px 0 0;
 }
 
-/* ── 타임라인 ── */
+/* ── 타임라인 (맥락 노트의 사실들) ── */
 .timeline { list-style: none; margin: 0 0 var(--ds-sheet-block-gap); padding: 0; max-width: 40em; }
 .timeline li {
   display: grid; grid-template-columns: 108px 1fr; gap: 20px;
@@ -343,22 +395,6 @@ code, .code {
 }
 .conf--medium { background: var(--ds-callout-tip-bg); color: var(--ds-callout-tip-accent); }
 .conf--low    { background: var(--ds-callout-caution-bg); color: var(--ds-callout-caution-accent); }
-
-/* ── 상황극 ── */
-.scene {
-  font-size: 16px; line-height: 1.72; color: var(--ds-color-text-secondary);
-  margin: 0 0 24px; max-width: 38em;
-}
-.dialogue { margin: 0 0 var(--ds-sheet-block-gap); max-width: 38em; }
-.dialogue__line {
-  display: grid; grid-template-columns: 72px 1fr; gap: 16px;
-  padding: 10px 0;
-}
-.dialogue__speaker {
-  font-size: 14px; font-weight: 700; line-height: 1.85;
-  color: var(--ds-color-text-tertiary); text-align: right;
-}
-.dialogue__text { font-size: 17px; line-height: 1.75; margin: 0; }
 
 /* ── 예시 ── */
 .example { margin: 0 0 var(--ds-sheet-block-gap); max-width: 40em; }

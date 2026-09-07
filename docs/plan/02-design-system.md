@@ -69,7 +69,7 @@ node design/build_icons.mjs --check # 드리프트 검사 (CI)
 
 | 쓰임 | 아이콘 |
 |---|---|
-| 학습지 11개 섹션 | Target01 · ClockRewind · BookOpen01 · Hourglass01 · MessageChatCircle · GraduationHat01 · Lightbulb02 · HelpCircle · CheckSquare · Flag01 · Rocket01 |
+| 학습지 6단계 | PuzzlePiece01 · Target01 · Eye · GraduationHat01 · CheckSquare · Flag01 (+ 맥락 노트 ClockRewind, 활동 HelpCircle) |
 | 문서 요소 | Stars01(비유) · BookOpen02(용어) · MessageChatSquare(파르) |
 | 필기 툴바 | PenTool02 · Brush01 · Eraser · FlipBackward · FlipForward · Trash01 · ZoomIn |
 | 내비게이션 | Home01 · BookOpen01 · RefreshCcw01 · Settings01 · User01 |

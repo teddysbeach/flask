@@ -12,12 +12,16 @@ import { LlmRefusalError, LlmOutputError } from '../supabase/functions/_shared/c
 const HERE = dirname(fileURLToPath(import.meta.url))
 const CONTENT = JSON.parse(readFileSync(resolve(HERE, 'fixtures/worksheet-event-sourcing.json'), 'utf8'))
 const OUTLINE = {
-  schema_version: 1, title: CONTENT.title, topic_normalized: CONTENT.topic_normalized,
-  level: CONTENT.level, estimated_minutes: CONTENT.estimated_minutes,
-  section_briefs: [], roleplay_mode: CONTENT.roleplay.mode,
-  facts: CONTENT.origin_story.timeline.map((t: any) => ({ when: t.when, what: t.what, confidence: t.confidence })),
-  quiz_plan: CONTENT.quiz.map((q: any) => ({ asks: q.question, answer_gist: q.answer, source_block: 0, difficulty: q.difficulty })),
-  prerequisites: CONTENT.prerequisites, next_steps: CONTENT.next_steps,
+  schema_version: 2, title: CONTENT.title, topic_normalized: CONTENT.topic_normalized,
+  level: CONTENT.level, category: CONTENT.category,
+  problem_gist: CONTENT.problem.question,
+  prediction: { question: CONTENT.predict.hook.prompt, options: CONTENT.predict.hook.options,
+                common_wrong: CONTENT.predict.hook.options[CONTENT.predict.hook.options.length - 1] },
+  observation_gist: '관찰 요지',
+  concept_blocks: CONTENT.concept.blocks.map((b: any) => ({ heading: b.heading, gist: b.heading, activity_kind: b.activity?.kind ?? null })),
+  facts: (CONTENT.concept.context_note?.facts ?? []).map((t: any) => ({ when: t.when, what: t.what, confidence: t.confidence })),
+  quiz_plan: CONTENT.practice.quiz.map((q: any) => ({ asks: q.question, answer_gist: q.answer, source_block: 0, difficulty: q.difficulty, transfer: q.transfer })),
+  next_steps: CONTENT.exit_ticket.next_steps,
 }
 
 let passed = 0
@@ -145,7 +149,7 @@ const failCases: [string, any, string][] = [
   ['모델이 거절하면', { planThrows: new LlmRefusalError('cyber') }, 'llm_refused'],
   ['설계 응답이 깨졌으면', { planThrows: new LlmOutputError('JSON 파싱 실패') }, 'llm_upstream_error'],
   ['설계도에 quiz_plan 이 없으면', { outline: { title: 'x' } }, 'plan_schema_invalid'],
-  ['집필이 스키마를 계속 어기면', { content: { ...CONTENT, quiz: CONTENT.quiz.slice(0, 4) } }, 'draft_schema_invalid'],
+  ['집필이 스키마를 계속 어기면', { content: { ...CONTENT, practice: { ...CONTENT.practice, quiz: CONTENT.practice.quiz.slice(0, 4) } } }, 'draft_schema_invalid'],
 ]
 
 for (const [label, over, expected] of failCases) {
@@ -160,22 +164,21 @@ for (const [label, over, expected] of failCases) {
   })
 }
 
-await test('집필이 설계의 사실성 판단을 뒤집으면 실패시킨다', async () => {
+await test('집필이 예측 선택지에서 흔한 오답을 빼면 실패시킨다', async () => {
   const twisted = structuredClone(CONTENT)
-  twisted.roleplay.mode = 'real_case'          // 설계는 hypothetical 이었다
-  twisted.roleplay.disclaimer = null
+  twisted.predict.hook.options = twisted.predict.hook.options.map((o: string) =>
+    o === OUTLINE.prediction.common_wrong ? '설계에 없던 선택지' : o)
   const { deps, log } = makeDeps({ content: twisted })
   await assert.rejects(() => pipe.runGeneration(deps, INPUT, 'ws1'))
-  // 검증기가 먼저 잡든(disclaimer) 정합성 검사가 잡든, 통과하지 않는 것이 핵심이다
-  // 검증기(disclaimer 없음)든 정합성 검사든 정적 지적이 남아 있으면 상한까지 재작성 후 반려된다
-  assert.ok(['draft_quality_rejected', 'draft_schema_invalid'].includes(log.failures[0].code),
-    `가상 시나리오가 사실로 둔갑했다: ${log.failures[0].code}`)
+  // 정적 지적이 남아 있으면 상한까지 재작성 후 반려된다
+  assert.equal(log.failures[0].code, 'draft_quality_rejected', `흔한 오답이 빠졌는데 통과했다: ${log.failures[0].code}`)
+  assert.ok(log.failures[0].detail.includes('[설계 위반]'), `사유에 정합성 지적이 없다: ${log.failures[0].detail.slice(0, 80)}`)
   assert.equal(log.quotaRefunded, 1)
 })
 
 await test('집필이 문제 난이도를 바꾸면 draft_contradicts_plan 으로 잡는다', async () => {
   const twisted = structuredClone(CONTENT)
-  twisted.quiz[0].difficulty = twisted.quiz[0].difficulty === 3 ? 1 : 3
+  twisted.practice.quiz[0].difficulty = twisted.practice.quiz[0].difficulty === 3 ? 1 : 3
   const { deps, log } = makeDeps({ content: twisted })
   await assert.rejects(() => pipe.runGeneration(deps, INPUT, 'ws1'))
   assert.equal(log.failures[0].code, 'draft_quality_rejected')
@@ -214,7 +217,7 @@ await test('검사관이 반려하면 사유를 붙여 재작성하고, 통과�
 
 await test('정적 린트에 걸리면 검사관 점수가 높아도 재작성한다', async () => {
   const rude = structuredClone(CONTENT)
-  rude.what_we_learn.analogy = '이건 당연히 아는 내용이라 아주 간단합니다. 쉽죠?'
+  rude.concept.analogy = '이건 당연히 아는 내용이라 아주 간단합니다. 쉽죠?'
   const { deps, log } = makeDeps({ content: rude, revised: CONTENT, verdicts: [{ score: 95, must_fix: [] }] })
   await pipe.runGeneration(deps, INPUT, 'ws1')
   assert.equal(log.revisions, 1, '말투 위반인데 그냥 통과시켰다')

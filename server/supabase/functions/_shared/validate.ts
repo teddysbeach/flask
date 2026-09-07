@@ -5,7 +5,7 @@
 // 재요청 성공률을 올린다. 경로와 기대값을 사람이 읽을 수 있게 낸다.
 
 import { SCHEMA_VERSION, SECTION_KEYS, CATEGORIES, EXAMPLE_KINDS } from './worksheet-types.ts'
-import type { WorksheetContent, InlineNode } from './worksheet-types.ts'
+import type { WorksheetContent, InlineNode, Activity, Example } from './worksheet-types.ts'
 
 export class ValidationError extends Error {
   // 파라미터 프로퍼티(constructor(readonly x))는 쓰지 않는다.
@@ -93,8 +93,9 @@ export function validateWorksheet(input: unknown): WorksheetContent {
   const topic = str(c, r.topic_normalized, 'topic_normalized', { max: 120 })
   const level = oneOf(c, r.level, 'level', ['beginner', 'intermediate', 'advanced'] as const)
   const category = oneOf(c, r.category, 'category', CATEGORIES)
+  const oneLiner = str(c, r.one_liner, 'one_liner', { max: 200 })
 
-  // 시간은 세 덩어리로. "약 26분" 하나만 있으면 숙제 40분과 충돌해 아무도 못 믿는다.
+  // 시간은 세 덩어리로. "약 26분" 하나만 있으면 확장 과제 40분과 충돌해 아무도 못 믿는다.
   const tm = obj(c, r.time, 'time')
   const time = {
     core: num(c, tm.core, 'time.core', 10, 120),
@@ -106,10 +107,10 @@ export function validateWorksheet(input: unknown): WorksheetContent {
   const assumes = arr(c, r.assumes, 'assumes', 1, 4)
     .map((a, i) => str(c, a, `assumes[${i}]`, { max: 120 }))
 
-  // 활동 하나의 공통 형태. hook 과 블록 활동이 같은 검증을 받는다.
-  const activity = (v: unknown, path: string) => {
+  // ── 공통 조각 ────────────────────────────────────────────────────────────
+  const activity = (v: unknown, path: string, allowed: readonly Activity['kind'][] = ['predict', 'decide', 'compute', 'draw', 'explain']): Activity => {
     const a = obj(c, v, path)
-    const kind = oneOf(c, a.kind, `${path}.kind`, ['predict', 'decide', 'compute', 'draw', 'explain'] as const)
+    const kind = oneOf(c, a.kind, `${path}.kind`, allowed)
     const options = a.options == null ? null
       : arr(c, a.options, `${path}.options`, 2, 5).map((x, j) => str(c, x, `${path}.options[${j}]`, { max: 120 }))
     if ((kind === 'predict' || kind === 'decide') && !options) {
@@ -123,20 +124,29 @@ export function validateWorksheet(input: unknown): WorksheetContent {
     }
   }
 
-  // ① 무엇을 배우는가 — 일상 비유가 반드시 먼저 온다 (설명 사다리 ①단)
-  const w = obj(c, r.what_we_learn, 'what_we_learn')
-  const hook = activity(w.hook, 'what_we_learn.hook')
-  // 첫 예측은 반드시 고르는 것이어야 한다. 계산이나 그림은 아직 아무것도 모르는 상태에서 시킬 수 없다.
-  if (hook.kind !== 'predict' && hook.kind !== 'decide') {
-    c.issues.push(at('what_we_learn.hook.kind', `첫 활동은 predict 또는 decide 여야 합니다 (받은 값: ${hook.kind}). 설명 전이라 고를 수만 있습니다`))
+  const example = (v: unknown, path: string): Example => {
+    const e = obj(c, v, path)
+    const kind = oneOf(c, e.kind, `${path}.kind`, EXAMPLE_KINDS)
+    const language = nullableStr(c, e.language, `${path}.language`, 30)
+    // language 는 코드에만 붙는다. 계산이나 동작 순서에 'javascript' 가 붙으면 잘못된 것이다.
+    if (kind !== 'code' && language) {
+      c.issues.push(at(`${path}.language`, `kind 가 ${kind} 이면 language 는 null 이어야 합니다`))
+    }
+    return {
+      kind,
+      caption: str(c, e.caption, `${path}.caption`, { max: 200 }),
+      body: str(c, e.body, `${path}.body`, { min: 1, max: 2000 }),
+      language,
+    }
   }
-  const whatWeLearn = {
-    hook,
-    analogy: str(c, w.analogy, 'what_we_learn.analogy', { min: 10, max: 400 }),
-    summary: inline(c, w.summary, 'what_we_learn.summary'),
-    objectives: arr(c, w.objectives, 'what_we_learn.objectives', 3, 3)
-      .map((o, i) => str(c, o, `what_we_learn.objectives[${i}]`, { max: 200 })),
-    one_liner: str(c, w.one_liner, 'what_we_learn.one_liner', { max: 200 }),
+
+  const fact = (v: unknown, path: string) => {
+    const o = obj(c, v, path)
+    return {
+      when: str(c, o.when, `${path}.when`, { max: 60 }),
+      what: str(c, o.what, `${path}.what`, { max: 400 }),
+      confidence: oneOf(c, o.confidence, `${path}.confidence`, ['high', 'medium', 'low'] as const),
+    }
   }
 
   // 용어 풀이 — 어려운 말을 그 자리에서 푼다
@@ -148,8 +158,7 @@ export function validateWorksheet(input: unknown): WorksheetContent {
     }
   })
 
-  // 파르의 한마디
-  // 파르는 오개념 교정·힌트에만. 세 번 넘게 "저도 처음엔…" 하면 목소리가 아니라 문체 템플릿이 된다.
+  // 파르의 한마디 — 오개념 교정·힌트에만. 세 번 넘게 "저도 처음엔…" 하면 문체 템플릿이 된다.
   const guideNotes = arr(c, r.guide_notes, 'guide_notes', 1, 2).map((g, i) => {
     const o = obj(c, g, `guide_notes[${i}]`)
     return {
@@ -217,208 +226,156 @@ export function validateWorksheet(input: unknown): WorksheetContent {
       drawTask: nullableStr(c, o.drawTask, `figures[${i}].drawTask`, 300),
     }
   })
-
-  // ② 이전에는 어땠는지
-  const b = obj(c, r.before_and_need, 'before_and_need')
-  const beforeAndNeed = {
-    world_before: inline(c, b.world_before, 'before_and_need.world_before'),
-    pain_points: arr(c, b.pain_points, 'before_and_need.pain_points', 2, 4)
-      .map((p, i) => str(c, p, `before_and_need.pain_points[${i}]`, { max: 300 })),
-    why_it_emerged: inline(c, b.why_it_emerged, 'before_and_need.why_it_emerged'),
+  const figureRef = (v: unknown, path: string): string | null => {
+    const fid = nullableStr(c, v, path, 40)
+    if (fid && !figureIds.has(fid)) c.issues.push(at(path, `figures 에 없는 id: ${fid}`))
+    return fid
   }
 
-  // ③ 사전학습 제안 3개
-  const prerequisites = arr(c, r.prerequisites, 'prerequisites', 3, 3).map((p, i) => {
-    const o = obj(c, p, `prerequisites[${i}]`)
+  // ① 문제 제시 — 개념 이름이 아니라 아직 못 푸는 구체적 상황으로 연다
+  const pb = obj(c, r.problem, 'problem')
+  const question = str(c, pb.question, 'problem.question', { min: 10, max: 300 })
+  if (!/[?？]\s*$/.test(question.trim())) {
+    c.issues.push(at('problem.question', '학습지가 끝나면 답할 수 있어야 하는 "질문" 이어야 합니다 (물음표로 끝나게)'))
+  }
+  const problem = {
+    situation: inline(c, pb.situation, 'problem.situation'),
+    question,
+    why_it_matters: str(c, pb.why_it_matters, 'problem.why_it_matters', { min: 10, max: 300 }),
+    objectives: arr(c, pb.objectives, 'problem.objectives', 3, 3)
+      .map((o, i) => str(c, o, `problem.objectives[${i}]`, { max: 200 })),
+  }
+
+  // ② 예측 — 설명 전이라 고를 수만 있다. 계산이나 그림은 아직 시킬 수 없다.
+  const pd = obj(c, r.predict, 'predict')
+  const hook = activity(pd.hook, 'predict.hook', ['predict', 'decide'])
+  const predict = {
+    hook,
+    reasoning_prompt: str(c, pd.reasoning_prompt, 'predict.reasoning_prompt', { min: 10, max: 300 }),
+  }
+
+  // ③ 관찰 — 증거(도형 또는 예시)가 없으면 관찰이 아니다
+  const ob = obj(c, r.observe, 'observe')
+  const observe = {
+    intro: inline(c, ob.intro, 'observe.intro'),
+    figure: figureRef(ob.figure, 'observe.figure'),
+    example: ob.example == null ? null : example(ob.example, 'observe.example'),
+    notice: arr(c, ob.notice, 'observe.notice', 2, 4).map((x, i) => str(c, x, `observe.notice[${i}]`, { max: 200 })),
+    compare: activity(ob.compare, 'observe.compare', ['decide', 'explain']),
+  }
+  if (!observe.figure && !observe.example) {
+    c.issues.push(at('observe', '관찰할 증거가 없습니다. figure(도형) 나 example(코드·장면·비교) 중 하나는 반드시 있어야 합니다'))
+  }
+
+  // ④ 개념 — 관찰한 것에 이름을 붙인다
+  const cp = obj(c, r.concept, 'concept')
+  const blocks = arr(c, cp.blocks, 'concept.blocks', 2, 5).map((blk, i) => {
+    const o = obj(c, blk, `concept.blocks[${i}]`)
     return {
-      title: str(c, o.title, `prerequisites[${i}].title`, { max: 80 }),
-      why: str(c, o.why, `prerequisites[${i}].why`, { max: 300 }),
-      one_liner: str(c, o.one_liner, `prerequisites[${i}].one_liner`, { max: 200 }),
+      heading: str(c, o.heading, `concept.blocks[${i}].heading`, { max: 100 }),
+      body: inline(c, o.body, `concept.blocks[${i}].body`),
+      example: o.example == null ? null : example(o.example, `concept.blocks[${i}].example`),
+      figure: figureRef(o.figure, `concept.blocks[${i}].figure`),
+      activity: o.activity == null ? null : activity(o.activity, `concept.blocks[${i}].activity`),
+      common_mistake: nullableStr(c, o.common_mistake, `concept.blocks[${i}].common_mistake`, 400),
     }
   })
-
-  // ④ 탄생 배경
-  const os = obj(c, r.origin_story, 'origin_story')
-  const originStory = {
-    timeline: arr(c, os.timeline, 'origin_story.timeline', 2, 5).map((t, i) => {
-      const o = obj(c, t, `origin_story.timeline[${i}]`)
-      return {
-        when: str(c, o.when, `origin_story.timeline[${i}].when`, { max: 60 }),
-        what: str(c, o.what, `origin_story.timeline[${i}].what`, { max: 400 }),
-        confidence: oneOf(c, o.confidence, `origin_story.timeline[${i}].confidence`, ['high', 'medium', 'low'] as const),
-      }
-    }),
-    narrative: inline(c, os.narrative, 'origin_story.narrative'),
-    uncertainty_note: nullableStr(c, os.uncertainty_note, 'origin_story.uncertainty_note'),
-  }
-
-  // ⑤ 상황극
-  const rp = obj(c, r.roleplay, 'roleplay')
-  const mode = oneOf(c, rp.mode, 'roleplay.mode', ['real_case', 'hypothetical'] as const)
-  const disclaimer = nullableStr(c, rp.disclaimer, 'roleplay.disclaimer')
-  // 정직성 규칙: 가상 시나리오는 반드시 그렇다고 밝힌다.
-  if (mode === 'hypothetical' && !disclaimer) {
-    c.issues.push(at('roleplay.disclaimer', 'mode 가 hypothetical 이면 가상임을 밝히는 disclaimer 가 반드시 있어야 합니다'))
-  }
-  const roleplay = {
-    mode,
-    scene: str(c, rp.scene, 'roleplay.scene', { max: 600 }),
-    dialogue: arr(c, rp.dialogue, 'roleplay.dialogue', 2, 12).map((d, i) => {
-      const o = obj(c, d, `roleplay.dialogue[${i}]`)
-      return {
-        speaker: str(c, o.speaker, `roleplay.dialogue[${i}].speaker`, { max: 40 }),
-        line: str(c, o.line, `roleplay.dialogue[${i}].line`, { max: 500 }),
-      }
-    }),
-    takeaway: inline(c, rp.takeaway, 'roleplay.takeaway'),
-    disclaimer,
-  }
-
-  // ⑥ 본론
-  const ml = obj(c, r.main_lesson, 'main_lesson')
-  const mainLesson = {
-    blocks: arr(c, ml.blocks, 'main_lesson.blocks', 3, 6).map((blk, i) => {
-      const o = obj(c, blk, `main_lesson.blocks[${i}]`)
-      const ex = o.example
-      return {
-        heading: str(c, o.heading, `main_lesson.blocks[${i}].heading`, { max: 100 }),
-        body: inline(c, o.body, `main_lesson.blocks[${i}].body`),
-        example: ex === null || ex === undefined ? null : (() => {
-          const e = obj(c, ex, `main_lesson.blocks[${i}].example`)
-          const kind = oneOf(c, e.kind, `main_lesson.blocks[${i}].example.kind`, EXAMPLE_KINDS)
-          const language = nullableStr(c, e.language, `main_lesson.blocks[${i}].example.language`, 30)
-          // language 는 코드에만 붙는다. 계산이나 동작 순서에 'javascript' 가 붙으면 잘못된 것이다.
-          if (kind !== 'code' && language) {
-            c.issues.push(at(`main_lesson.blocks[${i}].example.language`,
-              `kind 가 ${kind} 이면 language 는 null 이어야 합니다`))
-          }
-          return {
-            kind,
-            caption: str(c, e.caption, `main_lesson.blocks[${i}].example.caption`, { max: 200 }),
-            body: str(c, e.body, `main_lesson.blocks[${i}].example.body`, { min: 1, max: 2000 }),
-            language,
-          }
-        })(),
-        figure: (() => {
-          const fid = nullableStr(c, o.figure, `main_lesson.blocks[${i}].figure`, 40)
-          if (fid && !figureIds.has(fid)) c.issues.push(at(`main_lesson.blocks[${i}].figure`, `figures 에 없는 id: ${fid}`))
-          return fid
-        })(),
-        activity: o.activity == null ? null : activity(o.activity, `main_lesson.blocks[${i}].activity`),
-        common_mistake: nullableStr(c, o.common_mistake, `main_lesson.blocks[${i}].common_mistake`, 400),
-      }
-    }),
-  }
   // 설명 한 단위마다 학생이 무언가를 해야 한다. 절반 이상.
-  const withActivity = mainLesson.blocks.filter((b) => b.activity).length
-  if (withActivity * 2 < mainLesson.blocks.length) {
-    c.issues.push(at('main_lesson.blocks', `활동이 있는 블록이 ${withActivity}/${mainLesson.blocks.length} 입니다. 절반 이상이어야 합니다 — 읽기만 하면 이해했다고 착각합니다`))
+  const withActivity = blocks.filter((b) => b.activity).length
+  if (withActivity * 2 < blocks.length) {
+    c.issues.push(at('concept.blocks', `활동이 있는 블록이 ${withActivity}/${blocks.length} 입니다. 절반 이상이어야 합니다 — 읽기만 하면 이해했다고 착각합니다`))
+  }
+  const cn = cp.context_note
+  const contextNote = cn == null ? null : (() => {
+    const o = obj(c, cn, 'concept.context_note')
+    return {
+      text: inline(c, o.text, 'concept.context_note.text'),
+      facts: arr(c, o.facts, 'concept.context_note.facts', 0, 3).map((f, i) => fact(f, `concept.context_note.facts[${i}]`)),
+    }
+  })()
+  const concept = {
+    analogy: str(c, cp.analogy, 'concept.analogy', { min: 10, max: 400 }),
+    blocks,
+    context_note: contextNote,
   }
 
-  // ⑦ 꿀팁
-  const proTips = arr(c, r.pro_tips, 'pro_tips', 3, 5).map((t, i) => {
-    const o = obj(c, t, `pro_tips[${i}]`)
-    return {
-      tip: str(c, o.tip, `pro_tips[${i}].tip`, { max: 200 }),
-      why: str(c, o.why, `pro_tips[${i}].why`, { max: 300 }),
-    }
-  })
-
-  // ⑧ 질의 5개
-  const quiz = arr(c, r.quiz, 'quiz', 5, 5).map((q, i) => {
-    const o = obj(c, q, `quiz[${i}]`)
-    const kind = oneOf(c, o.kind, `quiz[${i}].kind`, ['short_answer', 'multiple_choice', 'explain'] as const)
+  // ⑤ 연습 — 문제 5개 + 확장 과제
+  const pr = obj(c, r.practice, 'practice')
+  const quiz = arr(c, pr.quiz, 'practice.quiz', 5, 5).map((q, i) => {
+    const o = obj(c, q, `practice.quiz[${i}]`)
+    const kind = oneOf(c, o.kind, `practice.quiz[${i}].kind`, ['short_answer', 'multiple_choice', 'explain'] as const)
     let choices: string[] | null = null
     if (kind === 'multiple_choice') {
-      choices = arr(c, o.choices, `quiz[${i}].choices`, 3, 5)
-        .map((ch, j) => str(c, ch, `quiz[${i}].choices[${j}]`, { max: 200 }))
+      choices = arr(c, o.choices, `practice.quiz[${i}].choices`, 3, 5)
+        .map((ch, j) => str(c, ch, `practice.quiz[${i}].choices[${j}]`, { max: 200 }))
     } else if (o.choices != null) {
-      c.issues.push(at(`quiz[${i}].choices`, `kind 이 ${kind} 이면 choices 는 null 이어야 합니다`))
+      c.issues.push(at(`practice.quiz[${i}].choices`, `kind 이 ${kind} 이면 choices 는 null 이어야 합니다`))
     }
-    const explanation = str(c, o.explanation, `quiz[${i}].explanation`, { max: 800 })
-    // "본론 N번째 블록에서 말했어요" 는 해설이 아니라 위치 안내다.
-    if (/본론\s*[0-9첫두세네다섯]+\s*번째|블록에서\s*(다뤘|말했|설명했)/.test(explanation)) {
-      c.issues.push(at(`quiz[${i}].explanation`, '본문 위치를 알려주는 것은 해설이 아닙니다. 왜 그 답인지, 왜 다른 답은 틀리는지를 쓰세요'))
+    const explanation = str(c, o.explanation, `practice.quiz[${i}].explanation`, { max: 800 })
+    // "개념 N번째 블록에서 말했어요" 는 해설이 아니라 위치 안내다.
+    if (/(본론|개념)\s*[0-9첫두세네다섯]+\s*번째|블록에서\s*(다뤘|말했|설명했)/.test(explanation)) {
+      c.issues.push(at(`practice.quiz[${i}].explanation`, '본문 위치를 알려주는 것은 해설이 아닙니다. 왜 그 답인지, 왜 다른 답은 틀리는지를 쓰세요'))
     }
     return {
       kind,
-      question: str(c, o.question, `quiz[${i}].question`, { max: 500 }),
+      question: str(c, o.question, `practice.quiz[${i}].question`, { max: 500 }),
       choices,
-      answer: str(c, o.answer, `quiz[${i}].answer`, { max: 500 }),
+      answer: str(c, o.answer, `practice.quiz[${i}].answer`, { max: 500 }),
       explanation,
-      difficulty: num(c, o.difficulty, `quiz[${i}].difficulty`, 1, 3),
-      transfer: oneOf(c, o.transfer, `quiz[${i}].transfer`, ['near', 'far'] as const),
-      misconceptions: arr(c, o.misconceptions, `quiz[${i}].misconceptions`, 0, 3).map((m, j) => {
-        const mo = obj(c, m, `quiz[${i}].misconceptions[${j}]`)
+      difficulty: num(c, o.difficulty, `practice.quiz[${i}].difficulty`, 1, 3),
+      transfer: oneOf(c, o.transfer, `practice.quiz[${i}].transfer`, ['near', 'far'] as const),
+      misconceptions: arr(c, o.misconceptions, `practice.quiz[${i}].misconceptions`, 0, 3).map((m, j) => {
+        const mo = obj(c, m, `practice.quiz[${i}].misconceptions[${j}]`)
         return {
-          wrong: str(c, mo.wrong, `quiz[${i}].misconceptions[${j}].wrong`, { max: 200 }),
-          why: str(c, mo.why, `quiz[${i}].misconceptions[${j}].why`, { max: 300 }),
+          wrong: str(c, mo.wrong, `practice.quiz[${i}].misconceptions[${j}].wrong`, { max: 200 }),
+          why: str(c, mo.why, `practice.quiz[${i}].misconceptions[${j}].why`, { max: 300 }),
         }
       }),
     }
   })
   const farCount = quiz.filter((q) => q.transfer === 'far').length
   if (farCount < 2) {
-    c.issues.push(at('quiz', `far transfer 문제가 ${farCount}개입니다. 2개 이상이어야 합니다 — 본문 예시를 숫자만 바꾼 문제로는 실력을 알 수 없습니다`))
+    c.issues.push(at('practice.quiz', `far transfer 문제가 ${farCount}개입니다. 2개 이상이어야 합니다 — 본문 예시를 숫자만 바꾼 문제로는 실력을 알 수 없습니다`))
   }
-
-  // ⑨ 숙제
-  const hw = obj(c, r.homework, 'homework')
-  const homework = {
-    tasks: arr(c, hw.tasks, 'homework.tasks', 1, 3).map((t, i) => {
-      const o = obj(c, t, `homework.tasks[${i}]`)
-      return {
-        title: str(c, o.title, `homework.tasks[${i}].title`, { max: 100 }),
-        detail: str(c, o.detail, `homework.tasks[${i}].detail`, { max: 800 }),
-        estimated_minutes: num(c, o.estimated_minutes, `homework.tasks[${i}].estimated_minutes`, 5, 180),
-      }
-    }),
-    submission_hint: str(c, hw.submission_hint, 'homework.submission_hint', { max: 400 }),
-  }
-  const hwSum = homework.tasks.reduce((n, t) => n + t.estimated_minutes, 0)
-  if (hwSum !== time.optional) {
-    c.issues.push(at('time.optional', `숙제 합계(${hwSum}분)와 다릅니다(${time.optional}분). 시간은 학습자가 계획에 쓰는 값이라 어긋나면 안 됩니다`))
-  }
-
-  // ⑩ 마무리
-  const wu = obj(c, r.wrap_up, 'wrap_up')
-  const wrapUp = {
-    usage_examples: arr(c, wu.usage_examples, 'wrap_up.usage_examples', 2, 4)
-      .map((u, i) => str(c, u, `wrap_up.usage_examples[${i}]`, { max: 300 })),
-    daily_life_guide: inline(c, wu.daily_life_guide, 'wrap_up.daily_life_guide'),
-    checklist: arr(c, wu.checklist, 'wrap_up.checklist', 2, 6)
-      .map((x, i) => str(c, x, `wrap_up.checklist[${i}]`, { max: 200 })),
-    reflection: str(c, wu.reflection, 'wrap_up.reflection', { min: 15, max: 300 }),
-  }
-
-  // ⑪ 다음 단계
-  const nextSteps = arr(c, r.next_steps, 'next_steps', 3, 3).map((n, i) => {
-    const o = obj(c, n, `next_steps[${i}]`)
+  const extended = arr(c, pr.extended, 'practice.extended', 0, 3).map((t, i) => {
+    const o = obj(c, t, `practice.extended[${i}]`)
     return {
-      title: str(c, o.title, `next_steps[${i}].title`, { max: 80 }),
-      why: str(c, o.why, `next_steps[${i}].why`, { max: 300 }),
-      difficulty_delta: oneOf(c, o.difficulty_delta, `next_steps[${i}].difficulty_delta`, ['same', 'harder'] as const),
+      title: str(c, o.title, `practice.extended[${i}].title`, { max: 100 }),
+      detail: str(c, o.detail, `practice.extended[${i}].detail`, { max: 800 }),
+      estimated_minutes: num(c, o.estimated_minutes, `practice.extended[${i}].estimated_minutes`, 5, 180),
     }
   })
+  const extSum = extended.reduce((n, t) => n + t.estimated_minutes, 0)
+  if (extSum !== time.optional) {
+    c.issues.push(at('time.optional', `확장 과제 합계(${extSum}분)와 다릅니다(${time.optional}분). 시간은 학습자가 계획에 쓰는 값이라 어긋나면 안 됩니다`))
+  }
+  const practice = { quiz, extended }
+
+  // ⑥ 나가기 전에 — 완료감이 아니라 증거
+  const et = obj(c, r.exit_ticket, 'exit_ticket')
+  const exitTicket = {
+    revisit: str(c, et.revisit, 'exit_ticket.revisit', { min: 15, max: 300 }),
+    one_sentence: str(c, et.one_sentence, 'exit_ticket.one_sentence', { min: 10, max: 300 }),
+    misconception_check: activity(et.misconception_check, 'exit_ticket.misconception_check', ['decide']),
+    self_check: arr(c, et.self_check, 'exit_ticket.self_check', 2, 4)
+      .map((x, i) => str(c, x, `exit_ticket.self_check[${i}]`, { max: 200 })),
+    apply_tomorrow: str(c, et.apply_tomorrow, 'exit_ticket.apply_tomorrow', { min: 10, max: 300 }),
+    next_steps: arr(c, et.next_steps, 'exit_ticket.next_steps', 2, 4).map((n, i) => {
+      const o = obj(c, n, `exit_ticket.next_steps[${i}]`)
+      return {
+        title: str(c, o.title, `exit_ticket.next_steps[${i}].title`, { max: 80 }),
+        why: str(c, o.why, `exit_ticket.next_steps[${i}].why`, { max: 300 }),
+        difficulty_delta: oneOf(c, o.difficulty_delta, `exit_ticket.next_steps[${i}].difficulty_delta`, ['easier', 'same', 'harder'] as const),
+      }
+    }),
+  }
 
   if (c.issues.length) throw new ValidationError(c.issues)
 
   return {
     schema_version: SCHEMA_VERSION,
-    title, topic_normalized: topic, level, category, time, assumes,
-    figures,
-    what_we_learn: whatWeLearn,
-    glossary,
-    guide_notes: guideNotes,
-    before_and_need: beforeAndNeed,
-    prerequisites,
-    origin_story: originStory,
-    roleplay,
-    main_lesson: mainLesson,
-    pro_tips: proTips,
-    quiz,
-    homework,
-    wrap_up: wrapUp,
-    next_steps: nextSteps,
+    title, topic_normalized: topic, level, category, one_liner: oneLiner, time, assumes,
+    glossary, guide_notes: guideNotes, figures,
+    problem, predict, observe, concept, practice, exit_ticket: exitTicket,
   }
 }

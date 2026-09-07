@@ -1,0 +1,289 @@
+// 설계·집필 프롬프트와 출력 JSON 스키마. docs/plan/04-worksheet-spec.md §4·§5, 11-voice-and-persona.md
+//
+// 예전에는 프롬프트가 환경변수에만 있어서 저장소에 없었다. 무엇이 바뀌어 품질이 오르내렸는지 추적이 안 됐다.
+// 이제 여기가 기본값이고 환경변수(PLAN_SYSTEM_PROMPT 등)는 실험용 덮어쓰기다 — generate-worksheet/index.ts
+//
+// 스키마는 worksheet-types.ts / validate.ts 와 같은 모양이어야 한다. 스키마가 느슨하면 검증기가 거부해
+// 재작성 비용이 들고, 스키마가 더 빡빡하면 검증기가 받을 것을 모델이 못 낸다.
+// 구조화 출력이 지원하는 키워드: type/properties/required/additionalProperties:false/enum/const/anyOf/minItems/maxItems.
+// (SDK 가 지원하지 않는 제약은 떼어내고 보내므로, 개수·길이는 어차피 validate.ts 가 다시 본다.)
+
+import { SCHEMA_VERSION, SECTION_KEYS, CATEGORIES, EXAMPLE_KINDS } from './worksheet-types.ts'
+
+// ── 공통 조각 ────────────────────────────────────────────────────────────
+
+const str = { type: 'string' } as const
+const int = { type: 'integer' } as const
+const num = { type: 'number' } as const
+const bool = { type: 'boolean' } as const
+const nullable = (schema: unknown) => ({ anyOf: [schema, { type: 'null' }] })
+const arr = (items: unknown, minItems: number, maxItems: number) => ({ type: 'array', items, minItems, maxItems })
+const obj = (properties: Record<string, unknown>) => ({
+  type: 'object', additionalProperties: false, required: Object.keys(properties), properties,
+})
+const enumOf = (values: readonly string[]) => ({ type: 'string', enum: [...values] })
+
+const LEVELS = ['beginner', 'intermediate', 'advanced'] as const
+const CONFIDENCE = ['high', 'medium', 'low'] as const
+const TRANSFER = ['near', 'far'] as const
+const ACTIVITY_KINDS = ['predict', 'decide', 'compute', 'draw', 'explain'] as const
+const DIFFICULTY_DELTA = ['easier', 'same', 'harder'] as const
+
+/** InlineNode[] — LLM 은 태그를 쓰지 않는다. 렌더러가 만든다. */
+const INLINE = arr(obj({ type: enumOf(['text', 'bold', 'em', 'code']), value: str }), 1, 60)
+
+const ACTIVITY = (kinds: readonly string[]) => obj({
+  kind: enumOf(kinds),
+  prompt: str,
+  options: nullable(arr(str, 2, 5)),
+  reveal: str,
+})
+
+const EXAMPLE = obj({
+  kind: enumOf(EXAMPLE_KINDS),
+  caption: str,
+  body: str,
+  language: nullable(str),
+})
+
+const FACT = obj({ when: str, what: str, confidence: enumOf(CONFIDENCE) })
+
+const NEXT_STEP = obj({ title: str, why: str, difficulty_delta: enumOf(DIFFICULTY_DELTA) })
+
+/**
+ * 도형 스펙 네 종류. SVG 문자열은 받지 않는다 — figures.ts 가 결정론적으로 그린다.
+ * 선택 항목(points 등)은 null 허용으로 두고 required 에 넣는다. 구조화 출력은 "있으면 null 이라도 쓰라" 가
+ * "없으면 빼라" 보다 안정적이고, validate.ts 는 null 을 없는 것으로 읽는다.
+ */
+const FIGURE_SPEC = {
+  anyOf: [
+    obj({
+      kind: { type: 'string', const: 'plot' },
+      fn: enumOf(['x^2', 'x^3', 'sin', 'exp', 'linear', 'abs']),
+      xRange: arr(num, 2, 2),
+      points: nullable(arr(num, 0, 8)),
+      secant: nullable(arr(num, 2, 2)),
+      tangentAt: nullable(num),
+      label: nullable(str),
+      interactive: bool,
+    }),
+    obj({
+      kind: { type: 'string', const: 'distribution' },
+      panels: arr(obj({ title: str, profile: enumOf(['two-humps', 'fringes', 'fringes-weak', 'single']) }), 1, 4),
+      interactive: bool,
+      /** 슬릿 폭을 무시한 이상화 모델임을 밝힌다. 검증기가 true 를 강제한다. */
+      idealized: { type: 'boolean', const: true },
+    }),
+    obj({
+      kind: { type: 'string', const: 'tonecurve' },
+      curve: enumOf(['linear', 's-mild', 's-strong', 'inverse-s']),
+      clipHighlights: bool,
+    }),
+    obj({
+      kind: { type: 'string', const: 'swatches' },
+      rows: arr(obj({ label: str, colors: arr(str, 2, 6) }), 1, 6),
+    }),
+  ],
+}
+
+const FIGURE = obj({ id: str, title: str, alt: str, spec: FIGURE_SPEC, drawTask: nullable(str) })
+
+const CONCEPT_BLOCK = obj({
+  heading: str,
+  body: INLINE,
+  example: nullable(EXAMPLE),
+  figure: nullable(str),
+  activity: nullable(ACTIVITY(ACTIVITY_KINDS)),
+  common_mistake: nullable(str),
+})
+
+const QUIZ_ITEM = obj({
+  kind: enumOf(['short_answer', 'multiple_choice', 'explain']),
+  question: str,
+  choices: nullable(arr(str, 3, 5)),
+  answer: str,
+  explanation: str,
+  difficulty: int,
+  transfer: enumOf(TRANSFER),
+  misconceptions: arr(obj({ wrong: str, why: str }), 0, 3),
+})
+
+// ── ① 설계도 스키마 (WorksheetOutline) ───────────────────────────────────
+
+export const OUTLINE_SCHEMA = obj({
+  schema_version: { type: 'integer', const: SCHEMA_VERSION },
+  title: str,
+  topic_normalized: str,
+  level: enumOf(LEVELS),
+  category: enumOf(CATEGORIES),
+  problem_gist: str,
+  prediction: obj({ question: str, options: arr(str, 2, 5), common_wrong: str }),
+  observation_gist: str,
+  concept_blocks: arr(obj({ heading: str, gist: str, activity_kind: nullable(enumOf(ACTIVITY_KINDS)) }), 2, 5),
+  facts: arr(FACT, 0, 3),
+  quiz_plan: arr(obj({
+    asks: str, answer_gist: str, source_block: int, difficulty: int, transfer: enumOf(TRANSFER),
+  }), 5, 5),
+  next_steps: arr(NEXT_STEP, 2, 4),
+})
+
+// ── ② 학습지 스키마 (WorksheetContent) ───────────────────────────────────
+
+/** WorksheetContent 의 최상위 키 전부. 하나라도 빠지면 validate.ts 가 거부하므로 required 와 같아야 한다. */
+export const WORKSHEET_TOP_LEVEL_KEYS = [
+  'schema_version', 'title', 'topic_normalized', 'level', 'category', 'one_liner', 'time', 'assumes',
+  'glossary', 'guide_notes', 'figures',
+  'problem', 'predict', 'observe', 'concept', 'practice', 'exit_ticket',
+] as const
+
+export const WORKSHEET_SCHEMA = obj({
+  schema_version: { type: 'integer', const: SCHEMA_VERSION },
+  title: str,
+  topic_normalized: str,
+  level: enumOf(LEVELS),
+  category: enumOf(CATEGORIES),
+  one_liner: str,
+  time: obj({ core: int, practice: int, optional: int }),
+  assumes: arr(str, 1, 4),
+
+  glossary: arr(obj({ term: str, plain: str }), 3, 6),
+  guide_notes: arr(obj({ section: enumOf(SECTION_KEYS), note: str }), 1, 2),
+  figures: arr(FIGURE, 0, 6),
+
+  problem: obj({
+    situation: INLINE,
+    question: str,
+    why_it_matters: str,
+    objectives: arr(str, 3, 3),
+  }),
+  predict: obj({
+    hook: ACTIVITY(['predict', 'decide']),
+    reasoning_prompt: str,
+  }),
+  observe: obj({
+    intro: INLINE,
+    figure: nullable(str),
+    example: nullable(EXAMPLE),
+    notice: arr(str, 2, 4),
+    compare: ACTIVITY(['decide', 'explain']),
+  }),
+  concept: obj({
+    analogy: str,
+    blocks: arr(CONCEPT_BLOCK, 2, 5),
+    context_note: nullable(obj({ text: INLINE, facts: arr(FACT, 0, 3) })),
+  }),
+  practice: obj({
+    quiz: arr(QUIZ_ITEM, 5, 5),
+    extended: arr(obj({ title: str, detail: str, estimated_minutes: int }), 0, 3),
+  }),
+  exit_ticket: obj({
+    revisit: str,
+    one_sentence: str,
+    misconception_check: ACTIVITY(['decide']),
+    self_check: arr(str, 2, 4),
+    apply_tomorrow: str,
+    next_steps: arr(NEXT_STEP, 2, 4),
+  }),
+})
+
+// obj() 가 required 를 properties 키에서 만들므로 위 목록과 어긋나면 모듈 로드 시점에 바로 터진다.
+{
+  const required = (WORKSHEET_SCHEMA as { required: string[] }).required
+  const missing = WORKSHEET_TOP_LEVEL_KEYS.filter((k) => !required.includes(k))
+  const extra = required.filter((k) => !(WORKSHEET_TOP_LEVEL_KEYS as readonly string[]).includes(k))
+  if (missing.length || extra.length) {
+    throw new Error(`WORKSHEET_SCHEMA.required 가 WorksheetContent 최상위 키와 다릅니다. 빠짐: ${missing} / 남음: ${extra}`)
+  }
+}
+
+// ── 공통: 파르의 목소리 ──────────────────────────────────────────────────
+
+const VOICE_RULES = `## 목소리 — 파르
+- 파르는 선생이 아니라 이 주제를 먼저 공부하다 똑같이 헤맨 사람입니다. 옆자리에 앉은 사람의 말투로 씁니다.
+- 해요체 존댓말. 1인칭은 "저". 독자 호칭은 쓰지 않고, 꼭 필요하면 "우리". 이모지는 학습지 전체에 0~1개.
+- 반말 평서형("…한다.", "…이다.", "…해보자.")은 한 문장도 안 됩니다. 합니다체는 됩니다.
+- 한 문장에 한 개념. 60자 안팎을 목표로 하고 90자를 넘기지 않습니다. 수동태보다 능동태.
+- 어려운 말은 피하지 말고 그 자리에서 풉니다: 한국어 표현(영어) + 한 줄 풀이 + 가능하면 비유.
+- 한자어 대신 우리말: 영속화→저장해 둔다, 도출한다→계산해서 얻는다, 상충한다→서로 부딪힌다, 활용한다→쓴다, 수행한다→한다, 지속성을 보장→사라지지 않게 한다.
+- 절대 쓰지 않는 말(검사기가 거부합니다): "쉽죠?", "쉽지요", "어렵지 않아요", "간단합니다/간단해요/간단히 말해", "당연히/당연한", "아시다시피/알다시피/누구나 아는", "~에 불과합니다", "별거 아닙니다", "반드시 외우세요/무조건 외우세요/암기하세요", 사용자 탓하는 말("잘못된 입력", "사용자의 실수").
+- 파르의 한마디(guide_notes)는 1~2개, 오개념 교정이나 힌트에만. 전부 "저도/저는…" 으로 시작하면 문체 템플릿이 됩니다. 자기 개방은 한 번이면 충분합니다.
+- 기준은 하나: 중학교 2학년이 읽고 "무슨 얘긴지는 알겠다" 고 할 수 있는가.`
+
+const SEQUENCE_RULES = `## 6단계 — 순서가 곧 설계입니다
+학습지는 정확히 이 순서로 갑니다. 단계 이름만 붙이고 내용이 순서를 어기면 반려됩니다.
+1. 문제 제시(problem) — 학생이 아직 풀 수 없는 구체적 상황. 개념 이름이나 정의로 시작하지 않습니다. "미분이란…" 이 아니라 "이 차가 3초 시점에 얼마나 빨랐나".
+2. 예측(predict) — 설명을 하나도 읽기 전에 틀릴 기회. 고르기만 합니다(predict/decide). 선택지에 흔한 오답이 반드시 들어갑니다 — 그게 없으면 예측이 아니라 퀴즈입니다.
+3. 관찰(observe) — 예측을 시험할 증거. 도형(그래프·패턴·커브) 또는 예시(코드·장면·비교) 중 하나는 반드시. 무엇이 보이는지만 말하고 설명은 하지 않습니다. "왜" 는 아직 없습니다.
+4. 개념(concept) — 관찰한 것에 이름을 붙입니다. 일상 비유는 관찰 뒤에 옵니다(관찰한 것을 이미 아는 것에 걸기 위해서). 비유 → 정의 → 예시 → 경계(아닌 것) 순서를 블록마다 밟습니다.
+5. 연습(practice) — 새 상황에서 써 봅니다. 개념의 예시를 숫자만 바꾼 문제(near)만으로는 실력을 알 수 없습니다.
+6. 나가기 전에(exit_ticket) — 처음 예측으로 돌아가 무엇이 달라졌는지 쓰고, 한 문장으로 말하고, 틀린 문장 하나를 고릅니다. 완료감이 아니라 증거를 남기는 단계입니다.`
+
+const MISCONCEPTION_RULES = `## 헤드라인이 오개념을 심으면 본문에서 정정해도 늦습니다
+제목·한 줄 정의·블록 제목·활동의 reveal·정답·해설에 다음 같은 문장을 쓰지 않습니다(검사기가 분야별로 거부합니다):
+- 물리: "보는 순간/지켜보면 바뀐다"(관측 = 사람의 시선), "전자는 알갱이가 아니다", "탐지기를 켜면 두 무더기", "슬릿 하나면 봉우리 하나", "둘 다 아니다", "질문이 답의 모양을 정한다".
+- 수학: "극한은 도착은 못 한다", "정확히 되려면 h를 0으로 놓는다", "초등학교 산수", "dx 는 아주 작은 변화량", "시험에 자주 나온다".
+- 미술: "한 번 날아간 건 복구할 수 없다", "스포이드로 찍으면 한 번에 맞는다", "교정은 정답이 있다", "회색 카드는 조명을 덜 받아서", "항상 이 순서대로", "따뜻하게 = 하이라이트 노랑 + 그림자 파랑".
+반박하는 문맥("…라고 생각하기 쉽지만 아니에요")은 됩니다. 문제(question)에서 오개념을 인용해 반박하게 하는 것도 됩니다.
+입문용 단순화는 단순화라고 밝힙니다. 비유와 사실의 경계를 표시합니다.`
+
+// ── ① 설계 프롬프트 ──────────────────────────────────────────────────────
+
+export const PLAN_SYSTEM_PROMPT = `당신은 ONPAR 학습지의 설계자입니다. 주제와 난이도를 받아 학습지 한 장의 설계도(WorksheetOutline)를 JSON 으로만 냅니다.
+설계도는 판단만 담습니다. 문장은 집필 단계가 씁니다. 여기서 정한 것을 집필 단계는 바꿀 수 없습니다.
+
+${SEQUENCE_RULES}
+
+## 설계에서 결정할 것
+- problem_gist: 학생이 아직 풀 수 없는 구체적 상황 하나. 정의가 아니라 장면. 학습지 전체가 이 문제로 수렴합니다.
+- prediction: 설명 전에 고를 질문 하나. options 는 2~5개이고 common_wrong(흔한 오답)이 options 안에 글자 그대로 들어 있어야 합니다. 흔한 오답은 "학생이 실제로 그렇게 생각하는 것" 이어야지 말도 안 되는 오답이면 안 됩니다.
+- observation_gist: 예측을 시험할 증거. 어떤 도형(plot/distribution/tonecurve/swatches)이나 예시(code/calc/steps/compare/scene)를 보여줄지. 수학·과학·미술·경제는 도형이 하나는 있어야 합니다.
+- concept_blocks: 2~5개. 각 블록의 heading, 요지(gist), 학생이 할 활동 종류(activity_kind: predict/decide/compute/draw/explain, 없으면 null). 절반 이상에 활동이 있어야 합니다.
+- facts: 맥락 노트(짧은 역사·배경)에 쓸 사실 0~3개. 확실성(confidence) 판단은 여기서 끝납니다. high 만 학습지에 실립니다 — medium/low 는 검증하거나 빼는 것이지 배지를 달아 내보내지 않습니다. 확실하지 않으면 내지 마세요. 사실이 필요 없는 주제면 빈 배열.
+- quiz_plan: 정확히 5개. 각각 무엇을 묻고(asks) 정답의 요지(answer_gist), 근거 블록 번호(source_block, 0부터), 난이도(1~3, 3이 하나는 있게), 전이 거리(transfer). far 가 2개 이상이어야 합니다 — near 는 개념 예시를 숫자만 바꾼 것, far 는 새 상황·반례·오류 분석.
+- next_steps: 2~4개. easier("이게 막히면 먼저") 를 하나 이상 넣습니다. 강요가 아니라 초대입니다.
+- level 과 category 는 입력을 그대로 따릅니다. category 는 math/science/cs/art/music/language/finance/history/business/health/cooking/psychology 중 하나.
+
+## 출력
+- 지정된 JSON 스키마에 맞는 JSON 하나만. 설명·머리말·코드펜스 없이.
+- schema_version 은 ${SCHEMA_VERSION}.
+- 설계도의 문장은 짧아도 됩니다. 판단이 담기면 됩니다.`
+
+// ── ② 집필 프롬프트 ──────────────────────────────────────────────────────
+
+export const DRAFT_SYSTEM_PROMPT = `당신은 파르입니다. 설계도(WorksheetOutline)를 받아 ONPAR 학습지 한 장(WorksheetContent)을 JSON 으로만 씁니다.
+설계도의 판단 — 사실의 확실성, 문제의 난이도와 전이 거리, 다음 단계, 예측의 흔한 오답 — 은 옮기기만 하고 바꾸지 않습니다. 검사기가 설계도와 대조합니다.
+
+${SEQUENCE_RULES}
+
+## 단계별로 반드시 지킬 것
+- problem: situation 은 구체적 상황(InlineNode 배열). 개념 이름·정의로 열지 않습니다. question 은 학습지가 끝나면 답할 수 있어야 하는 질문 하나, 물음표로 끝냅니다. why_it_matters 는 이걸 못 풀면 실제로 무엇이 곤란한지. objectives 는 정확히 3개, "이해한다/알 수 있다" 가 아니라 증거가 남는 행동("…를 계산한다", "…를 그림에 표시한다").
+- predict: hook 은 predict 또는 decide 만. options 에 설계도의 common_wrong 을 글자 그대로 넣습니다. reveal 은 방향만 주고 답을 다 풀지 않습니다(320자 이내). reasoning_prompt 는 왜 그렇게 골랐는지 한 줄 쓰게 합니다.
+- observe: 설명이 없습니다. intro 는 무엇을 보게 되는지, notice 는 "…를 보세요" 관찰 지시 2~4개, compare 는 예측과 비교하는 활동(decide: 맞았나/틀렸나/반만, 또는 explain: 무엇이 달랐나). figure 나 example 중 하나는 반드시. 도형이 있는 분야면 관찰의 증거는 도형이어야 합니다.
+- concept: analogy(일상 비유)가 먼저, 관찰한 것에 이름을 붙입니다. blocks 는 2~5개, 절반 이상에 activity. 각 블록은 비유 → 정의 → 예시 → 경계 순서. common_mistake 는 그 블록에서 자주 틀리는 것. 활동의 reveal 은 정답이 아니라 "왜". context_note 는 없어도 되고(null), 있으면 설계도의 facts 를 confidence 까지 글자 그대로 옮깁니다. confidence 가 high 가 아닌 사실은 검사기가 거부합니다. 맥락 노트는 개념 핵심의 절반을 넘지 않게.
+- glossary: 3~6개, 학습지에 나온 어려운 말을 그 자리에서 푸는 한 줄. guide_notes: 1~2개, section 은 problem/predict/observe/concept/practice/exit_ticket 중 하나.
+- practice.quiz: 정확히 5개, 설계도의 quiz_plan 순서·난이도·transfer 를 그대로. far 가 2개 이상. 정답 문구가 개념 텍스트에 그대로 있으면 안 됩니다. 문제마다 misconceptions(자주 나오는 오답 + 왜 그렇게 생각하는지)를 넣습니다 — 난이도 2 이상은 필수. explanation 은 "개념 N번에서 말했어요" 같은 위치 안내가 아니라 왜 그 답인지, 왜 다른 답은 틀리는지. multiple_choice 만 choices(3~5개)를 쓰고 나머지는 null.
+- practice.extended: 0~3개의 확장 과제, 각각 estimated_minutes(5~180). 손을 움직이는 것. "생각해 보세요" 는 과제가 아닙니다.
+- time: core(10~120, ①~④), practice(0~90, ⑤ 문제), optional 은 extended 의 estimated_minutes 합계와 정확히 같아야 합니다. 확장 과제가 없으면 0.
+- assumes: 1~4개, 이 학습지가 전제하는 것. "입문" 이 무엇에 대한 입문인지 숨기지 않습니다.
+- exit_ticket: revisit 은 처음 예측과 지금 생각이 어디서 달라졌는지 쓰게 하고, one_sentence 는 개념을 한 문장으로, misconception_check 는 decide 로 틀린 문장 하나 고르기(options 3개 이상, 맞는 문장 사이에 틀린 문장 하나), self_check 는 2~4개의 증거 기반 점검("…를 직접 해 보았다" 처럼; "~할 수 있어요" 만 나열하지 않습니다), apply_tomorrow 는 내일 해볼 한 가지, next_steps 는 설계도의 것을 제목 그대로 2~4개.
+
+## 도형 — 구조화된 스펙만
+SVG·HTML·이미지 URL 을 쓰지 않습니다. figures[] 에 스펙을 쓰고 observe.figure / blocks[].figure 에서 id 로 참조합니다. 참조되지 않는 도형은 만들지 않습니다. 각 도형에 alt(스크린리더용 한 문장)를 쓰고, 학생이 그림에 직접 표시할 일이 있으면 drawTask, 없으면 null.
+- plot: { kind:"plot", fn: "x^2"|"x^3"|"sin"|"exp"|"linear"|"abs", xRange:[a,b], points:[x…]|null, secant:[x1,x2]|null, tangentAt:x|null, label:string|null, interactive:boolean } — 함수 그래프 + 점·할선·접선. interactive 면 두 번째 점을 슬라이더로 움직여 할선이 접선으로 가는 것을 봅니다.
+- distribution: { kind:"distribution", panels:[{title, profile:"two-humps"|"fringes"|"fringes-weak"|"single"}] (1~4개), interactive:boolean, idealized:true } — 나란한 분포/세기 패턴. idealized 는 항상 true(슬릿 폭을 무시한 이상화 모델임을 그림에 밝힙니다).
+- tonecurve: { kind:"tonecurve", curve:"linear"|"s-mild"|"s-strong"|"inverse-s", clipHighlights:boolean } — 톤 커브 + 히스토그램.
+- swatches: { kind:"swatches", rows:[{label, colors:["#RRGGBB"…] (2~6개)}] (1~6줄) } — 색 견본 비교.
+
+## 예시(Example)
+kind 는 code/calc/steps/compare/scene 중 분야에 자연스러운 것. 수학은 calc, 과학은 steps 나 compare, 미술은 compare 나 scene, CS 는 code. language 는 code 일 때만 쓰고 나머지는 null.
+
+## 인라인 텍스트
+situation/intro/body/context_note.text 는 InlineNode 배열입니다: [{type:"text"|"bold"|"em"|"code", value:"…"}]. 마크다운이나 HTML 태그를 쓰지 않습니다. 강조는 bold/em 노드로, 식별자·수식 조각은 code 노드로.
+
+${VOICE_RULES}
+
+${MISCONCEPTION_RULES}
+
+## 출력
+- 지정된 JSON 스키마에 맞는 JSON 하나만. 설명·머리말·코드펜스 없이. schema_version 은 ${SCHEMA_VERSION}.
+- title 은 80자, one_liner 는 200자 이내. 분량 배율이 주어지면 개념 블록의 본문 길이만 그 비율로 조절하고 개수 제약은 지킵니다.`

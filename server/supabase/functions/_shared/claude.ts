@@ -48,7 +48,7 @@ export function createLlmClient(cfg: ClaudeConfig): LlmClient {
     draft: (outline, opts) => call(
       draftModel, cfg.draftSystemPrompt, cfg.worksheetSchema,
       `아래 설계도를 그대로 따라 학습지를 작성하세요. ` +
-      `사실성 판단(confidence, mode)과 문제 구성은 설계도의 것을 옮기기만 하고 바꾸지 마세요.\n` +
+      `사실성 판단(confidence), 첫 예측의 흔한 오답, 문제 구성은 설계도의 것을 옮기기만 하고 바꾸지 마세요.\n` +
       `분량 배율: ${opts.lengthScale}\n\n${JSON.stringify(outline)}`,
       opts.maxTokens, opts.effort,
     ),

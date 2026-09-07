@@ -11,6 +11,7 @@ import { validateWorksheet } from '../supabase/functions/_shared/validate.ts'
 import { validateTopic, validateLevel } from '../supabase/functions/_shared/http.ts'
 import { voiceLint } from '../supabase/functions/_shared/voice-lint.ts'
 import { pedagogyLint } from '../supabase/functions/_shared/pedagogy-lint.ts'
+import { WORKSHEET_SCHEMA, OUTLINE_SCHEMA, PLAN_SYSTEM_PROMPT, DRAFT_SYSTEM_PROMPT } from '../supabase/functions/_shared/prompts.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 let passed = 0
@@ -61,19 +62,35 @@ test('다운시프트가 실제로 출력 예산을 줄인다', () => {
 console.log('\n▸ 단계 간 정합성 (집필이 설계를 뒤집었는지)')
 
 const raw = JSON.parse(readFileSync(resolve(HERE, 'fixtures/worksheet-event-sourcing.json'), 'utf8'))
+// 정합성 테스트는 맥락 노트의 사실이 둘 이상 있어야 "등급을 올렸는지" 를 볼 수 있다.
+// 픽스처에 없으면 확실한 사실 둘을 넣어 시험한다 (validateWorksheet 를 다시 통과시킨다).
+if (!raw.concept.context_note || raw.concept.context_note.facts.length < 2) {
+  raw.concept.context_note = {
+    text: [{ type: 'text', value: '테스트용 맥락 노트예요. 사실 두 개가 붙어 있어요.' }],
+    facts: [
+      { when: '2005년', what: '테스트 사실 하나예요.', confidence: 'high' },
+      { when: '2011년', what: '테스트 사실 둘이에요.', confidence: 'high' },
+    ],
+  }
+}
 const content = validateWorksheet(raw)
 const outline = {
-  schema_version: 1,
+  schema_version: 2,
   title: content.title,
   topic_normalized: content.topic_normalized,
   level: content.level,
-  estimated_minutes: content.estimated_minutes,
-  section_briefs: [],
-  facts: content.origin_story.timeline.map((t) => ({ when: t.when, what: t.what, confidence: t.confidence })),
-  roleplay_mode: content.roleplay.mode,
-  quiz_plan: content.quiz.map((q) => ({ asks: q.question, answer_gist: q.answer, source_block: 0, difficulty: q.difficulty })),
-  prerequisites: content.prerequisites,
-  next_steps: content.next_steps,
+  category: content.category,
+  problem_gist: content.problem.question,
+  prediction: {
+    question: content.predict.hook.prompt,
+    options: content.predict.hook.options!,
+    common_wrong: content.predict.hook.options![content.predict.hook.options!.length - 1],
+  },
+  observation_gist: '관찰 요지',
+  concept_blocks: content.concept.blocks.map((b) => ({ heading: b.heading, gist: b.heading, activity_kind: b.activity?.kind ?? null })),
+  facts: content.concept.context_note!.facts.map((t) => ({ when: t.when, what: t.what, confidence: t.confidence })),
+  quiz_plan: content.practice.quiz.map((q) => ({ asks: q.question, answer_gist: q.answer, source_block: 0, difficulty: q.difficulty, transfer: q.transfer })),
+  next_steps: content.exit_ticket.next_steps,
 }
 
 test('설계대로 쓴 학습지는 통과한다', () => {
@@ -90,49 +107,45 @@ test('집필이 사실성 등급을 올리면 잡는다', () => {
   assert.ok(r.violations.some((v) => v.includes('confidence')), r.violations.join(' / '))
 })
 
-test('집필이 가상 시나리오를 사실로 바꾸면 잡는다', () => {
+test('집필이 예측 선택지에서 흔한 오답을 빼면 잡는다 (예측이 진단이 아니게 된다)', () => {
   const bad = structuredClone(content)
-  bad.roleplay.mode = 'real_case'
+  bad.predict.hook.options = bad.predict.hook.options!.map((o) => o === outline.prediction.common_wrong ? '전혀 다른 선택지' : o)
   const r = crossCheck(outline, bad)
-  assert.equal(r.ok, false)
-  assert.ok(r.violations.some((v) => v.includes('roleplay.mode')))
-})
-
-test('설계가 불확실하다고 본 사실을 집필이 고지 없이 내보내면 잡는다', () => {
-  const cautiousOutline = structuredClone(outline)
-  cautiousOutline.facts[1].confidence = 'medium'
-  const bad = structuredClone(content)
-  bad.origin_story.timeline[1].confidence = 'medium'   // 등급은 따랐지만
-  bad.origin_story.uncertainty_note = null              // 고지를 뺐다
-  const r = crossCheck(cautiousOutline, bad)
-  assert.equal(r.ok, false)
-  assert.ok(r.violations.some((v) => v.includes('uncertainty_note')), r.violations.join(' / '))
+  assert.equal(r.ok, false, '흔한 오답이 빠졌는데 통과했다')
+  assert.ok(r.violations.some((v) => v.includes('predict')), r.violations.join(' / '))
 })
 
 test('미검증 사실은 배지를 달아 내보내지 않고 거부한다 (학습설계 린트)', () => {
   const bad = structuredClone(content)
-  bad.origin_story.timeline[1].confidence = 'medium'
+  bad.concept.context_note!.facts[1].confidence = 'medium'
   const r = pedagogyLint(bad)
   assert.ok(r.errors.some((e) => e.rule === '미검증 사실'), '확실하지 않은 역사 정보가 배지만 달고 통과했다')
 })
 
 test('집필이 문제 난이도를 바꾸면 잡는다', () => {
   const bad = structuredClone(content)
-  bad.quiz[0].difficulty = 3
+  bad.practice.quiz[0].difficulty = bad.practice.quiz[0].difficulty === 3 ? 1 : 3
   assert.equal(crossCheck(outline, bad).ok, false)
 })
 
-test('집필이 사전학습을 새로 지어내면 잡는다', () => {
+test('집필이 문제의 전이 거리(near/far)를 바꾸면 잡는다', () => {
   const bad = structuredClone(content)
-  bad.prerequisites[0].title = '내가 지어낸 주제'
+  const i = bad.practice.quiz.findIndex((q) => q.transfer === 'near')
+  bad.practice.quiz[i].transfer = 'far'
+  assert.equal(crossCheck(outline, bad).ok, false)
+})
+
+test('집필이 다음 단계를 새로 지어내면 잡는다', () => {
+  const bad = structuredClone(content)
+  bad.exit_ticket.next_steps[0].title = '내가 지어낸 주제'
   const r = crossCheck(outline, bad)
-  assert.ok(r.violations.some((v) => v.includes('prerequisites[0]')))
+  assert.ok(r.violations.some((v) => v.includes('next_steps[0]')), r.violations.join(' / '))
 })
 
 test('표기 흔들림(공백·괄호)까지 실패로 만들지는 않는다', () => {
   const ok = structuredClone(content)
-  ok.prerequisites[0].title = ' 불변성 (Immutability) '
-  assert.equal(crossCheck(outline, ok).ok, true)
+  ok.exit_ticket.next_steps[0].title = ` ${outline.next_steps[0].title.replace(/ /g, '  ')} `
+  assert.equal(crossCheck(outline, ok).ok, true, crossCheck(outline, ok).violations.join(' / '))
 })
 
 console.log('\n▸ 복습 스케줄')
@@ -273,7 +286,10 @@ test('모든 픽스처가 스키마·말투를 통과한다', () => {
     const c = validateWorksheet(JSON.parse(readFileSync(resolve(dir, f), 'utf8')))
     const v = voiceLint(c)
     assert.equal(v.errors.length, 0, `${f}: ${v.errors.map((e) => e.detail).join(' / ')}`)
-    assert.ok(c.what_we_learn.analogy, `${f}: 일상 비유가 없다`)
+    assert.ok(c.concept.analogy, `${f}: 일상 비유가 없다`)
+    assert.ok(/[?？]\s*$/.test(c.problem.question), `${f}: 문제 제시가 질문이 아니다`)
+    const ped = pedagogyLint(c)
+    assert.equal(ped.errors.length, 0, `${f}: ${ped.errors.map((e) => `${e.path} ${e.detail}`).join(' / ')}`)
     assert.ok(c.glossary.length >= 3, `${f}: 용어 풀이가 부족하다`)
   }
 })
@@ -283,7 +299,8 @@ test('분야마다 다른 예시 종류를 쓴다 (코드 전용 스키마가 �
   const kinds = new Set<string>()
   for (const f of readdirSync(dir).filter((x) => x.endsWith('.json'))) {
     const c = validateWorksheet(JSON.parse(readFileSync(resolve(dir, f), 'utf8')))
-    for (const b of c.main_lesson.blocks) if (b.example) kinds.add(b.example.kind)
+    for (const b of c.concept.blocks) if (b.example) kinds.add(b.example.kind)
+    if (c.observe.example) kinds.add(c.observe.example.kind)
   }
   assert.ok(kinds.size >= 4, `예시 종류가 ${kinds.size}가지뿐이다: ${[...kinds]}`)
   assert.ok(!(kinds.size === 1 && kinds.has('code')), '코드 예시만 쓰이면 비코드 분야가 어색해진다')
@@ -292,7 +309,10 @@ test('분야마다 다른 예시 종류를 쓴다 (코드 전용 스키마가 �
 test('코드가 아닌 예시에 language 를 붙이면 거부한다', () => {
   const dir = resolve(HERE, 'fixtures')
   const raw = JSON.parse(readFileSync(resolve(dir, 'worksheet-calculus.json'), 'utf8'))
-  raw.main_lesson.blocks[0].example.language = 'javascript'
+  const target = raw.concept.blocks.find((b: any) => b.example && b.example.kind !== 'code')?.example
+    ?? (raw.observe.example?.kind !== 'code' ? raw.observe.example : null)
+  assert.ok(target, '코드가 아닌 예시가 픽스처에 없다')
+  target.language = 'javascript'
   assert.throws(() => validateWorksheet(raw), (e: any) =>
     e.issues.some((i: string) => i.includes('language')))
 })
@@ -303,7 +323,7 @@ console.log('\n▸ 학습설계 린트 — 분야별 오개념 헤드라인 (V3 
 function lintWithHeading(category: string, heading: string) {
   const c = structuredClone(content) as any
   c.category = category
-  c.main_lesson.blocks[0].heading = heading
+  c.concept.blocks[0].heading = heading
   return pedagogyLint(c).errors.filter((e) => e.rule === '오개념')
 }
 
@@ -341,7 +361,7 @@ test('다른 분야의 덫은 적용하지 않는다', () => {
 
 test('첫 활동이 고르는 것이 아니면 hookFirst 가 꺼진다', () => {
   const c = structuredClone(content) as any
-  c.what_we_learn.hook = { kind: 'compute', prompt: c.what_we_learn.hook.prompt, options: null, reveal: c.what_we_learn.hook.reveal }
+  c.predict.hook = { kind: 'compute', prompt: c.predict.hook.prompt, options: null, reveal: c.predict.hook.reveal }
   assert.equal(pedagogyLint(c).metrics.hookFirst, false)
   assert.equal(pedagogyLint(content).metrics.hookFirst, true)
 })
@@ -361,7 +381,7 @@ test('픽스처가 말투 규칙을 지킨다', () => {
 
 test('못 따라온 사람을 소외시키는 말을 잡는다', () => {
   for (const bad of ['이건 쉽죠?', '아주 간단합니다', '당연히 아는 내용이에요', '아시다시피 그렇죠', '별거 아니에요']) {
-    const r = voiceLint({ what_we_learn: { analogy: bad } })
+    const r = voiceLint({ concept: { analogy: bad } })
     assert.ok(r.errors.length > 0, `"${bad}" 를 못 잡았다`)
   }
 })
@@ -373,34 +393,57 @@ test('반말을 잡는다 (어미 나열이 아니라 평서형 전체를)', () 
     '그런 방법은 없다.',
     '일단 해보자.',
   ]) {
-    const r = voiceLint({ what_we_learn: { analogy: bad } })
+    const r = voiceLint({ concept: { analogy: bad } })
     assert.ok(r.errors.some((e) => e.rule === '반말'), `"${bad}" 를 못 잡았다`)
   }
 })
 
 test('합니다체는 반말로 오인하지 않는다', () => {
   for (const ok of ['이벤트를 순서대로 저장합니다.', '그것이 핵심입니다.', '어렵지는 않았습니다.']) {
-    const r = voiceLint({ what_we_learn: { analogy: ok } })
+    const r = voiceLint({ concept: { analogy: ok } })
     assert.equal(r.errors.filter((e) => e.rule === '반말').length, 0, `"${ok}" 를 반말로 잘못 잡았다`)
   }
 })
 
 test('사용자 탓하는 실패 문구를 잡는다', () => {
-  const r = voiceLint({ what_we_learn: { analogy: '요청이 올바르지 않습니다' } })
+  const r = voiceLint({ concept: { analogy: '요청이 올바르지 않습니다' } })
   assert.ok(r.errors.some((e) => e.rule === '사용자 탓'), '실패 문구는 언제나 우리 탓이어야 한다')
 })
 
 test('코드 블록은 말투 검사에서 제외한다', () => {
   const r = voiceLint({
-    what_we_learn: { summary: [{ type: 'code', value: 'const x = 1; // 간단합니다' }] },
+    problem: { situation: [{ type: 'code', value: 'const x = 1; // 간단합니다' }] },
   })
   assert.equal(r.errors.length, 0, '코드 안의 주석까지 말투로 잡으면 안 된다')
 })
 
 test('딱딱한 한자어는 경고만 하고 막지는 않는다', () => {
-  const r = voiceLint({ what_we_learn: { analogy: '상태를 영속화해서 보관해요' } })
+  const r = voiceLint({ concept: { analogy: '상태를 영속화해서 보관해요' } })
   assert.equal(r.errors.length, 0, '경고가 실패가 되면 안 된다')
   assert.ok(r.warnings.some((w) => w.rule === '딱딱한 한자어'))
+})
+
+console.log('\n▸ 프롬프트 계약 (prompts.ts) — 스키마가 검증기와 어긋나지 않는다')
+
+test('구조화 출력 스키마의 필수 키가 검증기 출력과 정확히 같다', () => {
+  const keys = Object.keys(content).sort()
+  const req = [...WORKSHEET_SCHEMA.required].sort()
+  assert.deepEqual(req, keys, `스키마 required 와 검증기 출력이 다르다`)
+  assert.equal(WORKSHEET_SCHEMA.properties.schema_version.const ?? WORKSHEET_SCHEMA.properties.schema_version.enum?.[0], 2)
+})
+
+test('설계도 스키마는 흔한 오답과 다음 단계를 요구한다', () => {
+  assert.ok(OUTLINE_SCHEMA.required.includes('prediction') && OUTLINE_SCHEMA.required.includes('next_steps'))
+  assert.ok(OUTLINE_SCHEMA.properties.prediction.required.includes('common_wrong'), '흔한 오답이 설계도 필수가 아니다')
+})
+
+test('시스템 프롬프트가 6단계 순서와 금지 표현을 담고 있다', () => {
+  for (const word of ['문제 제시', '예측', '관찰', '개념', '연습', '나가기 전에']) {
+    assert.ok(DRAFT_SYSTEM_PROMPT.includes(word), `집필 프롬프트에 "${word}" 가 없다`)
+    assert.ok(PLAN_SYSTEM_PROMPT.includes(word) || PLAN_SYSTEM_PROMPT.includes(word.replace(' ', '')), `설계 프롬프트에 "${word}" 가 없다`)
+  }
+  assert.ok(/쉽죠|간단합니다|당연히/.test(DRAFT_SYSTEM_PROMPT), '집필 프롬프트에 금지 표현 목록이 없다')
+  assert.ok(DRAFT_SYSTEM_PROMPT.includes('common_wrong') || DRAFT_SYSTEM_PROMPT.includes('흔한 오답'), '흔한 오답 규칙이 없다')
 })
 
 console.log('\n▸ 입력 검증')

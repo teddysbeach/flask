@@ -38,7 +38,7 @@ export function makeDeps(admin: any, llm: LlmClient): Deps {
       },
 
       async saveContent(worksheetId, content: WorksheetContent, meta) {
-        // 문제와 사전학습 제안은 jsonb 에 묻지 않고 테이블로 꺼낸다.
+        // 문제와 "이게 막히면 먼저" 제안은 jsonb 에 묻지 않고 테이블로 꺼낸다.
         // 복습 스케줄이 quiz_items.id 를 참조해야 하기 때문이다.
         const { data: ws, error: e0 } = await admin.from('worksheets')
           .update({
@@ -57,7 +57,7 @@ export function makeDeps(admin: any, llm: LlmClient): Deps {
 
         const userId = ws.user_id
         const { error: e1 } = await admin.from('quiz_items').insert(
-          content.quiz.map((q, i) => ({
+          content.practice.quiz.map((q, i) => ({
             id: meta.quizItemIds[i],
             worksheet_id: worksheetId, user_id: userId, idx: i,
             kind: q.kind, question: q.question, choices: q.choices,
@@ -66,13 +66,19 @@ export function makeDeps(admin: any, llm: LlmClient): Deps {
         )
         if (e1) throw e1
 
-        const { error: e2 } = await admin.from('prerequisite_suggestions').insert(
-          content.prerequisites.map((p, i) => ({
-            worksheet_id: worksheetId, user_id: userId, idx: i,
-            title: p.title, why: p.why, one_liner: p.one_liner,
-          })),
-        )
-        if (e2) throw e2
+        // V5 에는 사전학습 섹션이 없다. 다음 단계 중 easier("이게 막히면 먼저")가 그 자리를 이어받는다.
+        // 테이블은 그대로 두고 여기서 최대 3개만 뽑아 넣는다. one_liner 는 이제 설계가 내지 않는다.
+        const easier = content.exit_ticket.next_steps
+          .filter((n) => n.difficulty_delta === 'easier').slice(0, 3)
+        if (easier.length) {
+          const { error: e2 } = await admin.from('prerequisite_suggestions').insert(
+            easier.map((p, i) => ({
+              worksheet_id: worksheetId, user_id: userId, idx: i,
+              title: p.title, why: p.why, one_liner: null,
+            })),
+          )
+          if (e2) throw e2
+        }
       },
 
       async saveSchedules(worksheetId, userId, seeds: any[]) {

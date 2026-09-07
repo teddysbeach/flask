@@ -35,39 +35,52 @@ console.log('\n▸ 검증기')
 
 test('정상 픽스처는 통과한다', () => {
   const c = validateWorksheet(raw)
-  assert(c.quiz.length === 5, '문제가 5개가 아니다')
-  assert(c.prerequisites.length === 3, '사전학습이 3개가 아니다')
+  assert(c.practice.quiz.length === 5, '문제가 5개가 아니다')
+  assert(c.exit_ticket.next_steps.length >= 2, '다음 단계가 2개 미만이다')
+  assert(c.problem.objectives.length === 3, '목표가 3개가 아니다')
 })
 
 test('개수 제약을 어기면 정확한 메시지를 낸다', () => {
-  const bad = structuredClone(raw); bad.quiz.pop()
+  const bad = structuredClone(raw); bad.practice.quiz.pop()
   try { validateWorksheet(bad); assert(false, '4개인데 통과했다') }
   catch (e) {
     const issues = (e as ValidationError).issues
-    assert(issues.some((i) => i.includes('quiz') && i.includes('5개') && i.includes('4개')),
+    assert(issues.some((i) => i.includes('practice.quiz') && i.includes('5개') && i.includes('4개')),
       `메시지가 부정확: ${issues.join(' / ')}`)
   }
 })
 
-test('hypothetical 인데 disclaimer 가 없으면 거부한다', () => {
-  const bad = structuredClone(raw); bad.roleplay.disclaimer = null
-  try { validateWorksheet(bad); assert(false, 'disclaimer 없이 통과했다') }
-  catch (e) {
-    assert((e as ValidationError).issues.some((i) => i.includes('disclaimer')), '정직성 규칙이 안 걸렸다')
-  }
+test('문제 제시가 질문이 아니면 거부한다 (V5)', () => {
+  const bad = structuredClone(raw); bad.problem.question = bad.problem.question.replace(/[?？]\s*$/, '.')
+  try { validateWorksheet(bad); assert(false, '질문이 아닌데 통과했다') }
+  catch (e) { assert((e as ValidationError).issues.some((i) => i.includes('problem.question')), '물음표 규칙이 안 걸렸다') }
+})
+
+test('관찰 단계에 증거(도형·예시)가 없으면 거부한다 (V5)', () => {
+  const bad = structuredClone(raw); bad.observe.figure = null; bad.observe.example = null
+  try { validateWorksheet(bad); assert(false, '증거 없이 통과했다') }
+  catch (e) { assert((e as ValidationError).issues.some((i) => i.startsWith('observe')), '관찰 증거 규칙이 안 걸렸다') }
+})
+
+test('첫 예측이 고르는 활동이 아니면 거부한다 (V5)', () => {
+  const bad = structuredClone(raw); bad.predict.hook.kind = 'compute'
+  try { validateWorksheet(bad); assert(false, '통과했다') }
+  catch (e) { assert((e as ValidationError).issues.some((i) => i.includes('predict.hook.kind')), '') }
 })
 
 test('multiple_choice 가 아닌데 choices 가 있으면 거부한다', () => {
-  const bad = structuredClone(raw); bad.quiz[0].choices = ['a', 'b', 'c']
+  const bad = structuredClone(raw)
+  const i = bad.practice.quiz.findIndex((q: any) => q.kind !== 'multiple_choice')
+  bad.practice.quiz[i].choices = ['a', 'b', 'c']
   try { validateWorksheet(bad); assert(false, '통과했다') }
-  catch (e) { assert((e as ValidationError).issues.some((i) => i.includes('choices')), '') }
+  catch (e) { assert((e as ValidationError).issues.some((x) => x.includes('choices')), '') }
 })
 
 test('InlineNode 타입이 이상하면 거부한다', () => {
   const bad = structuredClone(raw)
-  bad.what_we_learn.summary[0] = { type: 'script', value: 'x' }
+  bad.problem.situation[0] = { type: 'script', value: 'x' }
   try { validateWorksheet(bad); assert(false, '통과했다') }
-  catch (e) { assert((e as ValidationError).issues.some((i) => i.includes('summary[0].type')), '') }
+  catch (e) { assert((e as ValidationError).issues.some((i) => i.includes('situation[0].type')), '') }
 })
 
 console.log('\n▸ 이스케이프')
@@ -95,26 +108,35 @@ test('XSS: 모든 문자열 필드에 공격 문자열을 넣어도 태그가 �
   const poisoned = structuredClone(raw)
   poisoned.title = ATTACK
   poisoned.topic_normalized = ATTACK
-  poisoned.what_we_learn.one_liner = ATTACK
-  poisoned.what_we_learn.analogy = ATTACK
+  poisoned.one_liner = ATTACK
+  poisoned.concept.analogy = ATTACK
   poisoned.glossary[0].term = ATTACK
   poisoned.glossary[0].plain = ATTACK
   poisoned.guide_notes[0].note = ATTACK
-  poisoned.what_we_learn.objectives[0] = ATTACK
-  poisoned.what_we_learn.summary[0] = { type: 'text', value: ATTACK }
-  poisoned.roleplay.dialogue[0].line = ATTACK
-  poisoned.roleplay.dialogue[0].speaker = ATTACK
-  poisoned.main_lesson.blocks[0].heading = ATTACK
-  poisoned.main_lesson.blocks[0].example.code = ATTACK
-  // language 는 30자 제한이 있어 짧은 공격 문자열을 쓴다 (class 속성에 들어가는 자리)
-  poisoned.main_lesson.blocks[0].example.language = 'js" onload="x'
-  poisoned.quiz[0].question = ATTACK
-  poisoned.quiz[1].choices[0] = ATTACK
-  poisoned.quiz[0].answer = ATTACK
-  poisoned.origin_story.timeline[0].what = ATTACK
-  poisoned.homework.tasks[0].detail = ATTACK
-  poisoned.wrap_up.checklist[0] = ATTACK
-  poisoned.next_steps[0].title = ATTACK
+  poisoned.problem.objectives[0] = ATTACK
+  poisoned.problem.situation[0] = { type: 'text', value: ATTACK }
+  poisoned.problem.question = ATTACK + '?'
+  poisoned.problem.why_it_matters = ATTACK
+  poisoned.predict.hook.prompt = ATTACK
+  poisoned.predict.hook.options[0] = ATTACK
+  poisoned.predict.reasoning_prompt = ATTACK
+  poisoned.observe.notice[0] = ATTACK
+  poisoned.observe.compare.prompt = ATTACK
+  poisoned.concept.blocks[0].heading = ATTACK
+  // 코드 예시가 있는 블록: 본문과 language 를 공격한다 (language 는 class 속성에 들어가는 자리, 30자 제한)
+  const codeBlock = poisoned.concept.blocks.find((b: any) => b.example?.kind === 'code')
+  const hasCode = Boolean(codeBlock)
+  if (codeBlock) { codeBlock.example.body = ATTACK; codeBlock.example.language = 'js" onload="x' }
+  poisoned.practice.quiz[0].question = ATTACK
+  const mc = poisoned.practice.quiz.find((q: any) => q.choices)
+  if (mc) mc.choices[0] = ATTACK
+  poisoned.practice.quiz[0].answer = ATTACK
+  if (poisoned.concept.context_note?.facts?.length) poisoned.concept.context_note.facts[0].what = ATTACK
+  if (poisoned.practice.extended.length) poisoned.practice.extended[0].detail = ATTACK
+  poisoned.exit_ticket.self_check[0] = ATTACK
+  poisoned.exit_ticket.revisit = ATTACK
+  poisoned.exit_ticket.misconception_check.options[0] = ATTACK
+  poisoned.exit_ticket.next_steps[0].title = ATTACK
 
   const html = renderWorksheet(validateWorksheet(poisoned), CTX)
   // 우리가 넣은 필기 런타임 <script> 블록은 통째로 걷어내고 검사한다.
@@ -164,7 +186,7 @@ test('XSS: 모든 문자열 필드에 공격 문자열을 넣어도 태그가 �
   // 속성 문맥 탈출도 막혀야 한다
   assert(!body.includes('<img'), 'img 엘리먼트가 생겼다')
   assert(!body.includes('class="lang-js" onload='), 'class 속성에서 따옴표 탈출이 일어났다')
-  assert(body.includes('class="lang-js&quot; onload=&quot;x"'), 'class 속성값이 이스케이프되지 않았다')
+  if (hasCode) assert(body.includes('class="lang-js&quot; onload=&quot;x"'), 'class 속성값이 이스케이프되지 않았다')
 
   // 공격 문자열은 텍스트로만 살아남아야 한다
   assert(!body.includes(ATTACK), '공격 문자열이 원본 그대로 들어갔다')
@@ -182,46 +204,77 @@ console.log('\n▸ 렌더러')
 const content = validateWorksheet(raw)
 const html = renderWorksheet(content, CTX)
 
-test('11개 섹션이 전부, 순서대로 나온다', () => {
+const secSlice = (n: number) => {
+  const start = html.indexOf(`id="sec-${n}"`)
+  const next = html.indexOf(`id="sec-${n + 1}"`)
+  return html.slice(start, next === -1 ? html.indexOf('<footer') : next)
+}
+
+test('6단계가 전부, 순서대로 나온다', () => {
+  assert(SECTIONS.length === 6, `SECTIONS 가 ${SECTIONS.length}개다`)
+  let last = -1
   for (let i = 0; i < SECTIONS.length; i++) {
-    assert(html.includes(`id="sec-${i + 1}" data-section="${SECTIONS[i].key}"`),
-      `섹션 ${i + 1} (${SECTIONS[i].key}) 이 없거나 순서가 다르다`)
+    const pos = html.indexOf(`id="sec-${i + 1}" data-section="${SECTIONS[i].key}"`)
+    assert(pos > last, `섹션 ${i + 1} (${SECTIONS[i].key}) 이 없거나 순서가 다르다`)
+    last = pos
   }
-  const core = (html.match(/class="sec sec--core"/g) ?? []).length
-  const aside = (html.match(/class="sec sec--aside"/g) ?? []).length
-  assert(core + aside === 11, `섹션이 ${core + aside}개다 (11개여야 함)`)
-  assert(core === SECTIONS.filter((x) => x.core).length, `핵심 섹션이 ${core}개 (${SECTIONS.filter((x) => x.core).length}개여야 함)`)
+  assert((html.match(/class="sec sec--core"/g) ?? []).length === 6, '핵심 섹션이 6개가 아니다')
+  assert(!html.includes('sec--aside') && !html.includes('sec__fold'), '접힌 섹션이 남아 있다 — V5 는 전부 핵심 경로다')
+  assert((html.match(/class="sec__lead"/g) ?? []).length === 6, '단계 안내문(lead)이 빠졌다')
 })
 
-test('보조 섹션은 접혀 있고, 핵심 섹션은 접히지 않는다', () => {
-  for (const [i, s] of SECTIONS.entries()) {
-    const start = html.indexOf(`id="sec-${i + 1}"`)
-    const head = html.slice(start, start + 200)
-    if (s.core) assert(!head.includes('sec__fold'), `핵심 섹션 ${s.key} 가 접혀 있다`)
-    else assert(head.includes('<details class="sec__fold">'), `보조 섹션 ${s.key} 가 접혀 있지 않다`)
-  }
-  // 접힌 섹션은 처음부터 열려 있으면 안 된다 — 핵심 경로가 다시 묻힌다
-  assert(!html.includes('<details class="sec__fold" open'), '보조 섹션이 처음부터 열려 있다')
+test('① 문제 제시: 개념 설명 전에 구체적 상황과 질문만 있다', () => {
+  const s1 = secSlice(1)
+  assert(s1.includes('class="problem__q"'), '질문 블록이 없다')
+  assert(!s1.includes('class="act '), '문제 제시 단계에 활동이 있다 — 아직 고를 수 없다')
+  assert(!s1.includes('class="ink-space"'), '문제 제시 단계에 필기 칸이 있다')
+  assert(!s1.includes('class="analogy"') && !s1.includes('class="glossary"'), '문제 제시에 설명(비유·용어)이 섞였다')
 })
 
-test('첫 활동(hook)이 비유·설명보다 먼저 온다', () => {
-  const hookPos = html.indexOf('class="act act--')
-  const analogyPos = html.indexOf('class="analogy"')
-  assert(hookPos > 0 && hookPos < analogyPos, '설명 전에 예측하게 하는 활동이 없다 — 예측 없는 설명은 읽기다')
-  const sec1 = html.slice(html.indexOf('id="sec-1"'), html.indexOf('id="sec-2"'))
-  assert(sec1.includes('data-response-kind="choice"'), '첫 활동이 고르는 형태가 아니다')
-  assert(sec1.includes('type="radio"'), '첫 활동에 고를 라디오가 없다')
+test('② 예측: 첫 활동이 고르는 형태이고, 이유를 쓰는 칸이 따른다', () => {
+  const s2 = secSlice(2)
+  const hookPos = s2.indexOf('class="act act--')
+  assert(hookPos >= 0, '예측 활동이 없다')
+  assert(s2.includes('data-response-kind="choice"') && s2.includes('type="radio"'), '첫 활동이 고르는 형태가 아니다')
+  assert(s2.indexOf('data-response-kind="written"') > hookPos, '고른 뒤에 이유를 쓰는 칸이 없다')
+  assert(html.indexOf('id="sec-2"') < html.indexOf('class="analogy"'), '예측이 비유·설명보다 뒤에 있다')
+})
+
+test('③ 관찰: 증거(도형·예시)와 관찰 지시가 설명보다 먼저 온다', () => {
+  const s3 = secSlice(3)
+  assert(s3.includes('data-figure=') || s3.includes('class="example"'), '관찰 단계에 증거가 없다')
+  assert(s3.includes('class="notice"'), '"여기를 보세요" 관찰 지시가 없다')
+  assert(s3.includes('class="act act--'), '예측과 비교하는 활동이 없다')
+  assert(html.indexOf('id="sec-3"') < html.indexOf('class="analogy"'), '관찰이 개념 설명보다 뒤에 있다')
+})
+
+test('④ 개념: 비유 → 블록 → 용어, 맥락 노트는 접혀 있다', () => {
+  const s4 = secSlice(4)
+  assert(s4.includes('class="analogy"') && s4.includes('class="glossary"'), '비유나 용어 풀이가 개념 단계에 없다')
+  assert(s4.indexOf('class="analogy"') < s4.indexOf('class="h3"'), '비유가 첫 블록보다 뒤에 있다')
+  if (content.concept.context_note) {
+    assert(s4.includes('<details class="context">'), '맥락 노트가 접혀 있지 않다')
+    assert(!s4.includes('<details class="context" open'), '맥락 노트가 처음부터 열려 있다')
+  }
+})
+
+test('⑥ 나가기 전에: 처음 예측 재방문 · 한 문장 · 틀린 문장 고르기', () => {
+  const s6 = secSlice(6)
+  assert((s6.match(/class="reflect__prompt"/g) ?? []).length === 2, '재방문·한 문장 필기 프롬프트가 2개가 아니다')
+  assert(s6.includes('class="act act--decide"'), '틀린 문장 고르기 활동이 없다')
+  assert(s6.includes('class="checklist"'), '증거 기반 점검이 없다')
+  assert(s6.includes('class="cards"'), '다음 단계 카드가 없다')
 })
 
 test('선택형 문제는 제출 전엔 답이 안 열리고, 오답마다 피드백이 붙는다', () => {
   // 런타임 스크립트도 같은 셀렉터 문자열을 담고 있으니 섹션 범위로만 자른다
-  const quiz = html.slice(html.indexOf('data-section="quiz"'), html.indexOf('id="sec-9"'))
+  const quiz = secSlice(5)
   const mc = (quiz.match(/data-response-kind="choice"/g) ?? []).length
-  assert(mc === content.quiz.filter((q) => q.choices).length, `선택형 문제 수가 다르다 (${mc})`)
+  assert(mc === content.practice.quiz.filter((q) => q.choices).length, `선택형 문제 수가 다르다 (${mc})`)
   assert((quiz.match(/data-submit/g) ?? []).length === mc, '선택형 문제마다 제출 버튼이 있어야 한다')
   assert(quiz.includes('data-answer="'), '정답 인덱스가 없다 (런타임이 채점을 못 한다)')
   assert(quiz.includes(' data-feedback="'), '오답 선택지에 피드백이 붙지 않았다')
-  assert((quiz.match(/data-attempted/g) ?? []).length === content.quiz.filter((q) => !q.choices).length,
+  assert((quiz.match(/data-attempted/g) ?? []).length === content.practice.quiz.filter((q) => !q.choices).length,
     '서술형 문제마다 시도 체크가 있어야 한다')
 })
 
@@ -239,26 +292,29 @@ test('필기 레이어와 문서 폭 고정이 살아있다', () => {
 
 test('필기 여백이 섹션·문제·활동·그림 과제마다 들어간다', () => {
   const n = (html.match(/class="ink-space"/g) ?? []).length
-  // V4: 섹션 끝에 붙던 '그냥 빈 칸' 은 뺐다. 빈 종이는 과제가 아니다.
-  // 서술형 문제 + 손을 쓰는 활동 + 그림 위 과제 + 마무리 성찰 한 칸.
-  const writtenQuiz = content.quiz.filter((q) => !q.choices).length
-  const activityInk = content.main_lesson.blocks
+  // 빈 종이는 과제가 아니다. 필기 칸은 인지 명령이 붙은 자리에만:
+  // 예측 이유 1 + (관찰 비교가 explain 이면 1) + 손을 쓰는 개념 활동 + 그림 위 과제(렌더된 참조마다) + 서술형 문제 + 나가기 전에 2
+  const figById = new Map(content.figures.map((f) => [f.id, f]))
+  const writtenQuiz = content.practice.quiz.filter((q) => !q.choices).length
+  const activityInk = content.concept.blocks
     .filter((b) => b.activity && ['compute', 'draw', 'explain'].includes(b.activity.kind)).length
-  const figureInk = content.figures.filter((f) => f.drawTask).length
-  const expected = writtenQuiz + activityInk + figureInk + 1
-  assert(n === expected, `필기 여백이 ${n}개다 (${expected}개여야 함: 서술형 ${writtenQuiz} + 활동 ${activityInk} + 그림 과제 ${figureInk} + 성찰 1)`)
+  const figureInk = [content.observe.figure, ...content.concept.blocks.map((b) => b.figure)]
+    .filter((id) => id && figById.get(id)?.drawTask).length
+  const compareInk = content.observe.compare.kind === 'explain' ? 1 : 0
+  const expected = 1 + compareInk + activityInk + figureInk + writtenQuiz + 2
+  assert(n === expected, `필기 여백이 ${n}개다 (${expected}개여야 함: 이유 1 + 비교 ${compareInk} + 활동 ${activityInk} + 그림 과제 ${figureInk} + 서술형 ${writtenQuiz} + 나가기 2)`)
   // 과제가 붙지 않은 여백이 없어야 한다: 모든 ink-space 바로 앞 400자 안에 프롬프트가 있다
   const noIcons = html.replace(/<svg[\s\S]*?<\/svg>/g, '')
   for (const m of noIcons.matchAll(/class="ink-space"/g)) {
     const before = noIcons.slice(Math.max(0, m.index! - 500), m.index)
     assert(/act__prompt|quiz__q|fig__task|reflect__prompt/.test(before), `과제 없는 빈 여백이 있다 (offset ${m.index})`)
   }
-  assert(activityInk > 0, '손을 쓰는 활동이 하나도 없다 — 빈 종이는 학습활동이 아니다')
+  assert(activityInk + compareInk > 0, '손을 쓰는 활동이 하나도 없다 — 빈 종이는 학습활동이 아니다')
 })
 
 test('활동 블록이 본론 절반 이상에 있고, 답은 접혀 있다', () => {
   const acts = (html.match(/class="act act--/g) ?? []).length
-  assert(acts * 2 >= content.main_lesson.blocks.length, `활동이 ${acts}/${content.main_lesson.blocks.length} 블록뿐이다`)
+  assert(acts >= 3 + Math.ceil(content.concept.blocks.length / 2), `활동이 ${acts}개뿐이다 (예측·비교·틀린 문장 + 블록 절반 이상)`)
   // reveal 은 details 안에 있어야 한다 — 답하기 전에 열려 있으면 활동이 아니다
   const openReveals = (html.match(/<details class="act__reveal" open/g) ?? []).length
   assert(openReveals === 0, '활동의 답이 처음부터 열려 있다')
@@ -280,19 +336,19 @@ test('필기 런타임이 인라인으로 박혀 있다', () => {
 
 test('섹션마다 아이콘이 붙는다 (Untitled UI)', () => {
   const svgs = (html.match(/class="ico"/g) ?? []).length
-  assert(svgs >= 11 + 3, `아이콘이 ${svgs}개뿐이다 (섹션 11 + 문서요소 3 이상)`)
+  assert(svgs >= 6 + 3, `아이콘이 ${svgs}개뿐이다 (단계 6 + 문서요소 3 이상)`)
   assert(html.includes('stroke="currentColor"'), '아이콘이 색을 상속하지 않는다')
 })
 
-test('일상 비유가 정의보다 먼저 나온다 (설명 사다리 ①단)', () => {
+test('일상 비유가 개념 설명보다 먼저, 관찰보다는 뒤에 나온다 (설명 사다리 ①단)', () => {
   const analogyPos = html.indexOf('class="analogy"')
-  const summaryPos = html.indexOf('class="p"')
   assert(analogyPos > 0, '일상 비유 블록이 없다')
-  assert(analogyPos < summaryPos, '비유가 설명보다 뒤에 있다 — 독자가 걸어둘 못이 없어진다')
+  assert(analogyPos > html.indexOf('id="sec-3"'), '비유가 관찰보다 앞에 있다 — 본 것에 이름을 붙이는 순서가 뒤집혔다')
+  assert(analogyPos < html.indexOf('class="h3"', html.indexOf('id="sec-4"')), '비유가 개념 블록보다 뒤에 있다')
 })
 
-test('용어 풀이가 1번 섹션에 들어간다', () => {
-  assert(html.includes('class="glossary"'), '용어 풀이가 없다')
+test('용어 풀이가 개념 단계에 들어간다', () => {
+  assert(secSlice(4).includes('class="glossary"'), '용어 풀이가 개념 단계에 없다')
   for (const g of content.glossary) assert(html.includes(esc(g.term)), `용어 누락: ${g.term}`)
 })
 

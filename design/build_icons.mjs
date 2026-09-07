@@ -22,22 +22,19 @@ const OUT_TS = resolve(ROOT, 'server/supabase/functions/_shared/icons.g.ts')
 
 /** ONPAR 이름 → Untitled UI 이름. 왼쪽이 우리가 코드에서 부르는 이름이다. */
 const ICONS = {
-  // 학습지 11개 섹션
-  secWhatWeLearn: 'Target01',
-  secBeforeAndNeed: 'ClockRewind',
-  secPrerequisites: 'BookOpen01',
-  secOriginStory: 'Hourglass01',
-  secRoleplay: 'MessageChatCircle',
-  secMainLesson: 'GraduationHat01',
-  secProTips: 'Lightbulb02',
-  secQuiz: 'HelpCircle',
-  secHomework: 'CheckSquare',
-  secWrapUp: 'Flag01',
-  secNextSteps: 'Rocket01',
+  // 학습지 6단계 (문제 제시 → 예측 → 관찰 → 개념 → 연습 → 나가기 전에)
+  secProblem: 'PuzzlePiece01',
+  secPredict: 'Target01',
+  secObserve: 'Eye',
+  secConcept: 'GraduationHat01',
+  secPractice: 'CheckSquare',
+  secExitTicket: 'Flag01',
   // 학습지 문서 요소
   analogy: 'Stars01',
   glossary: 'BookOpen02',
   guide: 'MessageChatSquare',
+  activity: 'HelpCircle',      // 활동 라벨 ("먼저 예측해 보세요" 등)
+  context: 'ClockRewind',      // 개념 안의 접힌 맥락 노트
   // 필기 툴바
   pen: 'PenTool02',
   highlighter: 'Brush01',

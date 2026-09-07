@@ -114,6 +114,10 @@ export async function runGeneration(
     if (!outline || typeof outline !== 'object' || !Array.isArray(outline.quiz_plan)) {
       throw new PipelineError('plan_schema_invalid', '설계도에 quiz_plan 이 없습니다')
     }
+    // 흔한 오답은 예측의 진단 가치다. 설계가 안 냈으면 집필이 지어내게 되므로 여기서 막는다.
+    if (!outline.prediction || typeof outline.prediction.common_wrong !== 'string' || !Array.isArray(outline.next_steps)) {
+      throw new PipelineError('plan_schema_invalid', '설계도에 prediction.common_wrong 이나 next_steps 가 없습니다')
+    }
 
     // ② 집필 — 설계도를 문장으로 옮기기만 한다
     stage = 'draft'
@@ -175,7 +179,7 @@ export async function runGeneration(
 
     // ④ 렌더 — 결정론적 순수 함수
     stage = 'render'
-    const quizItemIds = content.quiz.map(() => deps.newId())
+    const quizItemIds = content.practice.quiz.map(() => deps.newId())
     const htmlPath = `${input.userId}/${worksheetId}.html`
     let html: string
     try {

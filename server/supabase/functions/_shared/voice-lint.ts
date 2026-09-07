@@ -47,7 +47,11 @@ export const TARGET_AVG_SENTENCE = 60
 const splitSentences = (t: string) =>
   t.split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).filter((s) => s.length > 0)
 
-/** 학습지에서 사람이 읽는 문자열만 뽑는다. 코드·용어명은 검사 대상이 아니다. */
+/**
+ * 학습지에서 사람이 읽는 문자열만 뽑는다. 코드·용어명은 검사 대상이 아니다.
+ * V5 6단계(문제 제시 → 예측 → 관찰 → 개념 → 연습 → 나가기 전에)의 산문 필드를 전부 훑는다.
+ * 부분 객체도 받는다(테스트가 한 필드만 넣어 규칙을 시험한다).
+ */
 export function collectProse(content: any): { path: string; text: string }[] {
   const out: { path: string; text: string }[] = []
   const push = (path: string, v: unknown) => {
@@ -59,35 +63,52 @@ export function collectProse(content: any): { path: string; text: string }[] {
     push(path, nodes.filter((n) => n?.type !== 'code').map((n) => n?.value ?? '').join(''))
   }
 
-  push('what_we_learn.analogy', content.what_we_learn?.analogy)
-  push('what_we_learn.one_liner', content.what_we_learn?.one_liner)
-  inline('what_we_learn.summary', content.what_we_learn?.summary)
-  ;(content.what_we_learn?.objectives ?? []).forEach((o: string, i: number) => push(`what_we_learn.objectives[${i}]`, o))
+  // ① 문제 제시
+  inline('problem.situation', content.problem?.situation)
+  push('problem.question', content.problem?.question)
+  push('problem.why_it_matters', content.problem?.why_it_matters)
+  ;(content.problem?.objectives ?? []).forEach((o: string, i: number) => push(`problem.objectives[${i}]`, o))
 
-  inline('before_and_need.world_before', content.before_and_need?.world_before)
-  inline('before_and_need.why_it_emerged', content.before_and_need?.why_it_emerged)
-  ;(content.before_and_need?.pain_points ?? []).forEach((p: string, i: number) => push(`before_and_need.pain_points[${i}]`, p))
+  // ② 예측
+  push('predict.hook.prompt', content.predict?.hook?.prompt)
+  push('predict.hook.reveal', content.predict?.hook?.reveal)
+  push('predict.reasoning_prompt', content.predict?.reasoning_prompt)
 
+  // ③ 관찰 — example.body 는 코드·계산이라 뺀다
+  inline('observe.intro', content.observe?.intro)
+  ;(content.observe?.notice ?? []).forEach((n: string, i: number) => push(`observe.notice[${i}]`, n))
+  push('observe.compare.prompt', content.observe?.compare?.prompt)
+  push('observe.compare.reveal', content.observe?.compare?.reveal)
+
+  // ④ 개념
+  push('concept.analogy', content.concept?.analogy)
+  ;(content.concept?.blocks ?? []).forEach((b: any, i: number) => {
+    inline(`concept.blocks[${i}].body`, b?.body)
+    push(`concept.blocks[${i}].common_mistake`, b?.common_mistake)
+    push(`concept.blocks[${i}].activity.prompt`, b?.activity?.prompt)
+    push(`concept.blocks[${i}].activity.reveal`, b?.activity?.reveal)
+  })
+  inline('concept.context_note.text', content.concept?.context_note?.text)
   ;(content.glossary ?? []).forEach((g: any, i: number) => push(`glossary[${i}].plain`, g?.plain))
   ;(content.guide_notes ?? []).forEach((g: any, i: number) => push(`guide_notes[${i}].note`, g?.note))
-  ;(content.prerequisites ?? []).forEach((p: any, i: number) => push(`prerequisites[${i}].why`, p?.why))
 
-  inline('origin_story.narrative', content.origin_story?.narrative)
-  push('roleplay.scene', content.roleplay?.scene)
-  inline('roleplay.takeaway', content.roleplay?.takeaway)
+  // ⑤ 연습
+  ;(content.practice?.quiz ?? []).forEach((q: any, i: number) => {
+    push(`practice.quiz[${i}].question`, q?.question)
+    push(`practice.quiz[${i}].answer`, q?.answer)
+    push(`practice.quiz[${i}].explanation`, q?.explanation)
+    ;(q?.misconceptions ?? []).forEach((m: any, j: number) => push(`practice.quiz[${i}].misconceptions[${j}].why`, m?.why))
+  })
+  ;(content.practice?.extended ?? []).forEach((t: any, i: number) => push(`practice.extended[${i}].detail`, t?.detail))
 
-  ;(content.main_lesson?.blocks ?? []).forEach((b: any, i: number) => {
-    inline(`main_lesson.blocks[${i}].body`, b?.body)
-    push(`main_lesson.blocks[${i}].common_mistake`, b?.common_mistake)
-  })
-  ;(content.pro_tips ?? []).forEach((t: any, i: number) => push(`pro_tips[${i}].why`, t?.why))
-  ;(content.quiz ?? []).forEach((q: any, i: number) => {
-    push(`quiz[${i}].question`, q?.question)
-    push(`quiz[${i}].explanation`, q?.explanation)
-  })
-  ;(content.homework?.tasks ?? []).forEach((t: any, i: number) => push(`homework.tasks[${i}].detail`, t?.detail))
-  inline('wrap_up.daily_life_guide', content.wrap_up?.daily_life_guide)
-  ;(content.next_steps ?? []).forEach((n: any, i: number) => push(`next_steps[${i}].why`, n?.why))
+  // ⑥ 나가기 전에
+  push('exit_ticket.revisit', content.exit_ticket?.revisit)
+  push('exit_ticket.one_sentence', content.exit_ticket?.one_sentence)
+  push('exit_ticket.misconception_check.prompt', content.exit_ticket?.misconception_check?.prompt)
+  push('exit_ticket.misconception_check.reveal', content.exit_ticket?.misconception_check?.reveal)
+  ;(content.exit_ticket?.self_check ?? []).forEach((s: string, i: number) => push(`exit_ticket.self_check[${i}]`, s))
+  push('exit_ticket.apply_tomorrow', content.exit_ticket?.apply_tomorrow)
+  ;(content.exit_ticket?.next_steps ?? []).forEach((n: any, i: number) => push(`exit_ticket.next_steps[${i}].why`, n?.why))
 
   return out
 }

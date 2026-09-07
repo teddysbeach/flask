@@ -9,6 +9,7 @@ import { json, errorResponse, CORS, validateTopic, validateLevel } from '../_sha
 import { acceptGeneration, runGeneration, toErrorCode, isRetryable, MAX_ATTEMPTS, backoffMs } from '../_shared/pipeline.ts'
 import { createLlmClient } from '../_shared/claude.ts'
 import { makeDeps } from '../_shared/deps.ts'
+import { PLAN_SYSTEM_PROMPT, DRAFT_SYSTEM_PROMPT, OUTLINE_SCHEMA, WORKSHEET_SCHEMA } from '../_shared/prompts.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: CORS })
@@ -78,13 +79,26 @@ async function generateWithRetry(deps: any, input: any, worksheetId: string) {
   }
 }
 
+/**
+ * 프롬프트와 스키마는 저장소(prompts.ts)가 기본값이고, 환경변수는 실험용 덮어쓰기다.
+ * 예전에는 환경변수만 있어서 프롬프트가 저장소에 없었다 — 버전 추적이 안 됐다.
+ */
 function loadPrompts() {
+  const env = (k: string) => {
+    const v = Deno.env.get(k)
+    return v && v.trim() ? v : undefined
+  }
+  const schema = (k: string, fallback: unknown) => {
+    const v = env(k)
+    return v ? JSON.parse(v) : fallback
+  }
   return {
-    planModel: Deno.env.get('WORKSHEET_PLAN_MODEL') ?? undefined,
-    draftModel: Deno.env.get('WORKSHEET_DRAFT_MODEL') ?? undefined,
-    planSystemPrompt: Deno.env.get('PLAN_SYSTEM_PROMPT')!,
-    draftSystemPrompt: Deno.env.get('DRAFT_SYSTEM_PROMPT')!,
-    outlineSchema: JSON.parse(Deno.env.get('OUTLINE_SCHEMA')!),
-    worksheetSchema: JSON.parse(Deno.env.get('WORKSHEET_SCHEMA')!),
+    planModel: env('WORKSHEET_PLAN_MODEL'),
+    draftModel: env('WORKSHEET_DRAFT_MODEL'),
+    criticModel: env('WORKSHEET_CRITIC_MODEL'),
+    planSystemPrompt: env('PLAN_SYSTEM_PROMPT') ?? PLAN_SYSTEM_PROMPT,
+    draftSystemPrompt: env('DRAFT_SYSTEM_PROMPT') ?? DRAFT_SYSTEM_PROMPT,
+    outlineSchema: schema('OUTLINE_SCHEMA', OUTLINE_SCHEMA),
+    worksheetSchema: schema('WORKSHEET_SCHEMA', WORKSHEET_SCHEMA),
   }
 }

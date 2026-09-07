@@ -59,7 +59,7 @@ await test('런타임이 오류 없이 뜬다', async () => {
 })
 
 await test('첫 활동(hook): 고르기 전에는 답이 열리지 않는다', async () => {
-  const hook = page.locator('#sec-1 .act').first()
+  const hook = page.locator('#sec-2 .act').first()
   await hook.locator('details.act__reveal summary').click()
   await page.waitForTimeout(50)
   assert(!(await hook.locator('details.act__reveal').evaluate((d: HTMLDetailsElement) => d.open)), '고르기 전에 답이 열렸다')
@@ -67,7 +67,7 @@ await test('첫 활동(hook): 고르기 전에는 답이 열리지 않는다', a
 })
 
 await test('첫 활동(hook): 고르면 답이 열리고 응답이 기록된다', async () => {
-  const hook = page.locator('#sec-1 .act').first()
+  const hook = page.locator('#sec-2 .act').first()
   await hook.locator('input[type="radio"]').nth(1).check()
   await page.waitForTimeout(50)
   assert(await hook.locator('details.act__reveal').evaluate((d: HTMLDetailsElement) => d.open), '고른 뒤에도 답이 닫혀 있다')
@@ -166,11 +166,31 @@ await test('경로정보 슬라이더: 간섭무늬가 연속적으로 사라진
   assert(/0\s*%/.test(vis!), `경로정보 1 에서 가시도가 0% 가 아니다: ${vis}`)
 })
 
-await test('보조 섹션은 접혀 있고 펼칠 수 있다', async () => {
-  const fold = page.locator('#sec-4 details.sec__fold')
-  assert(!(await fold.evaluate((d: HTMLDetailsElement) => d.open)), '탄생 배경이 처음부터 펼쳐져 있다')
+await test('예측 이유 칸: 체크하면 시도로 기록된다', async () => {
+  const reason = page.locator('#sec-2 [data-response-kind="written"]').first()
+  await reason.locator('input[data-attempted]').check()
+  await page.waitForTimeout(30)
+  const id = await reason.getAttribute('data-response-id')
+  const rec = await page.evaluate((id: string) => (globalThis as any).ONPAR_RESPONSES[id], id)
+  assert(rec && rec.type === 'attempt', `이유 쓰기 시도가 기록되지 않았다: ${JSON.stringify(rec)}`)
+})
+
+await test('맥락 노트는 접혀 있고 펼칠 수 있다 (있을 때)', async () => {
+  const fold = page.locator('#sec-4 details.context')
+  if (await fold.count() === 0) { console.log('    (이 학습지엔 맥락 노트가 없어요)'); return }
+  assert(!(await fold.evaluate((d: HTMLDetailsElement) => d.open)), '맥락 노트가 처음부터 펼쳐져 있다')
   await fold.locator('summary').click()
   assert(await fold.evaluate((d: HTMLDetailsElement) => d.open), '펼쳐지지 않는다')
+})
+
+await test('나가기 전에: 틀린 문장 고르기가 고르기 전엔 잠겨 있다', async () => {
+  const act = page.locator('#sec-6 .act--decide').first()
+  await act.locator('details.act__reveal summary').click()
+  await page.waitForTimeout(50)
+  assert(!(await act.locator('details.act__reveal').evaluate((d: HTMLDetailsElement) => d.open)), '고르기 전에 답이 열렸다')
+  await act.locator('input[type="radio"]').first().check()
+  await page.waitForTimeout(50)
+  assert(await act.locator('details.act__reveal').evaluate((d: HTMLDetailsElement) => d.open), '고른 뒤에도 답이 닫혀 있다')
 })
 
 await test('두 학습지를 지나는 동안 콘솔 오류가 없다', async () => {

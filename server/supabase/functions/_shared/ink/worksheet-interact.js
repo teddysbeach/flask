@@ -70,8 +70,9 @@ function wireWritten(root) {
   const id = root.dataset.responseId
   const reveal = root.querySelector('details.act__reveal, details.quiz__a')
   const attempted = root.querySelector('input[type="checkbox"][data-attempted]')
-  if (!reveal || !attempted) return
-  reveal.addEventListener('toggle', () => {
+  if (!attempted) return
+  // 답이 없는 쓰기 칸(예측 이유, 한 문장)도 있다. 그래도 시도는 기록한다.
+  if (reveal) reveal.addEventListener('toggle', () => {
     if (reveal.open && !attempted.checked) {
       reveal.open = false
       root.classList.add('is-nudge')

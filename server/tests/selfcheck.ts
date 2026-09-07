@@ -82,7 +82,7 @@ for (const file of readdirSync(DIR).filter((f) => f.endsWith('.json')).sort()) {
 
   const voice = voiceLint(content)
   const ped = pedagogyLint(content)
-  const kinds = content.main_lesson.blocks.map((b: any) => b.example?.kind).filter(Boolean)
+  const kinds = [...content.concept.blocks.map((b: any) => b.example?.kind), content.observe.example?.kind].filter(Boolean)
   const natural = NATURAL_EXAMPLE[content.category] ?? []
   const unnatural = [...new Set(kinds.filter((k: string) => !natural.includes(k)))] as string[]
 
@@ -93,7 +93,7 @@ for (const file of readdirSync(DIR).filter((f) => f.endsWith('.json')).sort()) {
   ]
   try {
     html = renderWorksheet(content, {
-      worksheetId: 'sc', quizItemIds: content.quiz.map((_: unknown, i: number) => `q${i}`), theme: 'light',
+      worksheetId: 'sc', quizItemIds: content.practice.quiz.map((_: unknown, i: number) => `q${i}`), theme: 'light',
     })
   } catch (e) {
     errors.push(`[렌더] ${String(e)}`)
@@ -112,10 +112,10 @@ for (const file of readdirSync(DIR).filter((f) => f.endsWith('.json')).sort()) {
     avgSentence: voice.avgSentenceChars,
     glossary: content.glossary.length,
     guideNotes: content.guide_notes.length,
-    hasAnalogy: Boolean(content.what_we_learn.analogy),
+    hasAnalogy: Boolean(content.concept.analogy),
     exampleKinds: [...new Set(kinds)] as string[],
     unnaturalExample: unnatural,
-    quizCount: content.quiz.length,
+    quizCount: content.practice.quiz.length,
     htmlKb: Math.round(html.length / 1024),
     inkSpaces: (html.match(/class="ink-space"/g) ?? []).length,
     hookFirst: ped.metrics.hookFirst,

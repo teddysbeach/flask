@@ -2,6 +2,10 @@
 //
 // 이 검사가 2단계 하이브리드의 안전장치다. 사실성 판단은 ①에서 끝나야 하고,
 // ②는 그걸 문장으로 옮기기만 해야 한다. 프롬프트로 부탁하는 것과 별개로 코드로 확인한다.
+//
+// V5: 설계가 정하는 것은 네 가지다 — 맥락 노트의 사실(확실성 포함), 문제 계획(난이도·전이),
+// 다음 단계 제목, 그리고 첫 예측의 "흔한 오답". 마지막 것이 새로 들어왔다.
+// 흔한 오답이 선택지에 없으면 예측은 진단이 아니라 퀴즈다. 집필이 그걸 빼면 설계를 뒤집은 것이다.
 
 import type { WorksheetContent, WorksheetOutline } from './worksheet-types.ts'
 
@@ -13,48 +17,65 @@ export interface CrossCheckResult {
 export function crossCheck(outline: WorksheetOutline, content: WorksheetContent): CrossCheckResult {
   const v: string[] = []
 
-  // ── 상황극의 사실/가상 구분은 설계가 정한 것을 따라야 한다 ────────────────
-  if (content.roleplay.mode !== outline.roleplay_mode) {
-    v.push(`roleplay.mode 가 설계(${outline.roleplay_mode})와 다릅니다: ${content.roleplay.mode}`)
+  // ── 메타: 난이도와 분야는 설계가 정한다 ────────────────────────────────
+  if (content.level !== outline.level) {
+    v.push(`level 이 설계(${outline.level})와 다릅니다: ${content.level}`)
+  }
+  if (content.category !== outline.category) {
+    v.push(`category 가 설계(${outline.category})와 다릅니다: ${content.category}`)
   }
 
-  // ── 탄생 배경의 확실성 등급은 설계가 확정한다 ────────────────────────────
-  if (content.origin_story.timeline.length !== outline.facts.length) {
-    v.push(`origin_story.timeline 개수가 설계(${outline.facts.length})와 다릅니다: ${content.origin_story.timeline.length}`)
+  // ── 맥락 노트의 사실과 확실성 등급은 설계가 확정한다 ─────────────────────
+  const planned = outline.facts ?? []
+  const note = content.concept.context_note
+  const written = note?.facts ?? []
+  if (planned.length === 0) {
+    // 설계가 사실을 하나도 안 냈으면 맥락 노트는 없거나(null) 사실이 0개여야 한다
+    if (written.length !== 0) {
+      v.push(`concept.context_note.facts 개수가 설계(0)와 다릅니다: ${written.length} — 집필 단계가 사실을 지어낼 수 없습니다`)
+    }
+  } else if (!note) {
+    v.push(`설계가 맥락 노트 사실 ${planned.length}개를 냈는데 concept.context_note 가 없습니다`)
+  } else if (written.length !== planned.length) {
+    v.push(`concept.context_note.facts 개수가 설계(${planned.length})와 다릅니다: ${written.length}`)
   } else {
-    outline.facts.forEach((f, i) => {
-      const t = content.origin_story.timeline[i]
-      if (t.confidence !== f.confidence) {
-        v.push(`origin_story.timeline[${i}].confidence 가 설계(${f.confidence})와 다릅니다: ${t.confidence}` +
+    planned.forEach((f, i) => {
+      if (written[i].confidence !== f.confidence) {
+        v.push(`concept.context_note.facts[${i}].confidence 가 설계(${f.confidence})와 다릅니다: ${written[i].confidence}` +
           ` — 집필 단계가 사실성 판단을 바꿀 수 없습니다`)
       }
     })
   }
 
-  // 설계가 low/medium 을 하나라도 냈으면 불확실성 고지가 있어야 한다
-  const hasUncertain = outline.facts.some((f) => f.confidence !== 'high')
-  if (hasUncertain && !content.origin_story.uncertainty_note) {
-    v.push('설계가 불확실한 사실을 표시했는데 uncertainty_note 가 없습니다')
-  }
-
-  // ── 문제는 설계한 것만 쓴다 ──────────────────────────────────────────────
-  if (content.quiz.length !== outline.quiz_plan.length) {
-    v.push(`quiz 개수가 설계(${outline.quiz_plan.length})와 다릅니다: ${content.quiz.length}`)
+  // ── 문제는 설계한 것만 쓴다 (개수·난이도·전이 거리) ────────────────────────
+  const quiz = content.practice.quiz
+  if (quiz.length !== outline.quiz_plan.length) {
+    v.push(`practice.quiz 개수가 설계(${outline.quiz_plan.length})와 다릅니다: ${quiz.length}`)
   } else {
     outline.quiz_plan.forEach((q, i) => {
-      if (content.quiz[i].difficulty !== q.difficulty) {
-        v.push(`quiz[${i}].difficulty 가 설계(${q.difficulty})와 다릅니다: ${content.quiz[i].difficulty}`)
+      if (quiz[i].difficulty !== q.difficulty) {
+        v.push(`practice.quiz[${i}].difficulty 가 설계(${q.difficulty})와 다릅니다: ${quiz[i].difficulty}`)
+      }
+      if (quiz[i].transfer !== q.transfer) {
+        v.push(`practice.quiz[${i}].transfer 가 설계(${q.transfer})와 다릅니다: ${quiz[i].transfer}`)
       }
     })
   }
 
-  // ── 사전학습·다음단계 제안은 설계가 고른 것이다 (새로 지어내면 안 된다) ────
-  compareTitles(v, 'prerequisites', outline.prerequisites, content.prerequisites)
-  compareTitles(v, 'next_steps', outline.next_steps, content.next_steps)
+  // ── 다음 단계 제안은 설계가 고른 것이다 (새로 지어내면 안 된다) ────────────
+  compareTitles(v, 'exit_ticket.next_steps', outline.next_steps, content.exit_ticket.next_steps)
 
-  // ── 메타 ─────────────────────────────────────────────────────────────────
-  if (content.level !== outline.level) {
-    v.push(`level 이 설계(${outline.level})와 다릅니다: ${content.level}`)
+  // ── 첫 예측의 흔한 오답은 반드시 선택지에 있어야 한다 ─────────────────────
+  // 이게 예측의 진단 가치다. 정답만 있는 선택지는 학생이 무엇을 잘못 알고 있는지 보여주지 못한다.
+  const wrong = normalize(outline.prediction?.common_wrong ?? '')
+  const options = content.predict.hook.options ?? []
+  const hasWrong = wrong.length > 0 && options.some((o) => {
+    const n = normalize(o)
+    return n.includes(wrong) || wrong.includes(n)
+  })
+  if (!hasWrong) {
+    v.push(`predict.hook.options 에 설계의 흔한 오답("${outline.prediction?.common_wrong ?? ''}")이 없습니다` +
+      ` — 흔한 오답이 선택지에 있어야 예측이 진단이 됩니다`)
   }
 
   return { ok: v.length === 0, violations: v }

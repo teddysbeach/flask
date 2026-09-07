@@ -44,11 +44,10 @@ const ul = (items: string[], cls = 'list') =>
 const inkSpace = (size: 'sm' | 'md' | 'lg') =>
   `<div class="ink-space" data-ink-space="${size}"></div>`
 
-const CALLOUT_ICON = { story: 'secRoleplay', tip: 'secProTips', caution: 'warning' } as const
-
-const callout = (kind: 'story' | 'tip' | 'caution', label: string, body: string) =>
-  `<div class="callout callout--${kind}">` +
-  `<p class="callout__label">${icon(CALLOUT_ICON[kind], 16)}${esc(label)}</p>${body}</div>`
+/** 콜아웃. 남은 용도는 '흔한 실수' 하나뿐이라 종류를 고정한다. */
+const callout = (label: string, body: string) =>
+  `<div class="callout callout--caution">` +
+  `<p class="callout__label">${icon('warning', 16)}${esc(label)}</p>${body}</div>`
 
 /** 파르(먼저 헤맨 사람)의 한마디. 선생이 아니라 옆자리 사람의 목소리다. */
 const guideNote = (note: string) =>
@@ -104,144 +103,138 @@ const CONF_LABEL: Record<string, string> = {
 
 // ── 섹션 렌더러 ──────────────────────────────────────────────────────────
 // 인덱스 = 섹션 번호 - 1. SECTIONS 와 순서가 1:1로 맞아야 한다(테스트가 검사).
+//
+// 필기 여백(.ink-space) 규칙: 인지 명령이 붙은 자리에만 있다.
+//   act__prompt(활동·이유 쓰기) · quiz__q(서술형 문제) · fig__task(그림 위 과제) · reflect__prompt(나가기 전에)
+// 빈 종이는 학습활동이 아니다. 프롬프트 없이 여백만 두는 일은 없다(테스트가 검사).
+const NEXT_STEP_HINT: Record<string, string> = {
+  easier: '이게 막히면 먼저', same: '같은 난이도', harder: '한 단계 더 깊게',
+}
+
 const RENDERERS: ((c: WorksheetContent, ctx: RenderContext) => string)[] = [
-  // ① 무엇을 배우는가 — 예측이 맨 먼저, 그다음 비유, 그다음 정의.
-  //    역사와 상황극을 다 읽고 나서 예측하면 이미 정답이 머릿속에 들어와 있다.
+  // ① 문제 제시 — 개념 이름이 아니라 아직 못 푸는 상황. 활동도 필기칸도 없다. 질문 하나가 전부다.
   (c) => [
-    renderActivity(c.what_we_learn.hook, { prefix: 'hook' }),
-    `<p class="analogy">${esc(c.what_we_learn.analogy)}</p>`,
-    p(c.what_we_learn.summary),
+    p(c.problem.situation),
+    `<div class="problem"><p class="problem__q">${esc(c.problem.question)}</p>` +
+    `<p class="problem__why">${esc(c.problem.why_it_matters)}</p></div>`,
     `<p class="h3">이 학습지를 마치면</p>`,
-    ul(c.what_we_learn.objectives),
-    `<p class="h3">${icon('glossary', 18)}먼저 풀고 갈 말들</p>`,
-    `<dl class="glossary">${c.glossary.map((g) =>
-      `<dt>${esc(g.term)}</dt><dd>${esc(g.plain)}</dd>`).join('')}</dl>`,
+    ul(c.problem.objectives),
   ].join(''),
 
-  // ② 이것이 생기기 전에는
-  (c) => [
-    p(c.before_and_need.world_before),
-    callout('caution', '그때의 불편', ul(c.before_and_need.pain_points)),
-    `<p class="h3">그래서 무엇이 필요했나</p>`,
-    p(c.before_and_need.why_it_emerged),
-  ].join(''),
+  // ② 예측 — 설명을 하나도 읽기 전에 고르고, 왜 골랐는지 한 줄 적는다.
+  //    이유를 적어야 ⑥에서 자기 생각과 비교할 것이 남는다.
+  (c) => {
+    const hook = renderActivity(c.predict.hook, { prefix: 'hook' })   // id 순서 = 문서 순서
+    const rid = nextResponseId('reason')
+    return [
+      hook,
+      `<div class="act act--explain" data-response-id="${rid}" data-response-kind="written">` +
+      `<p class="act__label">${icon('activity', 15)}왜 그렇게 골랐나요</p>` +
+      `<p class="act__prompt">${esc(c.predict.reasoning_prompt)}</p>${inkSpace('sm')}` +
+      `<label class="act__attempt"><input type="checkbox" data-attempted> 내 생각을 적었어요</label></div>`,
+    ].join('')
+  },
 
-  // ③ 먼저 보면 좋은 학습지 3개
-  (c) => `<div class="cards">${c.prerequisites.map((q) => `
-    <div class="card">
-      <p class="card__title">${esc(q.title)}</p>
-      <p class="card__why">${esc(q.why)}</p>
-      <p class="card__hint">${esc(q.one_liner)}</p>
-    </div>`).join('')}</div>`,
-
-  // ④ 탄생 배경
-  (c) => [
-    `<ul class="timeline">${c.origin_story.timeline.map((t) => {
-      const badge = t.confidence === 'high' ? ''
-        : `<span class="conf conf--${t.confidence}">${esc(CONF_LABEL[t.confidence])}</span>`
-      return `<li><span class="timeline__when">${esc(t.when)}</span>` +
-             `<p class="timeline__what">${esc(t.what)}${badge}</p></li>`
-    }).join('')}</ul>`,
-    p(c.origin_story.narrative),
-    c.origin_story.uncertainty_note
-      ? callout('caution', '확실하지 않은 부분',
-          `<p class="p">${esc(c.origin_story.uncertainty_note)}</p>`)
-      : '',
-  ].join(''),
-
-  // ⑤ 상황극 & 예시
-  (c) => [
-    `<p class="scene">${esc(c.roleplay.scene)}</p>`,
-    `<div class="dialogue">${c.roleplay.dialogue.map((d) => `
-      <div class="dialogue__line">
-        <span class="dialogue__speaker">${esc(d.speaker)}</span>
-        <p class="dialogue__text">${esc(d.line)}</p>
-      </div>`).join('')}</div>`,
-    callout('story', '그래서 무슨 뜻이냐면', p(c.roleplay.takeaway)),
-    // 가상 시나리오는 반드시 가상이라고 밝힌다. 검증기가 disclaimer 를 강제한다.
-    c.roleplay.mode === 'hypothetical' && c.roleplay.disclaimer
-      ? `<p class="card__hint">${esc(c.roleplay.disclaimer)}</p>`
-      : '',
-  ].join(''),
-
-  // ⑥ 본론 — 설명 → 표상 → 예시 → 활동 → 흔한 실수. 활동 없는 설명은 절반을 넘지 못한다(검증기).
+  // ③ 관찰 — 예측을 시험할 증거. 무엇을 봐야 하는지 짚어 주고, 예측과 비교하게 한다.
   (c) => {
     const figById = new Map(c.figures.map((f) => [f.id, f]))
-    return c.main_lesson.blocks.map((b) => [
+    return [
+      p(c.observe.intro),
+      c.observe.figure && figById.has(c.observe.figure) ? renderFigure(figById.get(c.observe.figure)!) : '',
+      c.observe.example ? renderExample(c.observe.example) : '',
+      `<p class="h3">여기를 보세요</p>`,
+      `<ol class="notice">${c.observe.notice.map((n) => `<li>${esc(n)}</li>`).join('')}</ol>`,
+      renderActivity(c.observe.compare, { prefix: 'compare' }),
+    ].join('')
+  },
+
+  // ④ 개념 — 비유 → 블록(설명 → 표상 → 예시 → 활동 → 흔한 실수) → 용어 → 접힌 맥락 노트.
+  //    활동 없는 설명은 절반을 넘지 못한다(검증기).
+  (c) => {
+    const figById = new Map(c.figures.map((f) => [f.id, f]))
+    const blocks = c.concept.blocks.map((b) => [
       `<p class="h3">${esc(b.heading)}</p>`,
       p(b.body),
       b.figure && figById.has(b.figure) ? renderFigure(figById.get(b.figure)!) : '',
       b.example ? renderExample(b.example) : '',
       b.activity ? renderActivity(b.activity) : '',
-      b.common_mistake
-        ? callout('caution', '흔한 실수', `<p class="p">${esc(b.common_mistake)}</p>`)
-        : '',
+      b.common_mistake ? callout('흔한 실수', `<p class="p">${esc(b.common_mistake)}</p>`) : '',
     ].join('')).join('')
+    const glossary = `<p class="h3">${icon('glossary', 18)}먼저 풀고 갈 말들</p>` +
+      `<dl class="glossary">${c.glossary.map((g) => `<dt>${esc(g.term)}</dt><dd>${esc(g.plain)}</dd>`).join('')}</dl>`
+    const note = c.concept.context_note
+    const context = note
+      ? `<details class="context"><summary class="context__summary">${icon('context', 15)}이게 어디서 왔는지 (짧은 맥락)</summary>` +
+        `<div class="context__body">${p(note.text)}${note.facts.length
+          ? `<ul class="timeline">${note.facts.map((t) => {
+              const badge = t.confidence === 'high' ? ''
+                : `<span class="conf conf--${t.confidence}">${esc(CONF_LABEL[t.confidence])}</span>`
+              return `<li><span class="timeline__when">${esc(t.when)}</span>` +
+                     `<p class="timeline__what">${esc(t.what)}${badge}</p></li>`
+            }).join('')}</ul>`
+          : ''}</div></details>`
+      : ''
+    return `<p class="analogy">${esc(c.concept.analogy)}</p>${blocks}${glossary}${context}`
   },
 
-  // ⑦ 꿀팁
-  (c) => c.pro_tips.map((t) =>
-    callout('tip', t.tip, `<p class="p">${esc(t.why)}</p>`)).join(''),
+  // ⑤ 연습 — 선택형은 고른 오답에 맞는 피드백만, 서술형은 시도 후에 답. 그 뒤 확장 과제(선택).
+  (c, ctx) => {
+    const quiz = `<ol class="quiz">${c.practice.quiz.map((q, i) => {
+      const id = ctx.quizItemIds[i] ?? ''
+      const rid = nextResponseId('quiz')
+      const norm = (t: string) => t.replace(/[\s.,!?()'"]/g, '')
+      const answerIdx = q.choices ? q.choices.findIndex((ch) => norm(ch) === norm(q.answer)) : -1
+      const fbFor = (ch: string) => q.misconceptions.find((m) => norm(ch).includes(norm(m.wrong).slice(0, 8)) || norm(m.wrong).includes(norm(ch).slice(0, 8)))?.why
+      const choices = q.choices
+        ? `<div class="quiz__choices" role="radiogroup">${q.choices.map((ch, j) => {
+            const fb = fbFor(ch)
+            return `<label class="act__opt"${fb ? ` data-feedback="${esc(fb)}"` : ''}>` +
+              `<input type="radio" name="${rid}" value="${esc(ch)}"><span class="act__key">${String.fromCharCode(9312 + j)}</span><span>${esc(ch)}</span></label>`
+          }).join('')}</div><p class="act__fb" data-feedback-slot hidden></p>` +
+          `<button type="button" class="quiz__submit" data-submit>제출</button>`
+        : `${inkSpace(q.kind === 'explain' ? 'md' : 'sm')}<label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label>`
+      return `<li class="quiz__item" data-quiz-id="${esc(id)}" data-response-id="${rid}" data-response-kind="${q.choices ? 'choice' : 'written'}"${answerIdx >= 0 ? ` data-answer="${answerIdx}"` : ''}>
+        <p class="quiz__q">${esc(q.question)}</p>
+        ${choices}
+        <details class="quiz__a">
+          <summary>${icon('info', 15)}${q.choices ? '제출하면 열려요' : '적고 나서 열기'}</summary>
+          <div class="quiz__a-body">
+            <p><span class="quiz__a-label">정답</span>${esc(q.answer)}</p>
+            <p>${esc(q.explanation)}</p>
+            ${q.misconceptions.length && !q.choices ? `<div class="quiz__mis"><p class="quiz__a-label">이렇게 답했다면</p><ul>${
+              q.misconceptions.map((m) => `<li><strong>${esc(m.wrong)}</strong> — ${esc(m.why)}</li>`).join('')}</ul></div>` : ''}
+          </div>
+        </details>
+      </li>`
+    }).join('')}</ol>`
+    const extended = c.practice.extended.length
+      ? `<p class="h3">더 해보기 (선택)</p><div class="cards">${c.practice.extended.map((t) => `
+          <div class="card">
+            <p class="card__title">${esc(t.title)}</p>
+            <p class="card__why">${esc(t.detail)}</p>
+            <p class="card__hint">예상 ${t.estimated_minutes}분</p>
+          </div>`).join('')}</div>`
+      : ''
+    return quiz + extended
+  },
 
-  // ⑧ 적용 문제 — 선택형은 고른 오답에 맞는 피드백만, 서술형은 시도 후에 답.
-  (c, ctx) => `<ol class="quiz">${c.quiz.map((q, i) => {
-    const id = ctx.quizItemIds[i] ?? ''
-    const rid = nextResponseId('quiz')
-    const norm = (t: string) => t.replace(/[\s.,!?()'"]/g, '')
-    const answerIdx = q.choices ? q.choices.findIndex((ch) => norm(ch) === norm(q.answer)) : -1
-    const fbFor = (ch: string) => q.misconceptions.find((m) => norm(ch).includes(norm(m.wrong).slice(0, 8)) || norm(m.wrong).includes(norm(ch).slice(0, 8)))?.why
-    const choices = q.choices
-      ? `<div class="quiz__choices" role="radiogroup">${q.choices.map((ch, j) => {
-          const fb = fbFor(ch)
-          return `<label class="act__opt"${fb ? ` data-feedback="${esc(fb)}"` : ''}>` +
-            `<input type="radio" name="${rid}" value="${esc(ch)}"><span class="act__key">${String.fromCharCode(9312 + j)}</span><span>${esc(ch)}</span></label>`
-        }).join('')}</div><p class="act__fb" data-feedback-slot hidden></p>` +
-        `<button type="button" class="quiz__submit" data-submit>제출</button>`
-      : `${inkSpace(q.kind === 'explain' ? 'md' : 'sm')}<label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label>`
-    return `<li class="quiz__item" data-quiz-id="${esc(id)}" data-response-id="${rid}" data-response-kind="${q.choices ? 'choice' : 'written'}"${answerIdx >= 0 ? ` data-answer="${answerIdx}"` : ''}>
-      <p class="quiz__q">${esc(q.question)}</p>
-      ${choices}
-      <details class="quiz__a">
-        <summary>${icon('info', 15)}${q.choices ? '제출하면 열려요' : '적고 나서 열기'}</summary>
-        <div class="quiz__a-body">
-          <p><span class="quiz__a-label">정답</span>${esc(q.answer)}</p>
-          <p>${esc(q.explanation)}</p>
-          ${q.misconceptions.length && !q.choices ? `<div class="quiz__mis"><p class="quiz__a-label">이렇게 답했다면</p><ul>${
-            q.misconceptions.map((m) => `<li><strong>${esc(m.wrong)}</strong> — ${esc(m.why)}</li>`).join('')}</ul></div>` : ''}
-        </div>
-      </details>
-    </li>`
-  }).join('')}</ol>`,
-
-  // ⑨ 숙제 & 과제
+  // ⑥ 나가기 전에 — 처음 예측으로 돌아가고, 한 문장으로 말하고, 틀린 문장을 골라낸다.
+  //    완료감이 아니라 증거를 남기는 단계라 필기칸 두 개는 전부 프롬프트 뒤에만 있다.
   (c) => [
-    c.homework.tasks.map((t) => `
-      <div class="card">
-        <p class="card__title">${esc(t.title)}</p>
-        <p class="card__why">${esc(t.detail)}</p>
-        <p class="card__hint">예상 ${t.estimated_minutes}분</p>
-      </div>`).join(''),
-    `<p class="card__hint">${esc(c.homework.submission_hint)}</p>`,
-  ].join(''),
-
-  // ⑩ 마무리 팁
-  (c) => [
-    `<p class="h3">이렇게 씁니다</p>`,
-    ul(c.wrap_up.usage_examples),
-    `<p class="h3">일상에 붙이기</p>`,
-    p(c.wrap_up.daily_life_guide),
+    `<div class="reflect"><p class="reflect__prompt">${icon('pen', 16)}${esc(c.exit_ticket.revisit)}</p>${inkSpace('md')}</div>`,
+    `<div class="reflect"><p class="reflect__prompt">${icon('pen', 16)}${esc(c.exit_ticket.one_sentence)}</p>${inkSpace('sm')}</div>`,
+    renderActivity(c.exit_ticket.misconception_check, { prefix: 'exit' }),
     `<p class="h3">스스로 점검</p>`,
-    ul(c.wrap_up.checklist, 'checklist'),
-    `<div class="reflect"><p class="reflect__prompt">${icon('pen', 16)}${esc(c.wrap_up.reflection)}</p>${inkSpace('md')}</div>`,
+    ul(c.exit_ticket.self_check, 'checklist'),
+    `<p class="h3">내일 해볼 것</p>`,
+    `<p class="p">${esc(c.exit_ticket.apply_tomorrow)}</p>`,
+    `<div class="cards">${c.exit_ticket.next_steps.map((n) => `
+      <div class="card">
+        <p class="card__title">${esc(n.title)}</p>
+        <p class="card__why">${esc(n.why)}</p>
+        <p class="card__hint">${NEXT_STEP_HINT[n.difficulty_delta] ?? ''}</p>
+      </div>`).join('')}</div>`,
   ].join(''),
-
-  // ⑪ 다음 단계 제안
-  (c) => `<div class="cards">${c.next_steps.map((n) => `
-    <div class="card">
-      <p class="card__title">${esc(n.title)}</p>
-      <p class="card__why">${esc(n.why)}</p>
-      <p class="card__hint">${n.difficulty_delta === 'harder' ? '한 단계 더 깊게' : '같은 난이도'}</p>
-    </div>`).join('')}</div>`,
 ]
 
 const ACTIVITY_LABEL: Record<string, string> = {
@@ -274,7 +267,7 @@ function renderActivity(a: Activity, opts: { prefix: string; feedbackByOption?: 
   const attempted = written
     ? `<label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label>` : ''
   return `<div class="act act--${a.kind}" data-response-id="${rid}" data-response-kind="${choice ? 'choice' : 'written'}">` +
-    `<p class="act__label">${icon('secQuiz', 15)}${esc(ACTIVITY_LABEL[a.kind])}</p>` +
+    `<p class="act__label">${icon('activity', 15)}${esc(ACTIVITY_LABEL[a.kind])}</p>` +
     `<p class="act__prompt">${esc(a.prompt)}</p>${opts_}${ink}${attempted}` +
     `<details class="act__reveal"><summary>${icon('info', 14)}${choice ? '고르면 열려요' : '적고 나서 열기'}</summary>` +
     `<div class="act__reveal-body">${esc(a.reveal)}</div></details></div>`
@@ -282,10 +275,8 @@ function renderActivity(a: Activity, opts: { prefix: string; feedbackByOption?: 
 
 /** 섹션 키 → 아이콘 이름. Untitled UI 아이콘을 섹션 제목 앞에 놓는다. */
 const SECTION_ICON: Record<string, string> = {
-  what_we_learn: 'secWhatWeLearn', before_and_need: 'secBeforeAndNeed',
-  prerequisites: 'secPrerequisites', origin_story: 'secOriginStory',
-  roleplay: 'secRoleplay', main_lesson: 'secMainLesson', pro_tips: 'secProTips',
-  quiz: 'secQuiz', homework: 'secHomework', wrap_up: 'secWrapUp', next_steps: 'secNextSteps',
+  problem: 'secProblem', predict: 'secPredict', observe: 'secObserve',
+  concept: 'secConcept', practice: 'secPractice', exit_ticket: 'secExitTicket',
 }
 
 /** 여러 줄에 걸친 템플릿 리터럴 때문에 생긴 공백을 걷어낸다(결정론적 출력을 위해). */
@@ -306,22 +297,19 @@ export function renderWorksheet(c: WorksheetContent, ctx: RenderContext): string
 
   responseSeq = 0   // 결정론: 렌더마다 id 가 같은 순서로 나와야 골든 파일이 맞는다
 
+  // 6단계는 전부 핵심 경로다. 접히는 것은 개념 안의 맥락 노트뿐, 섹션 자체는 접지 않는다.
   const sections = SECTIONS.map((s, i) => {
     const num = String(i + 1).padStart(2, '0')
     const body = tidy(RENDERERS[i](c, ctx))
     const notes = (notesBySection.get(s.key) ?? []).map(guideNote).join('')
     const head = `<header class="sec__head">` +
-      `<p class="sec__label">${icon(SECTION_ICON[s.key], 17)}<span class="sec__num">${num}</span>` +
-      (s.core ? '' : `<span class="sec__aside">보조 읽기</span>`) + `</p>` +
-      `<h2 class="sec__title">${esc(s.title)}</h2></header>`
-    // 섹션 끝의 빈 필기칸은 없앴다. 빈 종이는 학습활동이 아니다.
-    // 필기칸은 활동·그림 과제·문제·마무리 성찰처럼 인지 명령이 붙은 자리에만 있다.
-    const inner = `${head}<div class="sec__body">${body}${notes}</div>`
-    return s.core
-      ? `<section class="sec sec--core" id="sec-${i + 1}" data-section="${s.key}">${inner}</section>`
-      : `<section class="sec sec--aside" id="sec-${i + 1}" data-section="${s.key}"><details class="sec__fold">` +
-        `<summary class="sec__fold-summary">${icon(SECTION_ICON[s.key], 16)}<span class="sec__num">${num}</span> ${esc(s.title)}` +
-        `<span class="sec__fold-hint">보조 읽기 · 펼치기</span></summary>${inner}</details></section>`
+      `<p class="sec__label">${icon(SECTION_ICON[s.key], 17)}<span class="sec__num">${num}</span></p>` +
+      `<h2 class="sec__title">${esc(s.title)}</h2>` +
+      `<p class="sec__lead">${esc(s.lead)}</p></header>`
+    // 섹션 끝의 빈 필기칸은 없다. 빈 종이는 학습활동이 아니다.
+    // 필기칸은 활동·그림 과제·문제·나가기 전에 성찰처럼 인지 명령이 붙은 자리에만 있다.
+    return `<section class="sec sec--core" id="sec-${i + 1}" data-section="${s.key}">` +
+      `${head}<div class="sec__body">${body}${notes}</div></section>`
   }).join('')
 
   const meta = [
@@ -345,9 +333,9 @@ export function renderWorksheet(c: WorksheetContent, ctx: RenderContext): string
 <div class="sheet-scaler">
 <article class="sheet" data-worksheet-id="${esc(ctx.worksheetId)}" data-schema-version="${c.schema_version}">
 <header class="sheet__header">
-<p class="sheet__eyebrow">${icon('secMainLesson', 16)}ONPAR 학습지</p>
+<p class="sheet__eyebrow">${icon('secConcept', 16)}ONPAR 학습지</p>
 <h1 class="sheet__title">${esc(c.title)}</h1>
-<p class="sheet__one-liner">${esc(c.what_we_learn.one_liner)}</p>
+<p class="sheet__one-liner">${esc(c.one_liner)}</p>
 <div class="sheet__meta">${meta}</div>
 ${assumes}
 </header>

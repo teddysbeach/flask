@@ -38,7 +38,7 @@ auth.users ─1:1─ profiles
 | `topic` | `text not null` | 사용자 원문 입력 |
 | `level` | `text not null default 'beginner'` | `beginner`/`intermediate`/`advanced` |
 | `status` | `text not null default 'queued'` | `queued`→`generating`→`ready` / `failed` |
-| `content` | `jsonb` | 11섹션 전체 (`04-worksheet-spec.md` 스키마) |
+| `content` | `jsonb` | 6단계 전체 (`04-worksheet-spec.md` 스키마, schema_version 2) |
 | `html_path` | `text` | Storage 경로 `worksheets/{user_id}/{id}.html` |
 | `title` | `text` | LLM이 정한 학습지 제목 |
 | `error_code` | `text` | 실패 시 |
