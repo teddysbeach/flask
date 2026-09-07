@@ -94,6 +94,24 @@ function flattenColors(obj, prefix = []) {
   return out
 }
 
+/**
+ * 콜아웃 변수. accent·bg 가 {light, dark} 쌍이다.
+ * 한쪽만 있으면 그 테마에서 대비가 무너지므로 없으면 생성기가 멈춘다.
+ */
+function calloutVars(t, theme) {
+  return Object.entries(t.worksheet.callout).flatMap(([k, v]) => {
+    for (const part of ['accent', 'bg']) {
+      if (!v[part] || typeof v[part] !== 'object' || !v[part].light || !v[part].dark) {
+        throw new Error(`worksheet.callout.${k}.${part} 에 light/dark 가 모두 있어야 합니다`)
+      }
+    }
+    return [
+      `  --ds-callout-${k}-accent: ${toCssColor(v.accent[theme])};`,
+      `  --ds-callout-${k}-bg: ${toCssColor(v.bg[theme])};`,
+    ]
+  })
+}
+
 function assertPaletteParity(light, dark) {
   const l = Object.keys(light).sort()
   const d = Object.keys(dark).sort()
@@ -249,13 +267,13 @@ function buildCss(t) {
       decl(`ws-${kebab([k])}-lh`, String(v.lineHeight)),
       decl(`ws-${kebab([k])}-weight`, String(v.weight)),
     ]),
-    ...Object.entries(t.worksheet.callout).flatMap(([k, v]) => [
-      decl(`callout-${k}-accent`, toCssColor(v.accent)),
-      decl(`callout-${k}-bg`, toCssColor(v.bg)),
-    ]),
+    ...calloutVars(t, 'light'),
     decl('sheet-block-gap', `${t.worksheet.blockGap}px`),
     decl('paper', toCssColor(t.worksheet.paper.light)),
   ].join('\n')
+
+  // 콜아웃도 테마를 탄다. 한 값만 두면 다크에서 밝은 배경 위에 밝은 글자가 얹혀 안 보인다.
+  const calloutDark = calloutVars(t, 'dark').join('\n')
 
   const css = `:root {
 ${colorVars(light)}
@@ -263,11 +281,13 @@ ${scalars}
 }
 :root[data-theme="dark"] {
 ${colorVars(dark)}
+${calloutDark}
   --ds-paper: ${toCssColor(t.worksheet.paper.dark)};
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
 ${colorVars(dark).split('\n').map((l) => '  ' + l).join('\n')}
+${calloutDark.split('\n').map((l) => '  ' + l).join('\n')}
     --ds-paper: ${toCssColor(t.worksheet.paper.dark)};
   }
 }`

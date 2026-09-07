@@ -20,6 +20,8 @@ const BANNED: { pattern: RegExp; rule: string; why: string }[] = [
   { pattern: /아시다시피|알다시피|누구나 (아는|알듯)/, rule: '전제 강요', why: '모르는 독자를 배제합니다' },
   { pattern: /에 불과(합니다|해요)|별거 ?아[닙니]/, rule: '어려움 부정', why: '독자가 느낀 어려움을 부정합니다' },
   { pattern: /반드시 외우|무조건 외우|암기하세요/, rule: '명령', why: '파르는 시키지 않습니다' },
+  // 맨 명령형. 권하는 형태("해 보세요", "해 주세요")는 '하세요' 를 포함하지 않으므로 안 걸린다.
+  { pattern: /[가-힣]하세요|하십시오/, rule: '명령', why: '"…해 보세요" 처럼 권하는 형태를 씁니다' },
   { pattern: /요청이 올바르지|잘못된 입력|사용자[의 ]*(실수|잘못)/, rule: '사용자 탓', why: '실패 문구는 언제나 우리 탓입니다' },
 ]
 
@@ -96,7 +98,13 @@ export function collectProse(content: any): { path: string; text: string }[] {
   ;(content.guide_notes ?? []).forEach((g: any, i: number) => push(`guide_notes[${i}].note`, g?.note))
 
   // V6: 그림이 무엇을 생략했는지 밝히는 문장도 학습지에 그대로 나간다.
-  ;(content.figures ?? []).forEach((f: any, i: number) => push(`figures[${i}].model_note`, f?.model_note))
+  // drawTask 와 alt 도 사람이 읽는 문장이다 — 오래 검사 밖에 있었고, 그래서
+  // "…비교하세요" 같은 명령형이 그대로 나갔다. 화면에 보이는 글은 전부 같은 잣대로 잰다.
+  ;(content.figures ?? []).forEach((f: any, i: number) => {
+    push(`figures[${i}].model_note`, f?.model_note)
+    push(`figures[${i}].drawTask`, f?.drawTask)
+    push(`figures[${i}].alt`, f?.alt)
+  })
   // V6: 로버스트니스 예산. 오해와 막는 방법은 파르가 쓰는 문장이다.
   ;(content.robustness?.guards ?? []).forEach((g: any, i: number) => {
     push(`robustness.guards[${i}].misconception`, g?.misconception)

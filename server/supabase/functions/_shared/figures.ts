@@ -274,9 +274,13 @@ function interactiveControls(fig: Figure): string {
 export const FIGURE_CSS = `
 .fig__note { font-weight: 400; color: var(--ds-color-text-tertiary); }
 .fig__ctl { margin: 12px 0 0; display: grid; gap: 6px; font-size: 14px; color: var(--ds-color-text-secondary); }
-.fig__slider { width: 100%; accent-color: var(--ds-color-brand-primary); }
+.fig__slider {
+  width: 100%; accent-color: var(--ds-color-brand-text);
+  /* 슬라이더는 손가락으로 끄는 것이다. 트랙은 얇아도 잡는 면적은 44px 이어야 한다. */
+  min-height: 44px;
+}
 .fig__readout { font-family: var(--ds-font-mono); font-size: 14px; color: var(--ds-color-text-primary); }
-.fig__readout b { color: var(--ds-color-brand-primary); }
+.fig__readout b { color: var(--ds-color-brand-text); }
 /* 정성 모형이라는 고정 문구. 슬라이더 바로 아래에 붙어 있어야 눈금과 함께 읽힌다. */
 .fig__ctl-note {
   margin: 2px 0 0; font-size: 13px; line-height: 1.6;
@@ -322,17 +326,17 @@ figure[data-interactive]:not([data-wired]) .fig__ctl { display: none; }
   font-size: 16px; font-weight: 700; margin: 14px 0 0;
   color: var(--ds-color-text-primary);
 }
-.fig__task::before { content: "✎ "; color: var(--ds-color-brand-primary); }
+.fig__task::before { content: "✎ "; color: var(--ds-color-brand-text); }
 .fig-axis { stroke: var(--ds-color-border-strong); stroke-width: 1.2; }
 .fig-guide { stroke: var(--ds-color-border-default); stroke-width: 1; stroke-dasharray: 4 4; }
 .fig-panel { fill: var(--ds-color-surface-sunken); stroke: var(--ds-color-border-subtle); rx: 8; }
 .fig-curve { fill: none; stroke: var(--ds-color-text-primary); stroke-width: 2.4; stroke-linecap: round; }
 .fig-secant { stroke: var(--ds-color-status-info); stroke-width: 2; stroke-dasharray: 6 5; }
-.fig-tangent { stroke: var(--ds-color-brand-primary); stroke-width: 2.4; }
+.fig-tangent { stroke: var(--ds-color-brand-text); stroke-width: 2.4; }
 .fig-pt { fill: var(--ds-color-text-primary); }
 .fig-pt--secant { fill: var(--ds-color-status-info); }
-.fig-pt--tangent { fill: var(--ds-color-brand-primary); }
-.fig-area { fill: var(--ds-color-brand-primary); fill-opacity: .28; stroke: var(--ds-color-brand-primary); stroke-width: 1.5; }
+.fig-pt--tangent { fill: var(--ds-color-brand-text); }
+.fig-area { fill: var(--ds-color-brand-primary); fill-opacity: .28; stroke: var(--ds-color-brand-text); stroke-width: 1.5; }
 .fig-bar { fill: var(--ds-color-text-tertiary); }
 .fig-bar--clip { fill: var(--ds-color-status-danger); }
 .fig-tick { font-size: 12px; fill: var(--ds-color-text-tertiary); font-family: var(--ds-font-sans); }

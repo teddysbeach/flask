@@ -449,6 +449,47 @@ test('잘못된 grade 는 거부한다', () => {
   assert.throws(() => planAnswer(row, [row], -1, ANSWER_NOW, SEOUL, 21))
 })
 
+console.log('\n▸ 렌더러가 쓰는 문구 (우리 목소리)')
+
+/**
+ * 학습지에는 두 종류의 글이 있다. 모델이 쓴 본문과 **우리가 쓴 문구**(버튼·요약·라벨)다.
+ * voiceLint 는 본문만 봤다 — 정작 모든 학습지에 똑같이 나가는 것은 우리 문구인데.
+ *
+ * 여기서 렌더러 소스의 한글 문자열을 뽑아 같은 잣대로 잰다.
+ */
+function chromeStrings(): string[] {
+  const src = readFileSync(resolve(HERE, '../supabase/functions/_shared/render.ts'), 'utf8')
+  const out = new Set<string>()
+  for (const m of src.matchAll(/'([^'\n]*[가-힣][^'\n]*)'/g)) out.add(m[1])
+  // 주석에 적힌 설명 문장은 화면에 안 나간다. 따옴표 안의 것만 본다(위 정규식이 이미 그렇다).
+  return [...out]
+}
+
+test('우리 문구도 해요체다 — 본문만 존댓말이면 목소리가 두 개가 된다', () => {
+  const casual: string[] = []
+  for (const t of chromeStrings()) {
+    const v = voiceLint({ problem: { question: t } })
+    for (const e of v.errors) casual.push(`"${t}" — ${e.rule}`)
+  }
+  assert.equal(casual.length, 0, casual.join(' / '))
+})
+
+test('같은 자리의 문구는 같은 형식이다', () => {
+  // 답을 여는 자리는 세 가지 상황(선택형 퀴즈·서술형·활동)이 있는데 형식은 하나여야 한다.
+  const reveals = chromeStrings().filter((t) => t.includes('열려요') || t.includes('열기'))
+  assert.ok(reveals.length >= 3, `답 여는 문구를 ${reveals.length}개만 찾았다`)
+  for (const t of reveals) {
+    assert.match(t, /(면|으면) 열려요$/,
+      `"${t}" 만 형식이 다르다 — 같은 자리는 같은 모양이어야 한다`)
+  }
+})
+
+test('명령하지 않고 권한다 — "하세요" 대신 "해 보세요"', () => {
+  // 파르는 시키지 않는다(11-voice-and-persona.md). 우리 문구도 같은 규칙을 받는다.
+  const bossy = chromeStrings().filter((t) => /(하세요|하십시오|해라|하시오)$/.test(t) && !/보세요$/.test(t))
+  assert.equal(bossy.length, 0, `명령형 문구: ${bossy.join(', ')}`)
+})
+
 console.log('\n▸ 사용자 입력 경계')
 
 test('주제를 구분자 안에 넣고 태그 흉내를 무력화한다', () => {

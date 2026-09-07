@@ -263,7 +263,9 @@ code, .code {
   display: inline-flex; align-items: center; gap: 6px;
   cursor: pointer; font-size: 13px; font-weight: 700; list-style: none;
   color: var(--ds-color-text-tertiary);
-  padding: 6px 12px; border-radius: var(--ds-radius-full);
+  /* 최소 44px. 손가락으로 누르는 것이라 글자 크기가 아니라 누를 면적이 기준이다. */
+  min-height: 44px; box-sizing: border-box;
+  padding: 6px 14px; border-radius: var(--ds-radius-full);
   border: 1px solid var(--ds-color-border-subtle);
 }
 .act__reveal summary::-webkit-details-marker { display: none; }
@@ -336,10 +338,16 @@ code, .code {
   border-radius: var(--ds-radius-lg);
 }
 .act__fb::before { content: "이렇게 고르셨다면 — "; font-weight: 700; color: var(--ds-callout-caution-accent); }
-.act__attempt { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 14px; color: var(--ds-color-text-secondary); cursor: pointer; }
+.act__attempt {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-top: 8px; font-size: 14px; color: var(--ds-color-text-secondary); cursor: pointer;
+  /* 체크박스 한 줄도 누르는 것이다. 19px 짜리 줄은 펜으로만 눌린다. */
+  min-height: 44px;
+}
 .act__attempt input { accent-color: var(--ds-color-brand-text); }
 .quiz__submit {
-  margin-top: 12px; padding: 9px 18px; font-size: 14px; font-weight: 700; cursor: pointer;
+  margin-top: 12px; padding: 9px 20px; font-size: 14px; font-weight: 700; cursor: pointer;
+  min-height: 44px; box-sizing: border-box;
   border: 0; border-radius: var(--ds-radius-full);
   background: var(--ds-color-neutral-primary-base); color: var(--ds-color-neutral-primary-on-base);
 }
@@ -539,7 +547,8 @@ code, .code {
   display: inline-flex; align-items: center; gap: 6px;
   cursor: pointer; font-size: 14px; font-weight: 700;
   color: var(--ds-color-text-tertiary); list-style: none;
-  padding: 7px 14px; border-radius: var(--ds-radius-full);
+  min-height: 44px; box-sizing: border-box;
+  padding: 7px 16px; border-radius: var(--ds-radius-full);
   border: 1px solid var(--ds-color-border-subtle);
 }
 .quiz__a summary::-webkit-details-marker { display: none; }
@@ -605,7 +614,8 @@ code, .code {
 .guards__summary {
   display: flex; align-items: center; gap: 6px;
   cursor: pointer; list-style: none;
-  padding: 16px 0 0;
+  min-height: 44px; box-sizing: border-box;
+  padding: 16px 0 4px;
   font-size: 13px; font-weight: 700;
   color: var(--ds-color-text-tertiary);
 }
@@ -680,6 +690,17 @@ code, .code {
   .notice li::before { width: 24px; height: 24px; }
   .answer__text { font-size: 15px; min-height: 76px; }
   .sheet__footer { margin-top: 48px; }
+}
+
+/* 움직임에 민감한 사람이 있다. OS 에 "동작 줄이기" 를 켜 둔 것은 취향이 아니라 요청이다.
+   답을 먼저 열려고 할 때의 흔들림도 여기서 멈춘다 — 알리는 방법은 색과 글자로 충분하다. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @media print {

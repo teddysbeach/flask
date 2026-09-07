@@ -311,6 +311,119 @@ await test('필기가 화면 폭이 바뀌어도 자기 문제에 붙어 있다 
   await page.waitForTimeout(150)
 })
 
+// ── 접근성 계측 ──────────────────────────────────────────────────────────
+// 원칙을 문서에만 적어 두면 다음 색을 고르는 날 조용히 깨진다.
+// 눈이 아니라 브라우저가 잰 숫자로 고정한다.
+
+/** 요소가 실제로 눌리는 면적. 라디오 자체는 13px 이지만 누르는 것은 그것을 감싼 줄이다. */
+const HIT_AREA_JS = `(el) => {
+  const t = el.closest('label, summary, button, a') ?? el
+  const b = t.getBoundingClientRect()
+  return { w: Math.round(b.width), h: Math.round(b.height) }
+}`
+
+async function contrastViolations(target: any): Promise<string[]> {
+  return await target.evaluate(() => {
+    const lum = ([r, g, b]: number[]) => {
+      const f = (c: number) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4 }
+      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+    }
+    const parse = (s: string) => (s.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number)
+    const ratio = (fg: number[], bg: number[]) => {
+      const [a, b] = [lum(fg), lum(bg)]
+      const [hi, lo] = a > b ? [a, b] : [b, a]
+      return (hi + 0.05) / (lo + 0.05)
+    }
+    // 반투명 배경은 뒤가 비치므로 불투명한 조상을 찾아 올라간다.
+    const bgOf = (el: Element): number[] => {
+      let n: Element | null = el
+      while (n && n !== document.documentElement) {
+        const m = (getComputedStyle(n).backgroundColor.match(/[\d.]+/g) ?? []).map(Number)
+        if (m.length < 4 || m[3] > 0.5) return m.slice(0, 3)
+        n = n.parentElement
+      }
+      return [255, 255, 255]
+    }
+
+    const out: string[] = []
+    for (const el of document.querySelectorAll('body *')) {
+      const cs = getComputedStyle(el)
+      if (cs.display === 'none' || cs.visibility === 'hidden') continue
+      const own = [...el.childNodes].filter((n) => n.nodeType === 3 && n.textContent!.trim()).length
+      if (!own) continue
+      const size = parseFloat(cs.fontSize)
+      const weight = parseInt(cs.fontWeight, 10) || 400
+      // WCAG 의 "큰 글자" 정의: 24px 이상, 또는 18.66px 이상이면서 굵을 때.
+      const need = size >= 24 || (size >= 18.66 && weight >= 700) ? 3 : 4.5
+      const r = ratio(parse(cs.color), bgOf(el))
+      if (r < need) {
+        out.push(`${el.tagName.toLowerCase()}.${String(el.className).split(' ')[0]} ${size}px ${r.toFixed(2)}:1 (필요 ${need})`)
+      }
+    }
+    return [...new Set(out)]
+  })
+}
+
+await test('모든 글자가 WCAG AA 대비를 넘는다 (라이트)', async () => {
+  const bad = await contrastViolations(page)
+  assert(bad.length === 0, `대비 미달 ${bad.length}곳: ${bad.slice(0, 6).join(' / ')}`)
+})
+
+await test('다크 테마에서도 대비를 넘는다', async () => {
+  // 다크는 눈으로 안 보게 되는 쪽이라 조용히 깨진다.
+  // 실제로 콜아웃이 밝은 배경 그대로였고, 밝은 글자가 얹혀 1.01:1 이었다 — 아예 안 보였다.
+  const raw = JSON.parse(readFileSync(resolve(HERE, 'fixtures/worksheet-calculus.json'), 'utf8'))
+  const html = renderWorksheet(validateWorksheet(raw), { ...CTX, theme: 'dark' })
+  const file = resolve(OUT, 'calculus-dark.browser.html')
+  writeFileSync(file, html)
+
+  const dark = await browser.newPage({ viewport: { width: 900, height: 1200 } })
+  await dark.goto(pathToFileURL(file).href)
+  const bad = await contrastViolations(dark)
+  await dark.close()
+  assert(bad.length === 0, `다크 대비 미달 ${bad.length}곳: ${bad.slice(0, 6).join(' / ')}`)
+})
+
+await test('누르는 것은 전부 44px 이상이다', async () => {
+  const small = await page.evaluate((hitJs: string) => {
+    const hit = eval(hitJs) as (el: Element) => { w: number; h: number }
+    const out: string[] = []
+    // 컨트롤 자체와, 컨트롤을 감싸 한 줄이 통째로 눌리는 label 만 본다.
+    // for= 로 슬라이더를 가리키기만 하는 label 은 이름표지 누르는 자리가 아니다 —
+    // 그것까지 44px 로 만들면 문서가 이유 없이 길어진다.
+    const targets = [...document.querySelectorAll('button, summary, input, a[href]')]
+    for (const l of document.querySelectorAll('label')) if (l.querySelector('input')) targets.push(l)
+    for (const el of targets) {
+      const cs = getComputedStyle(el)
+      if (cs.display === 'none' || cs.visibility === 'hidden') continue
+      const { w, h } = hit(el)
+      if (w > 0 && h > 0 && h < 44) {
+        out.push(`${el.tagName.toLowerCase()}.${String(el.className).split(' ')[0]} ${w}×${h}`)
+      }
+    }
+    return [...new Set(out)]
+  }, HIT_AREA_JS)
+  // 아이패드에서 손가락과 펜을 번갈아 쓰는 문서다. 32px 짜리 버튼은 펜으로는 눌리지만
+  // 손가락으로는 두 번에 한 번 빗나간다.
+  assert(small.length === 0, `44px 미만 ${small.length}곳: ${small.slice(0, 6).join(' / ')}`)
+})
+
+await test('동작 줄이기를 켠 사람에게는 움직이지 않는다', async () => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.reload()
+  await page.waitForTimeout(150)
+  const animated = await page.evaluate(() => {
+    const el = document.querySelector('.act__reveal summary')
+    if (!el) return 'summary 를 못 찾았다'
+    el.classList.add('is-nudge')
+    const d = getComputedStyle(el.closest('.act__reveal')!).animationDuration
+    return d
+  })
+  assert(!/^\d+(\.\d+)?s$/.test(String(animated)) || parseFloat(String(animated)) < 0.05,
+    `동작 줄이기를 켰는데 애니메이션이 ${animated} 동안 돈다`)
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+})
+
 await test('두 학습지를 지나는 동안 콘솔 오류가 없다', async () => {
   assert(consoleErrors.length === 0, `콘솔 오류: ${consoleErrors.join(' | ')}`)
 })

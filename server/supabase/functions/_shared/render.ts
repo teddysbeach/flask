@@ -129,7 +129,9 @@ const LEVEL_LABEL: Record<string, string> = {
   beginner: '입문', intermediate: '중급', advanced: '심화',
 }
 const CONF_LABEL: Record<string, string> = {
-  high: '', medium: '확실하지 않음', low: '불확실',
+  // medium·low 는 학습지에 실리지 않는다(pedagogyLint 가 막는다). 렌더러도 배지를 만들지 않는다 —
+  // 내보내지 않을 문구를 남겨 두면 언젠가 서로 다른 말로 갈라진 채 나간다.
+  high: '', medium: '', low: '',
 }
 
 // ── 섹션 렌더러 ──────────────────────────────────────────────────────────
@@ -231,7 +233,7 @@ const RENDERERS: ((c: WorksheetContent, ctx: RenderContext) => string)[] = [
         <p class="quiz__q">${esc(q.question)}</p>
         ${choices}
         <details class="quiz__a">
-          <summary>${icon('info', 15)}${q.choices ? '제출하면 열려요' : '적고 나서 열기'}</summary>
+          <summary>${icon('info', 15)}${q.choices ? '제출하면 열려요' : '적으면 열려요'}</summary>
           <div class="quiz__a-body">
             <p><span class="quiz__a-label">정답</span>${esc(q.answer)}</p>
             <p>${esc(q.explanation)}</p>
@@ -310,7 +312,7 @@ function renderActivity(a: Activity, opts: { prefix: string; feedbackByOption?: 
   return `<div class="act act--${a.kind}" data-response-id="${rid}" data-response-kind="${choice ? 'choice' : 'written'}">` +
     `<p class="act__label">${icon('activity', 15)}${esc(ACTIVITY_LABEL[a.kind])}</p>` +
     `<p class="act__prompt">${esc(a.prompt)}</p>${opts_}${answer}` +
-    `<details class="act__reveal"><summary>${icon('info', 14)}${choice ? '고르면 열려요' : '적고 나서 열기'}</summary>` +
+    `<details class="act__reveal"><summary>${icon('info', 14)}${choice ? '고르면 열려요' : '적으면 열려요'}</summary>` +
     `<div class="act__reveal-body">${esc(a.reveal)}</div></details></div>`
 }
 

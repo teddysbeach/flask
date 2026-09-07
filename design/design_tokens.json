@@ -41,7 +41,7 @@
     "text": {
       "primary": "#1a1c20",
       "secondary": "#555d6d",
-      "tertiary": "#868b94",
+      "tertiary": "#6b7079",
       "disabled": "#d1d3d8",
       "placeholder": "#b0b3ba",
       "inverted": "#ffffff",
@@ -86,7 +86,7 @@
     },
     "neutralPrimary": {
       "base": "#2b2e35",
-      "onBase": "#16171b"
+      "onBase": "#f3f4f5"
     },
     "surface": {
       "base": "#000000",
@@ -298,18 +298,19 @@
       "md": 160,
       "lg": 240
     },
+    "_calloutNote": "콜아웃은 라이트/다크 값을 따로 갖는다. 한 값만 두면 다크에서 밝은 배경 위에 밝은 글자가 얹혀 1:1 대비가 된다 — 아예 안 보인다.",
     "callout": {
       "story": {
-        "accent": "#8a5a00",
-        "bg": "#fff6db"
+        "accent": { "light": "#8a5a00", "dark": "#ffcc5c" },
+        "bg": { "light": "#fff6db", "dark": "#332a12" }
       },
       "tip": {
-        "accent": "#046a52",
-        "bg": "#edfaf6"
+        "accent": { "light": "#046a52", "dark": "#4ed9ae" },
+        "bg": { "light": "#edfaf6", "dark": "#16302a" }
       },
       "caution": {
-        "accent": "#fa342c",
-        "bg": "#fdf0f0"
+        "accent": { "light": "#c41d14", "dark": "#ff8a80" },
+        "bg": { "light": "#fdf0f0", "dark": "#322323" }
       }
     },
     "blockGap": 28,
