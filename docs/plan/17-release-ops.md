@@ -15,7 +15,7 @@
 | 2 | 앱 정적 분석 무경고 | `flutter analyze` | ✅ |
 | 3 | 앱 테스트 전부 통과 | `flutter test` | ✅ |
 | 3-c | **분석·크래시가 실제로 서버에 쌓인다** | `daily_funnel` · `crash_summary` 뷰에 오늘 자 행이 있는지 | ✅ 코드 · ❌ 실환경 |
-| 3-b | 네이티브가 실제로 빌드된다 | CI 의 `app`(release APK · R8) · `ios`(pod install + build) 잡 | ⏳ CI 첫 실행에서 확인 |
+| 3-b | 네이티브가 실제로 빌드된다 | CI 의 `app`(release APK · R8) · `ios`(pod install + build) 잡 | ✅ 두 잡 모두 통과 |
 | 4 | 12개 카테고리 픽스처가 검사 루프를 통과 | `node --experimental-strip-types server/tests/selfcheck.ts` | ✅ 12/12 |
 | 5 | **실물 자극이 필요한 카테고리에 자산이 있다** | `node --experimental-strip-types server/tests/selfcheck.ts --release` (태그를 끊으면 CI 가 자동으로 돈다) | ❌ 색보정 사진 미확보 |
 | 6 | 실기기 Apple Pencil 필압이 WKWebView 안에서 살아있다 | iPad 실기기 수기 확인 | ❌ 미검증 |
@@ -23,8 +23,19 @@
 | 8-c | **Google 로그인이 실제로 왕복한다** | `GOOGLE_IOS_CLIENT_ID` dart-define **과** Info.plist 의 역방향 클라이언트 ID URL 스킴 둘 다 필요. 없으면 앱이 버튼을 감춘다 | ❌ 계정 필요 |
 | 8-b | **iOS 개인정보 매니페스트가 앱 번들에 들어간다** | `ios/Runner/PrivacyInfo.xcprivacy` (Resources 빌드 단계에 등록됨) · App Store Connect 신고 내용과 같은지 대조 | ✅ 코드 |
 | 8 | 계정 삭제가 실제로 지운다 | `delete-account` 후 재로그인 불가 확인 | ✅ 코드 · ❌ 실환경 |
+| 9 | **onpar.app 이 실제로 응답한다** | `/privacy` · `/terms` · `/support` 세 페이지. 앱의 약관 화면이 이 주소를 웹뷰로 열고, 스토어 심사가 개인정보 URL 을 직접 연다 | ❌ 저장소에 웹사이트가 없다 |
+| 9-b | **딥링크 검증 파일이 올라가 있다** | `/.well-known/apple-app-site-association`(리다이렉트 없이 `application/json`) · `/.well-known/assetlinks.json`. 없으면 Universal Link·App Link 가 조용히 브라우저로 샌다 | ❌ TEAMID · Play 서명 지문 필요 |
+| 10 | **Supabase 실서버가 있다** | 프로젝트 생성 → 마이그레이션 25개 적용 → Edge Function 7개 배포 → `ANTHROPIC_API_KEY` 시크릿 | ❌ 미생성 |
+| 11 | **실모델 생성 성공률을 쟀다** | 실제 Claude 호출로 카테고리별 20건 이상 돌려 스키마 통과율·재시도율·장당 원가를 측정. 픽스처 12개는 사람이 쓴 것이라 모델 실패율을 말해 주지 않는다 | ❌ 미측정 |
+| 12 | 스토어 등록 자산 | 스크린샷 6장(§2-4) · 앱 아이콘 ✅ · 심사용 계정 `review@onpar.app` | ❌ 스크린샷·심사 계정 없음 |
 
-5·6·7 은 **코드로 풀 수 없는 항목**이다. 자산 구매·실기기·스토어 계정이라는 외부 의존이 있고,
+> **게이트 1 은 2026-09-07 까지 거짓이었다.** `design/build_icons.mjs` 가 커밋되지 않는
+> `node_modules/` 를 읽었고, 그 검사가 `server/tests/run.sh` 의 첫 줄이라 `set -e` 에 걸려
+> **서버 테스트 전체가 CI 에서 한 번도 실행되지 않았다.** 로컬에서는 늘 초록이었으므로
+> 아무도 눈치채지 못했다. 여기서 배울 것: **"로컬에서 통과"는 게이트가 아니다.**
+> 게이트는 개발자 기계에 없는 것만 가지고도 돌아야 게이트다.
+
+5·6·7·9·9-b·10·11·12 는 **코드로 풀 수 없는 항목**이다. 자산 구매·실기기·스토어 계정이라는 외부 의존이 있고,
 그래서 "코드가 다 됐으니 출시 가능" 이라고 말하지 않는다. 게이트는 게이트다.
 
 **이 게이트는 문서가 아니라 워크플로다.** `v*` 태그를 밀면 `release gate` 잡이 돌고,

@@ -40,3 +40,52 @@ jobs:
           node design/build_brand.mjs --check
           node server/build-runtime.mjs --check
           node server/build-assets.mjs --check
+
+      # 게이트 9 · 9-b (17-release-ops.md §1).
+      #
+      # 앱은 약관·방침을 웹뷰로 열고, 스토어 심사는 개인정보 URL 을 직접 연다.
+      # 그 주소가 404 면 심사에서 그대로 리젝이고, 앱 안에서는 요약 화면으로 떨어진다 —
+      # 조용히 나빠지는 종류라 사람이 눈치채기 전에 게이트가 잡아야 한다.
+      #
+      # 딥링크 검증 파일도 같다. 없으면 Universal Link 가 깨지지 않고 **브라우저로 샌다.**
+      # 크래시가 안 나므로 아무도 신고하지 않고, 알림을 눌러 앱으로 못 들어온다.
+      - name: 웹 · 딥링크 검증 파일이 실제로 응답하는가
+        run: |
+          host="${UNIVERSAL_LINK_HOST:-onpar.app}"
+          fail=0
+          check() { # url  기대코드  기대content-type(선택)
+            code=$(curl -sS -o /tmp/body -w '%{http_code}' -L --max-time 20 "$1" 2>/dev/null || true)
+            if [ "$code" != "$2" ]; then
+              echo "::error::$1 → HTTP $code (기대 $2)"; fail=1; return
+            fi
+            if [ -n "${3:-}" ]; then
+              ct=$(curl -sS -o /dev/null -w '%{content_type}' --max-time 20 "$1" 2>/dev/null || true)
+              case "$ct" in
+                *"$3"*) ;;
+                *) echo "::error::$1 → Content-Type '$ct' (기대 '$3')"; fail=1 ;;
+              esac
+            fi
+            echo "ok  $1"
+          }
+          check "https://$host/privacy" 200
+          check "https://$host/terms"   200
+          check "https://$host/support" 200
+          # AASA 는 리다이렉트 없이, application/json 으로 와야 한다. iOS 는 그 외를 무시한다.
+          code=$(curl -sS -o /tmp/aasa -w '%{http_code}' --max-time 20 \
+                 "https://$host/.well-known/apple-app-site-association" 2>/dev/null || true)
+          ct=$(curl -sS -o /dev/null -w '%{content_type}' --max-time 20 \
+               "https://$host/.well-known/apple-app-site-association" 2>/dev/null || true)
+          if [ "$code" != "200" ]; then
+            echo "::error::apple-app-site-association → HTTP $code (리다이렉트도 실패로 본다)"; fail=1
+          elif ! printf '%s' "$ct" | grep -q 'application/json'; then
+            echo "::error::apple-app-site-association → Content-Type '$ct' (application/json 이어야 한다)"; fail=1
+          elif ! grep -q 'me.popol.onpar' /tmp/aasa; then
+            echo "::error::apple-app-site-association 에 me.popol.onpar 가 없다"; fail=1
+          else
+            echo "ok  apple-app-site-association"
+          fi
+          check "https://$host/.well-known/assetlinks.json" 200 application/json
+          if ! grep -q 'me.popol.onpar' /tmp/body; then
+            echo "::error::assetlinks.json 에 me.popol.onpar 가 없다"; fail=1
+          fi
+          exit $fail
