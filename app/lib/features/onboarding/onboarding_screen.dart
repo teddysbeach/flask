@@ -90,14 +90,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            Align(
-              alignment: Alignment.centerRight,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: DsSpace.s2),
-                child: TextButton(
-                  onPressed: () => unawaited(_finish(skipped: true)),
-                  child: const Text('건너뛰기'),
-                ),
+            // 첫 화면부터 이름을 보여 준다. 페이지마다 그림이 바뀌어도 로고는 그대로 있어
+            // "무슨 앱을 켰는지" 를 놓치지 않게 한다.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(DsSpace.s4, DsSpace.s2, DsSpace.s2, 0),
+              child: Row(
+                children: [
+                  const OnparLogo(layout: OnparLogoLayout.inline, symbolHeight: 26),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => unawaited(_finish(skipped: true)),
+                    child: const Text('건너뛰기'),
+                  ),
+                ],
               ),
             ),
             Expanded(

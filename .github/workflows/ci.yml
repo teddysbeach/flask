@@ -156,6 +156,9 @@ jobs:
       - name: design/build_icons.mjs --check
         run: node design/build_icons.mjs --check
 
+      - name: design/build_brand.mjs --check
+        run: node design/build_brand.mjs --check
+
       - name: server/build-runtime.mjs --check
         run: node server/build-runtime.mjs --check
 

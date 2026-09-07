@@ -146,11 +146,13 @@ Universal Links / App Links 는 **서버에 파일을 올려야** 산다. 안 �
 덮어쓰면 왜 바뀌었는지 추적할 수 없다. 대신 SVG 원본 하나에서 필요한 PNG 를 굽는다.
 
 ```bash
-node app/assets/icon/build_icons.mjs   # Playwright(Chromium)로 SVG → PNG
+node design/build_brand.mjs   # Playwright(Chromium)로 SVG → PNG
 ```
 
-- 마크: 흰 점 여섯 개 = 6단계. 읽는 순서대로 커진다. 배경은 `design/design_tokens.json` 의 `brandPrimary`(#FF6600)
-- 스크립트가 마크가 Android 적응형 아이콘의 안전 원(가운데 66%)을 벗어나지 않는지 검사한다
+- 심볼: 원 하나(사람) 아래 **길이가 같은 줄 두 개**. par(동등한)가 이름의 절반이고 그 뜻이 두 줄의 같은 길이에 있다. 배경은 `design/design_tokens.json` 의 `brandPrimary`(#FF6600)
+- 앱 안에서 쓰는 로고는 에셋이 아니라 도형이다 — `OnparLogo` · `OnparSymbol` · `OnparWordmark`(디자인 시스템)
+- 스크립트가 심볼이 Android 적응형 아이콘의 안전 원(가운데 66%)을 벗어나지 않는지, 스플래시 PNG 가 배율마다 정수 크기로 떨어지는지 검사한다
+- `node design/build_brand.mjs --check` 는 브라우저 없이 생성물이 최신인지만 본다(CI 드리프트 검사)
 - 스플래시는 `ios/Runner/Base.lproj/LaunchScreen.storyboard` 와
   `android/.../res/drawable*/launch_background.xml`(+ Android 12 이상용 `values-v31/styles.xml`)에 직접 있다
 

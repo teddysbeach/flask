@@ -7,5 +7,7 @@ library;
 
 export 'src/tokens/tokens.g.dart';
 export 'src/tokens/icons.g.dart';
+export 'src/tokens/brand.g.dart';
+export 'src/brand.dart';
 export 'src/ds_icon.dart';
 export 'src/theme.dart';

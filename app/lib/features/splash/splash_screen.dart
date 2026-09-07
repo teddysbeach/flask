@@ -24,8 +24,8 @@ class SplashScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const _Wordmark(),
-                const SizedBox(height: DsSpace.s3),
+                const OnparLogo(symbolHeight: 92),
+                const SizedBox(height: DsSpace.s6),
                 Text(
                   '배우고 싶은 걸 넣으면, 학습지가 나와요',
                   textAlign: TextAlign.center,
@@ -47,41 +47,6 @@ class SplashScreen extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Wordmark extends StatelessWidget {
-  const _Wordmark();
-
-  @override
-  Widget build(BuildContext context) {
-    final p = DsTheme.of(context);
-    return Semantics(
-      label: 'ONPAR',
-      header: true,
-      child: ExcludeSemantics(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: DsSpace.s4,
-                vertical: DsSpace.s3,
-              ),
-              decoration: BoxDecoration(
-                color: p.brandPrimary,
-                borderRadius: BorderRadius.circular(DsRadius.r2xl),
-              ),
-              child: Text(
-                'ONPAR',
-                style: dsTextStyle(DsType.h1, p.brandOnPrimary)
-                    .copyWith(letterSpacing: 1.5, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ],
         ),
       ),
     );
