@@ -41,6 +41,10 @@ Deno.serve(async (req: Request) => {
 
   // 이미 답한 회차에 또 답하면 조용히 성공으로 둔다.
   // 알림을 두 번 눌렀을 뿐인데 오류를 띄우면 사용자는 자기가 뭘 잘못했다고 생각한다.
+  //
+  // 여기서 보는 것은 **빠른 길일 뿐이다.** 진짜 판정은 아래 UPDATE 가 한다 —
+  // 읽고 나서 쓰기까지 사이에 같은 요청이 하나 더 들어올 수 있고(두 번 누르기, 재시도),
+  // 둘 다 여기를 통과하면 relearn 회차가 두 줄 생겨서 같은 문제가 내일 두 번 나온다.
   if (row.state !== 'pending') return json({ ok: true, already: true }, 200)
 
   const { data: prefs } = await supabase
@@ -64,13 +68,17 @@ Deno.serve(async (req: Request) => {
     toRow(row), (remaining ?? []).map(toRow), grade, new Date(), timeZone, reviewHour,
   )
 
-  const { error: e1 } = await supabase.from('review_schedules').update({
+  // `state = 'pending'` 을 조건에 넣어 **먼저 도착한 요청 하나만** 통과시킨다.
+  // 이 한 줄이 아래의 재예약·relearn 을 전부 한 번씩만 돌게 만든다.
+  const { data: claimed, error: e1 } = await supabase.from('review_schedules').update({
     state: plan.update.state,
     ease: plan.update.ease,
     grade: plan.update.grade,
     answered_at: plan.update.answeredAt,
-  }).eq('id', plan.update.id)
+  }).eq('id', plan.update.id).eq('state', 'pending').select('id')
   if (e1) return errorResponse('update_failed', 500)
+  // 아무 줄도 안 바뀌었다 = 그 사이 다른 요청이 이미 처리했다. 조용히 성공.
+  if (!claimed || claimed.length === 0) return json({ ok: true, already: true }, 200)
 
   // 남은 회차의 간격을 새 ease 로 다시 잡는다. 하나가 실패해도 나머지는 살린다 —
   // 여기서 통째로 실패시키면 방금 답한 것까지 되돌릴 방법이 없다.

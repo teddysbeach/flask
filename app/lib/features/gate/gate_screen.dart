@@ -162,7 +162,9 @@ class _Update extends StatelessWidget {
       }
       return;
     }
-    final uri = Uri.tryParse(url);
+    // 한 번 더 거른다. 여기서 여는 주소만은 서버가 준 대로 믿지 않는다.
+    final safe = AppGate.safeStoreUrl(url);
+    final uri = safe == null ? null : Uri.tryParse(safe);
     final opened = uri == null ? false : await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!opened && context.mounted) {
       AppFeedback.toast(context, '스토어를 열지 못했어요. 앱스토어에서 ONPAR 를 찾아 주세요.', danger: true);

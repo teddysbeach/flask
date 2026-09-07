@@ -22,6 +22,15 @@ class LibraryScreen extends ConsumerStatefulWidget {
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   final _scroll = ScrollController();
 
+  /// 화면이 안 채워졌을 때 자동으로 더 부른 횟수. 필터를 바꾸면 다시 0 이다.
+  ///
+  /// 상한이 필요하다. "실패" 필터를 걸었는데 실패한 학습지가 하나도 없으면
+  /// 상한이 없는 자동 로딩은 서재 전체를 끝까지 긁는다.
+  int _autoFills = 0;
+  LibraryFilter? _autoFillFilter;
+
+  static const _maxAutoFills = 5;
+
   @override
   void initState() {
     super.initState();
@@ -34,6 +43,26 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       ..removeListener(_onScroll)
       ..dispose();
     super.dispose();
+  }
+
+  /// 목록이 화면을 못 채우면 스크롤이 생기지 않고, 스크롤이 없으면 [_onScroll] 이
+  /// 한 번도 안 불린다. 필터를 걸었을 때 특히 그렇다 — 20장 중 2장만 남으면
+  /// 사용자는 "실패한 학습지가 2장뿐" 이라고 읽지만 다음 페이지에 더 있다.
+  /// 그래서 그릴 때마다 한 번 재어 보고, 안 채워졌으면 스스로 더 부른다.
+  void _fillViewport(LibraryState state) {
+    if (state.filter != _autoFillFilter) {
+      _autoFillFilter = state.filter;
+      _autoFills = 0;
+    }
+    if (state.busy || state.endReached || state.moreError != null) return;
+    if (_autoFills >= _maxAutoFills) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      // 스크롤할 여지가 있으면 사용자가 내리는 대로 [_onScroll] 이 받는다.
+      if (_scroll.position.maxScrollExtent > 0) return;
+      _autoFills += 1;
+      unawaited(ref.read(libraryControllerProvider.notifier).loadMore());
+    });
   }
 
   /// 바닥에서 480px 남았을 때 다음 페이지를 부른다.
@@ -52,6 +81,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final state = ref.watch(libraryControllerProvider);
     final controller = ref.read(libraryControllerProvider.notifier);
     final visible = state.visible;
+    _fillViewport(state);
 
     return Scaffold(
       backgroundColor: p.surfaceBase,

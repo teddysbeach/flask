@@ -183,7 +183,17 @@ class ConsentRecord {
   /// 약관 버전. 내용이 바뀌면 다시 받아야 한다.
   final String version;
 
+  /// 지금 받고 있는 약관 버전. **약관 본문을 고치면 이 값을 올린다.**
+  ///
+  /// 화면이 아니라 여기에 둔다 — 동의 판정(라우터)과 동의 기록(동의 화면)이
+  /// 서로 다른 상수를 보면, 올린 쪽만 바뀌고 판정은 옛 버전을 계속 통과시킨다.
+  static const currentVersion = '1';
+
   bool get requiredAccepted => terms && privacy;
+
+  /// 지금 약관으로 동의를 받았는가. 약관이 바뀌었으면 다시 받아야 한다 —
+  /// 바뀐 약관을 안 보여주고 계속 쓰게 하면 그 동의는 법적으로도 의미가 없다.
+  bool get isCurrent => requiredAccepted && version == currentVersion;
 
   Map<String, Object?> toJson() => {
         'terms': terms,

@@ -8,16 +8,16 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/app_error.dart';
-import 'offline_store.dart';
 import '../core/env.dart';
+import 'device_reset.dart';
 import 'supabase.dart';
 
 /// 로그인·가입·탈퇴. 토큰은 supabase_flutter 가 보안 저장소에 넣고 자동 갱신한다.
 class AuthRepository {
-  AuthRepository(this._client, this._offline);
+  AuthRepository(this._client, this._device);
 
   final SupabaseClient _client;
-  final OfflineStore _offline;
+  final DeviceReset _device;
 
   GoTrueClient get _auth => _client.auth;
 
@@ -153,10 +153,11 @@ class AuthRepository {
     } catch (e, st) {
       throw mapSupabaseError(e, st);
     } finally {
-      // 기기에 둔 학습지 본문과 못 올린 필기를 비운다.
-      // 같은 기기를 다음 사람이 쓸 수 있고, 로그아웃한 계정의 학습지가 거기 남아 있으면 안 된다.
+      // 기기에 남은 그 사람의 흔적을 전부 비운다 — 학습지 본문, 못 올린 필기,
+      // **운영체제에 예약해 둔 복습 알림**, 받은 알림 기록.
+      // 알림을 안 걷어내면 로그아웃한 뒤에도 며칠 동안 남의 학습지 제목이 잠금화면에 뜬다.
       // 로그아웃 자체가 실패해도 비운다 — 남겨 두는 쪽이 언제나 더 나쁘다.
-      await _offline.clearAll();
+      await _device.wipe();
     }
   }
 
@@ -197,4 +198,4 @@ class AuthRepository {
 
 final authRepositoryProvider =
     Provider<AuthRepository>(
-      (ref) => AuthRepository(ref.watch(supabaseProvider), ref.watch(offlineStoreProvider)));
+      (ref) => AuthRepository(ref.watch(supabaseProvider), ref.watch(deviceResetProvider)));

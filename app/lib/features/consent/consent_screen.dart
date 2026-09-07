@@ -21,8 +21,8 @@ class ConsentScreen extends ConsumerStatefulWidget {
   /// 안 넘기면 로그인으로 — 부팅 순서상 약관 다음은 로그인이다.
   final VoidCallback? onDone;
 
-  /// 약관 버전. 내용이 바뀌면 올리고, 그때 사용자에게 다시 받는다.
-  static const version = '1';
+  /// 약관 버전. 기록과 판정이 같은 값을 봐야 한다 — 원본은 [ConsentRecord.currentVersion].
+  static const version = ConsentRecord.currentVersion;
 
   @override
   ConsumerState<ConsentScreen> createState() => _ConsentScreenState();

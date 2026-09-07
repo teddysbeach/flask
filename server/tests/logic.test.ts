@@ -718,5 +718,21 @@ test('알 수 없는 난이도는 입문으로 떨어뜨린다', () => {
   assert.equal(validateLevel(undefined), 'beginner')
 })
 
+console.log('\n▸ 동시 요청')
+
+test('답안 처리는 pending 인 줄만 집어간다 — 두 번 누르면 relearn 이 두 줄 생긴다', () => {
+  const src = readFileSync(resolve(HERE, '../supabase/functions/answer-review/index.ts'), 'utf8')
+  // 읽고 나서 쓰기까지 사이에 같은 요청이 하나 더 들어올 수 있다(두 번 누르기, 네트워크 재시도).
+  // state 를 UPDATE 조건에 넣지 않으면 둘 다 통과해서 같은 문제가 내일 두 번 나온다.
+  const update = src.slice(src.indexOf('.from(\'review_schedules\').update({'))
+  const head = update.slice(0, update.indexOf('\n\n'))
+  assert.ok(head.includes(".eq('state', 'pending')"),
+    '답안 UPDATE 에 state 조건이 없다 — 확인 후 갱신 사이가 열려 있다')
+  assert.ok(head.includes('.select('),
+    '몇 줄이 바뀌었는지 안 보면 조건을 걸어도 소용이 없다')
+  assert.ok(/claimed.*length === 0/.test(update.slice(0, update.indexOf('reschedule'))),
+    '아무 줄도 안 바뀌었을 때 조용히 성공으로 돌려보내는 길이 없다')
+})
+
 console.log(`\n${failures.length ? '실패 ' + failures.length + '개' : '전부 통과'} (통과 ${passed}개)\n`)
 if (failures.length) process.exit(1)

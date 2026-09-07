@@ -110,7 +110,8 @@ String? _redirect(Ref ref, GoRouterState state) {
     configured: Env.isConfigured,
     gate: ref.read(appGateProvider).valueOrNull,
     onboarded: flags.onboarded,
-    consented: flags.consent?.requiredAccepted == true,
+    // 버전까지 본다. 약관이 바뀌면 동의를 다시 받아야 한다(ConsentRecord.isCurrent).
+    consented: flags.consent?.isCurrent == true,
     signedIn: ref.read(currentUserProvider) != null,
     pending: links.peekPending(),
   ));

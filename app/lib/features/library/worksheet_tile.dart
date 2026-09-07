@@ -7,8 +7,6 @@ import 'package:onpar_design_system/onpar_design_system.dart';
 import '../../core/routes.dart';
 import '../../domain/models.dart';
 import '../../ui/states/app_state_views.dart';
-import '../create/create_progress_screen.dart';
-import '../create/create_screen.dart';
 
 /// 목록에 학습지 한 장을 그리는 방법. 홈과 서재가 같은 걸 쓴다 —
 /// 두 벌로 두면 "만드는 중" 배지가 한쪽에만 생기는 일이 반드시 생긴다.
@@ -182,21 +180,20 @@ class WorksheetTileSkeleton extends StatelessWidget {
 
 /// 학습지를 눌렀을 때 갈 곳. 상태마다 다르다 — 만드는 중인 학습지를 뷰어로 열면
 /// 빈 화면이 뜬다. 홈과 서재가 이 규칙을 공유해야 두 곳이 다르게 굴지 않는다.
+///
+/// 길은 반드시 라우터를 거친다. `Navigator.push(MaterialPageRoute(...))` 로 얹으면
+/// 그 화면은 라우터의 스택 밖에 뜬다 — 진행 화면이 완성 뒤에 부르는
+/// `context.pushReplacement(학습지)` 가 **그 아래 장을 갈아치우고**, 사용자는
+/// "학습지를 여는 중" 에서 영영 못 빠져나온다.
 void openWorksheet(BuildContext context, WorksheetSummary w) {
   switch (w.status) {
     case WorksheetStatus.ready:
       unawaited(context.push(Routes.worksheet(w.id)));
     case WorksheetStatus.queued:
     case WorksheetStatus.generating:
-      final progress = MaterialPageRoute<void>(
-        builder: (_) => CreateProgressScreen(worksheetId: w.id),
-      );
-      unawaited(Navigator.of(context).push(progress));
+      unawaited(context.push(Routes.createProgress(w.id)));
     case WorksheetStatus.failed:
       // 실패한 학습지는 열 것이 없다. 같은 주제로 다시 만들 수 있게 입력을 채워 준다.
-      final retry = MaterialPageRoute<void>(
-        builder: (_) => CreateScreen(initialTopic: w.topic),
-      );
-      unawaited(Navigator.of(context).push(retry));
+      unawaited(context.push('${Routes.create}?topic=${Uri.encodeQueryComponent(w.topic)}'));
   }
 }

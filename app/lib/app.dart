@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onpar_design_system/onpar_design_system.dart';
 
+import 'core/purchase_watcher.dart';
 import 'features/settings/theme_controller.dart';
 import 'router.dart';
 
@@ -13,6 +14,9 @@ class OnparApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     final mode = ref.watch(themeModeProvider);
+    // 결제 결과를 듣는 귀. 화면이 아니라 앱이 들고 있어야 한다 —
+    // 결제 화면을 닫은 뒤에 도착하는 결제가 실제로 있다.
+    ref.watch(purchaseWatcherProvider);
 
     return MaterialApp.router(
       title: 'ONPAR',

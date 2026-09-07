@@ -32,14 +32,25 @@ class ReviewSessionScreen extends ConsumerStatefulWidget {
 }
 
 class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
+  /// 이번 세션에서 풀 문제들. **시작할 때 한 번 찍고 끝까지 그대로 쓴다.**
+  ///
+  /// 서버 큐(dueReviewsProvider)를 그대로 보고 있으면 한 문제를 풀 때마다 그 문제가
+  /// 큐에서 빠지고 목록이 한 칸씩 앞으로 당겨진다. 거기에 _index 까지 1 늘리면
+  /// 다음 문제를 건너뛴다 — 3문제 중 1번을 풀면 2번이 아니라 3번이 나온다.
+  List<ReviewItem>? _queue;
+
   int _index = 0;
   bool _revealed = false;
   int? _picked;
   int _recalled = 0;
+  int _answered = 0;
   bool _submitting = false;
   bool _finished = false;
 
   bool get _inProgress => !_finished && (_index > 0 || _revealed || _picked != null);
+
+  /// 세션 큐를 처음 한 번만 고정한다. 새 세션은 화면을 다시 열 때 시작된다.
+  List<ReviewItem> _pin(List<ReviewItem> fetched) => _queue ??= List.unmodifiable(fetched);
 
   @override
   Widget build(BuildContext context) {
@@ -64,14 +75,15 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
         appBar: AppBar(title: const Text('오늘의 복습')),
         body: SafeArea(
           child: _finished
-              ? _Summary(recalled: _recalled, onClose: _close)
+              ? _Summary(answered: _answered, recalled: _recalled, onClose: _close)
               : queue.when(
                   loading: () => const LoadingView(label: '복습할 문제를 불러오는 중'),
                   error: (e, st) => ErrorView(
                     error: AppError.from(e, st),
                     onRetry: () => ref.invalidate(dueReviewsProvider),
                   ),
-                  data: (items) {
+                  data: (fetched) {
+                    final items = _pin(fetched);
                     if (items.isEmpty) {
                       return EmptyView(
                         title: '오늘 복습할 게 없어요',
@@ -106,6 +118,20 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
   }
 
   void _close() {
+    // 세션이 끝났다. 이제서야 큐를 다시 받는다 — 홈·복습 탭의 "오늘 남은 개수" 가
+    // 방금 푼 것을 반영해야 한다.
+    ref.invalidate(dueReviewsProvider);
+    // 복습 **탭**은 pop 해도 위젯이 살아 있다(IndexedStack). 상태를 비우지 않으면
+    // 다음에 탭을 눌렀을 때 어제의 요약 화면이 그대로 떠 있다.
+    setState(() {
+      _queue = null;
+      _index = 0;
+      _revealed = false;
+      _picked = null;
+      _recalled = 0;
+      _answered = 0;
+      _finished = false;
+    });
     if (context.canPop()) {
       context.pop();
     } else {
@@ -133,7 +159,11 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
 
       final last = _index + 1 >= total;
       setState(() {
-        _recalled += 1;
+        _answered += 1;
+        // "떠올렸다" 는 정말 떠올린 것만 센다. `모르겠음`(grade 0)까지 세면
+        // 하나도 못 떠올린 사람이 "5개를 떠올렸어요" 를 보게 되고,
+        // 그 숫자는 그날부터 아무 의미가 없다.
+        if (grade >= 1) _recalled += 1;
         _revealed = false;
         _picked = null;
         if (last) {
@@ -143,8 +173,9 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
         }
       });
 
-      // 답한 회차는 큐에서 빠지고, 다음 알림도 다시 계산해야 한다.
-      ref.invalidate(dueReviewsProvider);
+      // 다음 알림은 다시 계산해야 한다. 다만 **이번 세션의 큐는 건드리지 않는다** —
+      // 지금 보고 있는 목록이 발밑에서 바뀌면 남은 문제의 순서가 어긋난다.
+      // 오늘 남은 문제는 세션을 닫을 때(_close) 다시 받는다.
       ref.invalidate(upcomingReviewsProvider);
       unawaited(_resyncNotifications());
     } on AppError catch (e) {
@@ -499,8 +530,9 @@ class _GradeBar extends StatelessWidget {
 
 /// 끝난 뒤에는 점수를 말하지 않는다. 복습은 맞히기 시험이 아니라 떠올리기 연습이다.
 class _Summary extends StatelessWidget {
-  const _Summary({required this.recalled, required this.onClose});
+  const _Summary({required this.answered, required this.recalled, required this.onClose});
 
+  final int answered;
   final int recalled;
   final VoidCallback onClose;
 
@@ -518,14 +550,16 @@ class _Summary extends StatelessWidget {
             Semantics(
               liveRegion: true,
               child: Text(
-                '오늘 $recalled개를 떠올렸어요',
+                '오늘 $answered개를 복습했어요',
                 textAlign: TextAlign.center,
                 style: dsTextStyle(DsType.h2, p.textPrimary),
               ),
             ),
             const SizedBox(height: DsSpace.s2),
             Text(
-              '잊을 때쯤 다시 꺼내면 기억이 오래가요. 다음 복습은 알림으로 알려 드릴게요.',
+              recalled == answered
+                  ? '잊을 때쯤 다시 꺼내면 기억이 오래가요. 다음 복습은 알림으로 알려 드릴게요.'
+                  : '그중 $recalled개를 떠올렸어요. 못 떠올린 문제는 곧 다시 보여 드릴게요.',
               textAlign: TextAlign.center,
               style: dsTextStyle(DsType.body, p.textSecondary),
             ),

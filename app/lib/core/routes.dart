@@ -21,6 +21,7 @@ class Routes {
   static const settings = '/settings';
 
   static const create = '/create';
+  static String createProgress(String id) => '/create/progress/$id';
   static String worksheet(String id) => '/worksheet/$id';
   static const worksheetPattern = '/worksheet/:id';
 
@@ -49,7 +50,7 @@ class Routes {
   static const publicPaths = <String>{
     splash, gate, onboarding, consent,
     login, signup, verify, findAccount, resetPassword,
-    terms, privacy, licenses, support, faq,
+    terms, privacy, licenses, support, faq, contact,
   };
 
   static bool isPublic(String location) {

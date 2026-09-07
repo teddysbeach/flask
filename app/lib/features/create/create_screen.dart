@@ -15,7 +15,6 @@ import '../../data/profile_repository.dart';
 import '../../data/worksheet_repository.dart';
 import '../../ui/states/app_state_views.dart';
 import '../../ui/widgets/feedback.dart';
-import 'create_progress_screen.dart';
 
 /// 서버가 받는 난이도. 화면 문구와 서버 값을 한곳에서 묶어 둔다 —
 /// 두 벌로 두면 "심화" 를 골랐는데 입문이 만들어지는 사고가 조용히 난다.
@@ -154,9 +153,9 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
       ref.invalidate(profileProvider);
 
       // 되돌아올 곳은 진행 화면이 아니라 여기 이전이다 — 만들기 화면은 역할을 마쳤다.
-      await Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(builder: (_) => CreateProgressScreen(worksheetId: id)),
-      );
+      // 라우터를 거쳐야 한다. Navigator 로 직접 얹으면 진행 화면이 라우터 스택 밖에 떠서,
+      // 완성 뒤의 pushReplacement 가 학습지를 진행 화면 **아래**에 깔아 버린다.
+      context.pushReplacement(Routes.createProgress(id));
     } catch (e, st) {
       final err = AppError.from(e, st);
       AppLogger.error('학습지 생성 실패', error: err, stack: st);
