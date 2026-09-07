@@ -1,0 +1,17 @@
+name: onpar_design_system
+description: ONPAR 디자인 시스템 — design/design_tokens.json 에서 생성한 토큰과 아이콘.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_svg: ^2.0.16
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0

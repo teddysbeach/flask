@@ -31,3 +31,11 @@ deno.lock
 # 로컬 DB 테스트 산출물
 *.dump
 node_modules/
+
+# 디자인 시스템 패키지도 앱과 같은 산출물이 생긴다
+packages/*/.dart_tool/
+packages/*/build/
+
+# 로컬 실행 설정(--dart-define-from-file). 키가 들어가므로 절대 커밋하지 않는다
+app/env.json
+packages/design_system/pubspec.lock

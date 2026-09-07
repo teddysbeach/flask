@@ -1,0 +1,50 @@
+name: onpar
+description: ONPAR — 배우고 싶은 개념을 넣으면 6단계 학습지를 만들어 주고, 애플펜슬로 풀고, 망각곡선으로 복습시킨다.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  onpar_design_system:
+    path: ../packages/design_system
+
+  # 라우팅 — 딥링크와 인증 가드가 한곳에 모여야 "로그인 후 원래 화면 복귀"가 샌 곳 없이 된다
+  go_router: ^14.6.2
+  # 상태 — 화면마다 Loading/Empty/Error 를 같은 모양으로 다루려고 AsyncValue 를 쓴다
+  flutter_riverpod: ^2.6.1
+
+  supabase_flutter: ^2.8.0
+  # 학습지 뷰어. 필기 런타임이 flutter_inappwebview 브리지를 이미 쓰고 있어 이건 고정이다
+  flutter_inappwebview: ^6.1.5
+
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.0
+  flutter_timezone: ^4.0.0
+
+  in_app_purchase: ^3.2.0
+
+  flutter_secure_storage: ^9.2.2
+  shared_preferences: ^2.3.3
+  connectivity_plus: ^6.1.0
+  package_info_plus: ^8.1.2
+  permission_handler: ^11.3.1
+  app_links: ^6.3.2
+  url_launcher: ^6.3.1
+  image_picker: ^1.1.2
+  sign_in_with_apple: ^6.1.3
+  google_sign_in: ^6.2.2
+  intl: ^0.20.1
+  # Apple 로그인 nonce 해시. 직접 구현하지 않는다.
+  crypto: ^3.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
