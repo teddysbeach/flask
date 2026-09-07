@@ -142,3 +142,59 @@ begin
 
   raise notice '── 고아 파일 테스트 전부 통과 ──';
 end $$;
+
+-- ── 학습 기록 ────────────────────────────────────────────────────────────
+-- 연속 학습일은 "성실함" 을 재는 숫자라 어떻게 세는지가 곧 제품의 태도다.
+do $$
+declare u uuid; w uuid; q uuid; s record; tz text := 'Asia/Seoul';
+begin
+  insert into auth.users (id, email) values (gen_random_uuid(), 'stats@onpar.test') returning id into u;
+  insert into public.profiles (id, timezone) values (u, tz)
+    on conflict (id) do update set timezone = tz;
+
+  insert into public.worksheets (user_id, topic, status) values (u, '통계', 'ready') returning id into w;
+  insert into public.quiz_items (worksheet_id, user_id, idx, kind, question, answer, explanation, difficulty)
+  values (w, u, 0, 'short_answer', 'q', 'a', 'e', 2) returning id into q;
+
+  set local role authenticated;
+  perform set_config('request.jwt.claim.sub', u::text, true);
+
+  select * into s from public.learning_stats();
+  assert s.worksheets_total = 1, format('완성 학습지 %s', s.worksheets_total);
+  assert s.streak_days = 0, '아무것도 안 풀었는데 연속이 잡힌다';
+
+  reset role;
+
+  -- 오늘·어제·그저께 답했다 → 연속 3일.
+  insert into public.responses (worksheet_id, user_id, response_id, quiz_item_id, kind, first_correct, correct, updated_at)
+  values (w, u, 'r0', q, 'choice', true,  true,  now()),
+         (w, u, 'r1', q, 'choice', false, false, now() - interval '1 day'),
+         (w, u, 'r2', q, 'choice', true,  true,  now() - interval '2 days'),
+         -- 닷새 전은 끊긴 구간이라 연속에 안 들어간다.
+         (w, u, 'r3', q, 'choice', true,  true,  now() - interval '5 days');
+
+  set local role authenticated;
+  perform set_config('request.jwt.claim.sub', u::text, true);
+
+  select * into s from public.learning_stats();
+  assert s.quiz_answered = 4, format('답한 문제 %s', s.quiz_answered);
+  assert s.quiz_correct = 3, format('맞힌 문제 %s', s.quiz_correct);
+  assert s.streak_days = 3, format('연속 %s일 (3이어야 함 — 닷새 전은 끊긴 구간)', s.streak_days);
+  assert s.active_days = 4, format('학습한 날 %s', s.active_days);
+  reset role;
+
+  raise notice '── 학습 기록 테스트 전부 통과 ──';
+end $$;
+
+-- 로그인하지 않으면 아무것도 못 본다.
+do $$
+begin
+  set local role anon;
+  begin
+    perform public.learning_stats();
+    raise exception '로그인 없이 학습 기록을 읽었다';
+  exception when insufficient_privilege or sqlstate '28000' then null;
+  end;
+  reset role;
+  raise notice '── 학습 기록 권한 테스트 전부 통과 ──';
+end $$;

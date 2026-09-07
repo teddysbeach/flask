@@ -42,6 +42,7 @@ import 'features/settings/account_screen.dart';
 import 'features/settings/change_password_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/splash/splash_screen.dart';
+import 'features/stats/stats_screen.dart';
 import 'features/support/contact_screen.dart';
 import 'features/support/faq_screen.dart';
 import 'features/support/support_screen.dart';
@@ -263,6 +264,7 @@ List<RouteBase> _routes(Ref ref) => [
       // 공지는 **로그인 전에도** 열려야 한다(publicPaths). 점검 공지가 필요한 순간이
       // 바로 로그인이 안 되는 순간이다.
       GoRoute(path: Routes.notices, builder: (_, __) => const NoticeListScreen()),
+      GoRoute(path: Routes.stats, builder: (_, __) => const StatsScreen()),
 
       StatefulShellRoute.indexedStack(
         builder: (_, __, shell) => HomeShell(navigationShell: shell),

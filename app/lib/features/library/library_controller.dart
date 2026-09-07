@@ -6,7 +6,7 @@ import '../../core/app_error.dart';
 import '../../data/worksheet_repository.dart';
 import '../../domain/models.dart';
 
-/// 서재 필터. 검색은 없다 — 목록이 짧고, 검색은 커서 페이징과 섞이면 규칙이 두 벌이 된다.
+/// 서재 필터.
 enum LibraryFilter { all, ready, failed }
 
 extension LibraryFilterLabel on LibraryFilter {
@@ -28,6 +28,7 @@ class LibraryState {
   const LibraryState({
     this.items = const [],
     this.filter = LibraryFilter.all,
+    this.query = '',
     this.loading = true,
     this.loadingMore = false,
     this.endReached = false,
@@ -38,6 +39,13 @@ class LibraryState {
   /// 서버에서 받은 순서 그대로(최신순). 필터는 화면에서만 건다.
   final List<WorksheetSummary> items;
   final LibraryFilter filter;
+
+  /// 제목·주제에서 찾을 말. 빈 문자열이면 검색하지 않는 것과 같다.
+  ///
+  /// **받아 온 것 안에서만** 찾는다. 서버 검색을 붙이면 커서 페이징과 규칙이 두 벌이
+  /// 되는데, 그 복잡함은 학습지 수백 장부터 값을 한다. 대신 화면이 "더 불러오기" 로
+  /// 범위를 넓힐 수 있게 두었다 — 지금 규모에서는 이쪽이 정직하다.
+  final String query;
 
   /// 첫 페이지를 받는 중. 이때만 뼈대를 보여준다.
   final bool loading;
@@ -52,7 +60,19 @@ class LibraryState {
   /// 다음 페이지 실패 — 이미 받은 목록은 그대로 두고 아래에만 알린다.
   final AppError? moreError;
 
-  List<WorksheetSummary> get visible => items.where(filter.matches).toList(growable: false);
+  List<WorksheetSummary> get visible {
+    final q = query.trim().toLowerCase();
+    return items.where((w) {
+      if (!filter.matches(w)) return false;
+      if (q.isEmpty) return true;
+      // 제목과 주제를 같이 본다. 모델이 붙인 제목만 보면 "내가 뭘 적었는지" 로는 못 찾는다.
+      return w.displayTitle.toLowerCase().contains(q) || w.topic.toLowerCase().contains(q);
+    }).toList(growable: false);
+  }
+
+  /// 검색어나 필터가 걸려 있는가. 빈 화면의 문구가 이걸로 갈린다 —
+  /// "학습지가 없어요" 와 "찾는 학습지가 없어요" 는 다른 말이다.
+  bool get narrowed => filter != LibraryFilter.all || query.trim().isNotEmpty;
 
   /// 지금 요청을 하나라도 보내고 있으면 새 요청을 만들지 않는다.
   bool get busy => loading || loadingMore;
@@ -60,6 +80,7 @@ class LibraryState {
   LibraryState copyWith({
     List<WorksheetSummary>? items,
     LibraryFilter? filter,
+    String? query,
     bool? loading,
     bool? loadingMore,
     bool? endReached,
@@ -71,6 +92,7 @@ class LibraryState {
       LibraryState(
         items: items ?? this.items,
         filter: filter ?? this.filter,
+        query: query ?? this.query,
         loading: loading ?? this.loading,
         loadingMore: loadingMore ?? this.loadingMore,
         endReached: endReached ?? this.endReached,
@@ -142,6 +164,11 @@ class LibraryController extends StateNotifier<LibraryState> {
   void setFilter(LibraryFilter filter) {
     if (filter == state.filter) return;
     state = state.copyWith(filter: filter);
+  }
+
+  void setQuery(String query) {
+    if (query == state.query) return;
+    state = state.copyWith(query: query);
   }
 }
 

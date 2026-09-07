@@ -27,6 +27,7 @@ class Routes {
 
   static const reviewSession = '/review/session';
   static const notifications = '/notifications';
+  static const stats = '/stats';
   static const notificationSettings = '/settings/notifications';
 
   static const profile = '/settings/profile';

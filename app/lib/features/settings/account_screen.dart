@@ -1,16 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onpar_design_system/onpar_design_system.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/app_error.dart';
 import '../../core/routes.dart';
+import '../../data/data_export.dart';
 import '../../data/supabase.dart';
 import '../../ui/states/app_state_views.dart';
+import '../../ui/widgets/feedback.dart';
 import 'settings_tile.dart';
 
-/// 계정. 로그인 수단과 탈퇴가 여기 모인다.
+/// 계정. 로그인 수단과 데이터 내보내기, 탈퇴가 여기 모인다.
 ///
 /// 이메일을 그대로 찍지 않는다 — 카페에서 화면을 보이며 문의하는 사람이 있고,
 /// 스크린샷은 어디로든 간다. 본인 확인에는 앞 두 글자와 도메인이면 충분하다.
@@ -82,6 +87,12 @@ class AccountScreen extends ConsumerWidget {
                 ),
               ),
             SettingsSection(
+              title: '내 데이터',
+              children: [
+                _ExportTile(),
+              ],
+            ),
+            SettingsSection(
               title: '계정 정리',
               children: [
                 SettingsTile(
@@ -149,3 +160,45 @@ String providerLabel(String provider) => switch (provider) {
       'phone' => '휴대폰',
       _ => provider,
     };
+
+/// 내 데이터 내보내기.
+///
+/// 지우는 길(회원탈퇴)만 있고 **가져가는 길**이 없었다 — 지우기 전에 자기 것을 챙길
+/// 방법이 없다는 뜻이다. 그래서 탈퇴 바로 위에 둔다. 여기가 사람이 그것을 찾는 자리다.
+class _ExportTile extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_ExportTile> createState() => _ExportTileState();
+}
+
+class _ExportTileState extends ConsumerState<_ExportTile> {
+  bool _busy = false;
+
+  Future<void> _run() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final file = await ref.read(dataExportProvider).writeFile();
+      if (!mounted) return;
+      // 어디로 보낼지는 사용자가 고른다 — 메일·파일 앱·클라우드. 우리가 정할 일이 아니다.
+      await Share.shareXFiles(
+        [XFile(file.path, mimeType: 'application/json')],
+        subject: 'ONPAR 내 데이터',
+      );
+    } on AppError catch (e) {
+      if (mounted) AppFeedback.toast(context, e.message, danger: true);
+    } catch (e, st) {
+      if (mounted) AppFeedback.toast(context, AppError.from(e, st).message, danger: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => SettingsTile(
+        label: '내 데이터 내보내기',
+        description: _busy ? '만드는 중이에요' : '학습지·답·복습 기록·결제 내역을 파일로',
+        icon: DsIcons.library,
+        enabled: !_busy,
+        onTap: () => unawaited(_run()),
+      );
+}

@@ -47,6 +47,8 @@ dependencies:
 
   # 오프라인 보관함. 학습지 본문과 아직 못 올린 필기를 기기에 둔다.
   path_provider: ^2.1.5
+  # 내 데이터 내보내기(개인정보 이동권). 파일을 만들어 사용자가 고른 앱으로 넘긴다.
+  share_plus: ^10.1.4
 
 dev_dependencies:
   flutter_test:

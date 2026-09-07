@@ -21,13 +21,14 @@ class LibraryScreen extends ConsumerStatefulWidget {
 
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   final _scroll = ScrollController();
+  final _search = TextEditingController();
 
   /// 화면이 안 채워졌을 때 자동으로 더 부른 횟수. 필터를 바꾸면 다시 0 이다.
   ///
   /// 상한이 필요하다. "실패" 필터를 걸었는데 실패한 학습지가 하나도 없으면
   /// 상한이 없는 자동 로딩은 서재 전체를 끝까지 긁는다.
   int _autoFills = 0;
-  LibraryFilter? _autoFillFilter;
+  String? _autoFillFilter;
 
   static const _maxAutoFills = 5;
 
@@ -42,6 +43,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     _scroll
       ..removeListener(_onScroll)
       ..dispose();
+    _search.dispose();
     super.dispose();
   }
 
@@ -50,8 +52,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   /// 사용자는 "실패한 학습지가 2장뿐" 이라고 읽지만 다음 페이지에 더 있다.
   /// 그래서 그릴 때마다 한 번 재어 보고, 안 채워졌으면 스스로 더 부른다.
   void _fillViewport(LibraryState state) {
-    if (state.filter != _autoFillFilter) {
-      _autoFillFilter = state.filter;
+    // 필터든 검색어든 좁히는 조건이 바뀌면 다시 센다.
+    final narrowing = '${state.filter}|${state.query}';
+    if (narrowing != _autoFillFilter) {
+      _autoFillFilter = narrowing;
       _autoFills = 0;
     }
     if (state.busy || state.endReached || state.moreError != null) return;
@@ -91,6 +95,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         bottom: false,
         child: Column(
           children: [
+            _SearchField(
+              controller: _search,
+              onChanged: controller.setQuery,
+            ),
             _FilterBar(
               value: state.filter,
               onChanged: controller.setFilter,
@@ -132,13 +140,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     }
 
     if (visible.isEmpty) {
-      // 필터를 걸었는데 이번 페이지에 없을 뿐일 수 있다. 그럴 땐 더 불러올 길을 준다.
-      final filtered = state.filter != LibraryFilter.all;
-      if (filtered && !state.endReached) {
+      // 좁혀 놓았는데 이번 페이지에 없을 뿐일 수 있다. 그럴 땐 더 불러올 길을 준다.
+      final narrowed = state.narrowed;
+      final query = state.query.trim();
+      if (narrowed && !state.endReached) {
         return _scrollable(
           EmptyView(
-            icon: DsIcons.library,
-            title: '여기까지는 ${state.filter.label} 학습지가 없어요',
+            icon: DsIcons.search,
+            title: query.isEmpty
+                ? '여기까지는 ${state.filter.label} 학습지가 없어요'
+                : '여기까지는 "$query" 를 못 찾았어요',
             description: '더 불러와서 찾아볼 수 있어요.',
             actionLabel: state.loadingMore ? '불러오는 중' : '더 불러오기',
             onAction: state.loadingMore ? null : controller.retryMore,
@@ -146,12 +157,18 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         );
       }
       return _scrollable(
-        filtered
+        narrowed
             ? EmptyView(
-                icon: DsIcons.library,
-                title: '${state.filter.label} 학습지가 없어요',
+                icon: DsIcons.search,
+                title: query.isEmpty
+                    ? '${state.filter.label} 학습지가 없어요'
+                    : '"$query" 를 찾지 못했어요',
                 actionLabel: '전체 보기',
-                onAction: () => controller.setFilter(LibraryFilter.all),
+                onAction: () {
+                  controller.setFilter(LibraryFilter.all);
+                  controller.setQuery('');
+                  _search.clear();
+                },
               )
             : EmptyView(
                 icon: DsIcons.create,
@@ -279,6 +296,53 @@ class _FilterBar extends StatelessWidget {
             const SizedBox(width: DsSpace.s2),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// 서재 검색.
+///
+/// 받아 온 것 안에서만 찾는다(LibraryState.visible). 서버 검색을 붙이면 커서 페이징과
+/// 규칙이 두 벌이 되고, 그 복잡함은 학습지 수백 장부터 값을 한다. 대신 못 찾으면
+/// "더 불러오기" 로 범위를 넓힐 수 있게 해 두었다.
+class _SearchField extends StatelessWidget {
+  const _SearchField({required this.controller, required this.onChanged});
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = DsTheme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(DsSpace.s4, DsSpace.s3, DsSpace.s4, 0),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          hintText: '제목이나 주제로 찾기',
+          prefixIcon: Padding(
+            padding: const EdgeInsets.all(DsSpace.s3),
+            child: DsIcon(DsIcons.search, size: 20, color: p.textTertiary),
+          ),
+          // 지우는 버튼은 글자가 있을 때만. 늘 떠 있으면 빈 칸에 X 가 붙어 이상하다.
+          suffixIcon: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (_, v, __) => v.text.isEmpty
+                ? const SizedBox.shrink()
+                : IconButton(
+                    icon: DsIcon(DsIcons.close, size: 18, color: p.textTertiary),
+                    tooltip: '지우기',
+                    onPressed: () {
+                      controller.clear();
+                      onChanged('');
+                    },
+                  ),
+          ),
+          isDense: true,
+        ),
       ),
     );
   }
