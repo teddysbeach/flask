@@ -20,6 +20,7 @@ import '../../data/supabase.dart';
 import '../../data/worksheet_repository.dart';
 import '../../domain/models.dart';
 import '../../ui/states/app_state_views.dart';
+import '../home/home_prefs.dart';
 import '../library/library_controller.dart';
 import 'worksheet_assets.dart';
 import '../../ui/widgets/feedback.dart';
@@ -166,6 +167,9 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(analyticsProvider).track(AnalyticsEvent.worksheetOpen);
+      // 홈의 "이어서 하기" 가 여기서 나온다. 서버의 응답·필기 시각으로도 알 수 있지만
+      // 그건 **쓴 것**이고 이건 **본 것**이다 — 읽기만 하고 나온 학습지도 이어서 볼 대상이다.
+      unawaited(rememberOpenedWorksheet(ref, widget.worksheetId));
     });
   }
 

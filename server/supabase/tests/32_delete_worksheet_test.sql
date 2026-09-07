@@ -198,3 +198,52 @@ begin
   reset role;
   raise notice '── 학습 기록 권한 테스트 전부 통과 ──';
 end $$;
+
+-- ── 공지·이벤트·추천 주제 ────────────────────────────────────────────────
+do $$
+declare n int;
+begin
+  -- 라벨만 있고 갈 곳이 없으면 눌러도 아무 일이 안 일어난다.
+  begin
+    insert into public.notices (title, body, kind, cta_label)
+    values ('반쪽 이벤트', '본문', 'event', '보러 가기');
+    raise exception 'cta 라벨만 있는 행이 들어갔다';
+  exception when check_violation then null;
+  end;
+
+  -- 종류는 둘뿐이다.
+  begin
+    insert into public.notices (title, body, kind) values ('이상한 것', '본문', 'popup');
+    raise exception '모르는 kind 가 들어갔다';
+  exception when check_violation then null;
+  end;
+
+  insert into public.notices (title, body, kind, cta_label, cta_route, pinned)
+  values ('설 연휴 이벤트', '이번 주에 충전하면 한 장 더', 'event', '보러 가기', '/paywall', false);
+
+  -- ── 로그인 없이 읽힌다 ──
+  set local role anon;
+  select count(*) into n from public.notices where kind = 'event';
+  assert n >= 1, '로그인 전에는 이벤트를 못 읽는다';
+
+  -- 추천 주제도 마찬가지. 온보딩에서 보여줄 수 있어야 한다.
+  select count(*) into n from public.topic_picks;
+  assert n >= 8, format('추천 주제가 %s개 (씨앗이 안 심겼다)', n);
+
+  -- 쓰기는 막혀 있다. 열려 있으면 아무나 공지를 띄울 수 있다.
+  begin
+    insert into public.notices (title, body) values ('가짜 공지', '눌러 보세요');
+    raise exception 'anon 이 공지를 썼다';
+  exception when insufficient_privilege then null;
+  end;
+  reset role;
+
+  -- 꺼 둔 추천은 안 보인다.
+  update public.topic_picks set active = false where topic = '발효가 일어나는 조건';
+  set local role anon;
+  select count(*) into n from public.topic_picks where topic = '발효가 일어나는 조건';
+  assert n = 0, '꺼 둔 추천이 보인다';
+  reset role;
+
+  raise notice '── 공지·이벤트·추천 테스트 전부 통과 ──';
+end $$;

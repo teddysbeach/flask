@@ -14,6 +14,7 @@ import 'package:onpar/data/review_repository.dart';
 import 'package:onpar/domain/models.dart';
 import 'package:onpar/data/worksheet_repository.dart';
 import 'package:onpar/features/consent/consent_screen.dart';
+import 'package:onpar/features/home/home_prefs.dart';
 import 'package:onpar/features/library/library_screen.dart';
 import 'package:onpar/features/review/review_providers.dart';
 import 'package:onpar/features/review/review_session_screen.dart';
@@ -185,6 +186,7 @@ void main() {
         offline: offline,
         notifications: notifications,
         prefs: () async => prefs,
+        home: () async => HomePrefs(await SharedPreferences.getInstance()),
       ).wipe();
 
       expect(offline.cleared, isTrue, reason: '오프라인 학습지가 남으면 다음 사람이 본다');
@@ -199,6 +201,7 @@ void main() {
         offline: _ThrowingOffline(),
         notifications: notifications,
         prefs: () async => NotificationPrefs(await SharedPreferences.getInstance()),
+        home: () async => HomePrefs(await SharedPreferences.getInstance()),
       ).wipe();
 
       // 앞 단계가 던졌다고 알림이 남으면, 실패가 흔적을 지키는 셈이 된다.

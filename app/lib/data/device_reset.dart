@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/bootstrap.dart';
 import '../core/logger.dart';
 import '../core/notifications.dart';
+import '../features/home/home_prefs.dart';
 import '../features/notifications/notification_prefs.dart';
 import 'offline_store.dart';
 
@@ -23,18 +24,24 @@ class DeviceReset {
     required OfflineStore offline,
     required NotificationService notifications,
     required Future<NotificationPrefs> Function() prefs,
+    required Future<HomePrefs> Function() home,
   })  : _offline = offline,
         _notifications = notifications,
-        _prefs = prefs;
+        _prefs = prefs,
+        _home = home;
 
   final OfflineStore _offline;
   final NotificationService _notifications;
   final Future<NotificationPrefs> Function() _prefs;
+  final Future<HomePrefs> Function() _home;
 
   Future<void> wipe() async {
     await _step('오프라인 학습지', _offline.clearAll);
     await _step('예약된 복습 알림', _notifications.cancelReviewNotifications);
     await _step('받은 알림 기록', () async => (await _prefs()).clear());
+    // 홈이 기억하는 것 — 마지막으로 본 학습지, 닫은 공지.
+    // 다음 사람의 홈에 앞사람이 보던 학습지가 "이어서 하기" 로 뜨면 안 된다.
+    await _step('홈 기록', () async => (await _home()).clear());
   }
 
   Future<void> _step(String what, Future<void> Function() run) async {
@@ -53,5 +60,6 @@ final deviceResetProvider = Provider<DeviceReset>((ref) {
     // 로그아웃 시점에 읽는다. 앱을 켜자마자 로그아웃하는 사람은 없지만,
     // 프로바이더를 만드는 순간 requireValue 를 부르면 그때 죽는다.
     prefs: () async => NotificationPrefs(await ref.read(sharedPrefsProvider.future)),
+    home: () async => HomePrefs(await ref.read(sharedPrefsProvider.future)),
   );
 });
