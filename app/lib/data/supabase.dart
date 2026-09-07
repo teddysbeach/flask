@@ -120,6 +120,32 @@ AppError mapSupabaseError(Object e, [StackTrace? st]) {
       return AppError.of(AppErrorKind.rateLimited,
           cause: e, code: code, message: '학습지를 만드는 중이에요. 하나가 끝나면 다음을 만들 수 있어요.');
     }
+    // 하루 상한. 기본 문구("요청이 너무 빨라요")는 여기서 거짓말이 된다 —
+    // 사용자는 빠르게 누른 것이 아니라 오늘 몫을 다 쓴 것이고, 기다릴 시간이 다르다.
+    if (code == 'daily_limit_reached') {
+      return AppError.of(AppErrorKind.rateLimited,
+          cause: e, code: code,
+          message: '오늘 만들 수 있는 학습지를 다 만드셨어요. 내일 다시 시도해 주세요.');
+    }
+    // 영수증 검증 실패. "입력을 다시 확인해 주세요" 로 뜨면 사용자는 자기가 뭘 잘못
+    // 적었다고 생각한다 — 돈이 오간 자리에서 그 오해는 특히 나쁘다.
+    if (code == 'invalid_receipt' || code == 'receipt_invalid') {
+      return AppError.of(AppErrorKind.server,
+          cause: e, code: code,
+          message: '결제 확인이 안 끝났어요. 잠시 뒤에 "구매 복원"을 눌러 주세요. '
+              '장수가 안 들어오면 고객센터로 알려 주세요.');
+    }
+    if (code == 'unknown_product' || code == 'invalid_product') {
+      return AppError.of(AppErrorKind.server,
+          cause: e, code: code,
+          message: '지금은 이 상품을 살 수 없어요. 앱을 업데이트하거나 잠시 뒤에 다시 시도해 주세요.');
+    }
+    // 학습지 파일을 못 지웠다. 다시 눌러도 되는 실패라고 분명히 말해 준다.
+    if (code == 'storage_failed' || code == 'delete_failed') {
+      return AppError.of(AppErrorKind.server,
+          cause: e, code: code,
+          message: '학습지를 지우지 못했어요. 잠시 뒤에 다시 시도해 주세요.');
+    }
     return AppError.of(AppError.kindOfStatus(e.status), cause: e, code: code);
   }
 
