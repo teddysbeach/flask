@@ -69,9 +69,20 @@ function makeDeps(over: any = {}) {
         if (over.createThrows) throw over.createThrows
         log.worksheets.push(r)
       },
-      saveContent: async (id: string, c: any, meta: any) => log.contents.push({ id, c, meta }),
+      saveContent: async (id: string, c: any, meta: any) => {
+        // 청소기가 먼저 닫은 상황을 흉내 낸다(over.reaped). 그때 DB 는 아무것도 쓰지 않고 false 를 준다.
+        if (over.reaped) return false
+        log.contents.push({ id, c, meta })
+        return true
+      },
       saveSchedules: async (id: string, u: string, seeds: any[]) => log.schedules.push({ id, seeds }),
-      failWorksheet: async (id: string, code: string, detail: string) => log.failures.push({ id, code, detail }),
+      // 닫기와 환불이 한 번에 일어난다. 이미 닫힌 건이면 false 를 주고 환불하지 않는다.
+      failGeneration: async (id: string, code: string, detail: string) => {
+        log.failures.push({ id, code, detail })
+        if (over.alreadyClosed) return false
+        log.quotaRefunded++
+        return true
+      },
       recordJob: async (j: any) => log.jobs.push(j),
       recentCostsUsd: async () => over.recentCosts ?? [],
       userPrefs: async () => ({ timeZone: 'Asia/Seoul', reviewHour: 21 }),
@@ -239,6 +250,62 @@ await test('재작성 상한을 넘겨도 반려면 draft_quality_rejected 로 �
 
 await test('품질 반려는 잡 단위로 재시도하지 않는다 (루프 안에서 이미 다 써봤다)', () => {
   assert.equal(pipe.isRetryable('draft_quality_rejected'), false)
+})
+
+console.log('\n▸ 비용 벽 · 늦게 끝난 생성')
+
+await test('한 장 예산을 넘기면 그 자리에서 끊고 환불한다', async () => {
+  const { deps, log } = makeDeps()
+  // 설계 한 번도 못 낼 만큼 작은 예산. 벽이 실제로 막는지만 본다.
+  await assert.rejects(
+    () => pipe.runGeneration(deps, INPUT, 'ws1', 1, { remainingUsd: 0.001 }),
+    (e: any) => e.code === 'cost_cap_exceeded')
+  assert.equal(log.failures[0]?.code, 'cost_cap_exceeded')
+  assert.equal(log.quotaRefunded, 1, '예산 때문에 끊었는데 장수를 안 돌려줬다')
+  assert.equal(log.uploads.length, 0, '끊었는데 HTML 이 올라갔다')
+})
+
+await test('예산은 재시도를 건너 이어진다', async () => {
+  const { deps } = makeDeps()
+  const budget = { remainingUsd: 0.4 }
+  await pipe.runGeneration(deps, INPUT, 'ws1', 1, budget)
+  const afterFirst = budget.remainingUsd
+  assert.ok(afterFirst < 0.4, '한 장을 만들었는데 예산이 줄지 않았다')
+
+  // 같은 예산으로 두 번째를 돌리면 남은 돈에서 또 깎인다.
+  const { deps: deps2 } = makeDeps()
+  await pipe.runGeneration(deps2, INPUT, 'ws2', 2, budget)
+  assert.ok(budget.remainingUsd < afterFirst, '두 번째 시도가 예산을 안 깎았다')
+})
+
+await test('예산을 넘긴 실패는 재시도하지 않는다', () => {
+  assert.equal(pipe.isRetryable('cost_cap_exceeded'), false)
+  assert.equal(pipe.isRetryable('generation_superseded'), false)
+})
+
+await test('기록되는 비용은 재작성까지 전부 더한 값이다', async () => {
+  const once = makeDeps()
+  await pipe.runGeneration(once.deps, INPUT, 'ws1')
+  const plain = once.log.jobs[0].costUsd
+
+  // 한 번 반려됐다가 통과하는 경우. 집필과 검사관이 한 번씩 더 돈다.
+  const revised = makeDeps({ verdicts: [{ score: 50, must_fix: [{ path: 'x', issue: 'y' }] }, { score: 90 }] })
+  await pipe.runGeneration(revised.deps, INPUT, 'ws2')
+  assert.equal(revised.log.revisions, 1, '재작성이 일어나지 않아 비교가 성립하지 않는다')
+  assert.ok(revised.log.jobs[0].costUsd > plain,
+    `재작성한 쪽이 더 싸게 기록됐다: ${revised.log.jobs[0].costUsd} <= ${plain}`)
+})
+
+await test('청소기가 먼저 닫은 건이면 완성본을 버린다', async () => {
+  // 10분을 넘겨 청소기가 이미 실패로 닫고 환불한 상황.
+  // 여기서 학습지를 저장해 버리면 환불은 환불대로 되고 학습지는 학습지대로 나간다 — 공짜 한 장이다.
+  const { deps, log } = makeDeps({ reaped: true, alreadyClosed: true })
+  await assert.rejects(
+    () => pipe.runGeneration(deps, INPUT, 'ws1'),
+    (e: any) => e.code === 'generation_superseded')
+  assert.equal(log.contents.length, 0, '이미 닫힌 건인데 내용을 저장했다')
+  assert.equal(log.schedules.length, 0, '이미 닫힌 건인데 복습 스케줄을 만들었다')
+  assert.equal(log.quotaRefunded, 0, '청소기가 이미 환불한 건을 또 환불했다')
 })
 
 console.log('\n▸ 재시도 정책')

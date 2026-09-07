@@ -6,7 +6,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { json, errorResponse, CORS, validateTopic, validateLevel } from '../_shared/http.ts'
-import { acceptGeneration, runGeneration, toErrorCode, isRetryable, MAX_ATTEMPTS, backoffMs } from '../_shared/pipeline.ts'
+import { acceptGeneration, runGeneration, toErrorCode, isRetryable, MAX_ATTEMPTS, backoffMs, newCostBudget } from '../_shared/pipeline.ts'
 import { createLlmClient } from '../_shared/claude.ts'
 import { makeDeps } from '../_shared/deps.ts'
 import { PLAN_SYSTEM_PROMPT, DRAFT_SYSTEM_PROMPT, OUTLINE_SCHEMA, WORKSHEET_SCHEMA } from '../_shared/prompts.ts'
@@ -33,6 +33,17 @@ Deno.serve(async (req: Request) => {
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   )
+
+  // 끊긴 생성부터 치운다.
+  //
+  // 생성은 응답을 보낸 뒤 waitUntil 안에서 도는데, 그 백그라운드가 죽으면(배포·인스턴스 회수·
+  // wall clock 초과) 행이 'generating' 인 채 남는다. 그러면 차감한 장수가 안 돌아오고,
+  // 바로 아래 "하나만" 가드가 그 행을 보고 **영원히** 429 를 돌려준다.
+  // 돈 낸 사람이 다시는 학습지를 못 만드는 상태라 재설치로도 안 풀린다.
+  // 그래서 새 요청을 받을 때마다 10분 넘게 매달린 것을 실패로 닫고 장수를 되돌린다.
+  const { error: reapError } = await admin.rpc('reap_stale_generations', { p_user: user.id })
+  // 청소에 실패해도 생성 요청 자체를 막지는 않는다. 아래 가드가 어차피 한 번 더 본다.
+  if (reapError) console.error('[generate] 청소 실패', reapError.message)
 
   // 사용자당 진행 중인 생성은 하나만
   const { count } = await admin.from('worksheets')
@@ -65,14 +76,17 @@ Deno.serve(async (req: Request) => {
 })
 
 async function generateWithRetry(deps: any, input: any, worksheetId: string) {
+  // 예산은 시도들이 함께 쓴다. 시도마다 새로 주면 한 장에 상한 × 3 을 쓸 수 있다.
+  const budget = newCostBudget()
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      await runGeneration(deps, input, worksheetId, attempt)
+      await runGeneration(deps, input, worksheetId, attempt, budget)
       return
     } catch (e) {
       const code = toErrorCode(e)
       if (!isRetryable(code) || attempt === MAX_ATTEMPTS) return
       // runGeneration 이 이미 환불했으므로 재시도 전에 쿼터를 다시 차감한다.
+      // 차감이 실패하면(그 사이 장수가 없어졌다면) 조용히 멈춘다 — 이미 환불은 끝났다.
       if (!await deps.db.consumeQuota(input.userId)) return
       await new Promise((r) => setTimeout(r, backoffMs(attempt)))
     }

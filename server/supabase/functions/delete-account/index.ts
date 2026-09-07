@@ -44,11 +44,17 @@ Deno.serve(async (req: Request) => {
     .update({ user_id: null, anonymized_at: new Date().toISOString() })
     .eq('user_id', user.id)
 
-  // 3. 저장소에 올린 학습지 HTML 과 필기 파일. DB cascade 가 지우지 못하는 것들이다.
-  for (const bucket of ['worksheets', 'annotations']) {
-    const { data: files } = await admin.storage.from(bucket).list(user.id)
-    if (files && files.length) {
-      await admin.storage.from(bucket).remove(files.map((f) => `${user.id}/${f.name}`))
+  // 3. 저장소에 올린 파일. DB cascade 가 지우지 못하는 것들이다.
+  //
+  // 버킷 목록을 여기서 빠뜨리면 "지웠다" 고 말한 것이 거짓말이 된다.
+  // avatars 는 나중에 생겼는데 이 목록에 안 들어가 있었다 — 얼굴 사진이 남아 있었다는 뜻이다.
+  const BUCKETS = ['worksheets', 'annotations', 'avatars']
+  for (const bucket of BUCKETS) {
+    if (!await removeAllFiles(admin, bucket, user.id)) {
+      // 파일을 다 못 지웠으면 계정을 지우지 않는다. 계정이 사라지면 이 파일들의 주인이
+      // 없어져서 다시 찾아 지울 방법이 없다 — 영영 남는 개인정보가 된다.
+      console.error(`[delete-account] ${bucket} 정리 실패`)
+      return errorResponse('delete_failed', 500)
     }
   }
 
@@ -62,3 +68,33 @@ Deno.serve(async (req: Request) => {
 
   return json({ ok: true }, 200)
 })
+
+/**
+ * 한 사용자의 폴더를 통째로 비운다.
+ *
+ * `list()` 는 기본 100개까지만 돌려준다. 학습지를 101장 만든 사람은 101번째부터
+ * 파일이 남는다 — 한 번 부르고 끝내면 안 되는 이유다.
+ * 지우면 목록이 줄어드니 offset 을 옮기지 않고 **언제나 앞에서부터** 걷어낸다.
+ */
+async function removeAllFiles(admin: any, bucket: string, userId: string): Promise<boolean> {
+  const PAGE = 100
+  // 상한을 두는 이유는 무한 루프를 막기 위해서다. 한 사람이 만 개를 넘게 올렸다면
+  // 그건 자동으로 지울 일이 아니라 사람이 봐야 할 일이다.
+  for (let round = 0; round < 100; round++) {
+    const { data: files, error } = await admin.storage.from(bucket).list(userId, { limit: PAGE })
+    if (error) {
+      console.error(`[delete-account] ${bucket} 목록 실패`, error.message)
+      return false
+    }
+    if (!files || files.length === 0) return true
+
+    const { error: rmError } = await admin.storage.from(bucket)
+      .remove(files.map((f: { name: string }) => `${userId}/${f.name}`))
+    if (rmError) {
+      console.error(`[delete-account] ${bucket} 삭제 실패`, rmError.message)
+      return false
+    }
+  }
+  console.error(`[delete-account] ${bucket} 파일이 너무 많아 다 못 지웠다: ${userId}`)
+  return false
+}

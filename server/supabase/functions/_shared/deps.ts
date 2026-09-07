@@ -96,6 +96,8 @@ export function makeDeps(admin: any, llm: LlmClient): Deps {
       async saveContent(worksheetId, content: WorksheetContent, meta) {
         // 문제와 "이게 막히면 먼저" 제안은 jsonb 에 묻지 않고 테이블로 꺼낸다.
         // 복습 스케줄이 quiz_items.id 를 참조해야 하기 때문이다.
+        // 아직 살아 있는 생성에만 쓴다. 청소기가 먼저 닫은 건이면 여기서 0행이 나오고,
+        // 그때는 아무것도 저장하지 않고 false 를 돌려준다(파이프라인이 결과를 버린다).
         const { data: ws, error: e0 } = await admin.from('worksheets')
           .update({
             status: 'ready',
@@ -108,8 +110,12 @@ export function makeDeps(admin: any, llm: LlmClient): Deps {
             revisions: meta.revisions,
             ready_at: new Date().toISOString(),
           })
-          .eq('id', worksheetId).select('user_id').single()
+          .eq('id', worksheetId)
+          .in('status', ['queued', 'generating'])
+          .select('user_id')
+          .maybeSingle()
         if (e0) throw e0
+        if (!ws) return false
 
         const userId = ws.user_id
         const { error: e1 } = await admin.from('quiz_items').insert(
@@ -135,6 +141,7 @@ export function makeDeps(admin: any, llm: LlmClient): Deps {
           )
           if (e2) throw e2
         }
+        return true
       },
 
       async saveSchedules(worksheetId, userId, seeds: any[]) {
@@ -148,11 +155,15 @@ export function makeDeps(admin: any, llm: LlmClient): Deps {
         if (error) throw error
       },
 
-      async failWorksheet(worksheetId, code: ErrorCode, detail: string) {
-        await admin.from('worksheets')
-          .update({ status: 'failed', error_code: code })
-          .eq('id', worksheetId)
+      async failGeneration(worksheetId, code: ErrorCode, detail: string) {
+        // 닫기와 환불을 DB 함수 하나가 한다. 상태 전이에 성공한 쪽만 환불하므로
+        // 청소기와 겹쳐도 장수가 두 번 돌아가지 않는다.
+        const { data, error } = await admin.rpc('fail_generation', {
+          p_worksheet: worksheetId, p_code: code,
+        })
+        if (error) throw error
         void detail   // 상세는 generation_jobs 에 남긴다 (사용자에게 노출하지 않는다)
+        return data === true
       },
 
       async recordJob(job) {
