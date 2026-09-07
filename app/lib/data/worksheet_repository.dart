@@ -174,11 +174,16 @@ class WorksheetRepository {
   }
 
   /// 학습 응답(선택·서술)을 올린다. 무엇을 골랐고 무엇을 썼는지가 여기 남는다.
+  ///
+  /// `user_id` 를 여기서 붙인다. 테이블이 NOT NULL 이고 RLS 가 `auth.uid() = user_id` 라
+  /// 빠지면 첫 저장부터 통째로 실패한다 — 화면에는 저장된 것처럼 보인 채로.
   Future<void> saveResponses(String worksheetId, List<Map<String, Object?>> rows) async {
     if (rows.isEmpty) return;
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) throw AppError.of(AppErrorKind.unauthorized);
     try {
       await _client.from('responses').upsert(
-            rows.map((r) => {...r, 'worksheet_id': worksheetId}).toList(),
+            rows.map((r) => {...r, 'worksheet_id': worksheetId, 'user_id': userId}).toList(),
             onConflict: 'worksheet_id,response_id',
           );
     } catch (e, st) {

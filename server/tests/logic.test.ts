@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import * as cost from '../supabase/functions/_shared/cost.ts'
 import { crossCheck } from '../supabase/functions/_shared/cross-check.ts'
 import * as rev from '../supabase/functions/_shared/review-schedule.ts'
+import { planAnswer } from '../supabase/functions/_shared/review-answer.ts'
 import { validateWorksheet } from '../supabase/functions/_shared/validate.ts'
 import { validateTopic, validateLevel } from '../supabase/functions/_shared/http.ts'
 import { voiceLint } from '../supabase/functions/_shared/voice-lint.ts'
@@ -371,6 +372,80 @@ test('알림 본문은 문장 단위로 자른다', () => {
   assert.ok(body.length <= 101, `너무 길다: ${body.length}`)
   assert.ok(body.endsWith('…'))
   assert.equal(rev.notificationBody('짧은 질문?'), '짧은 질문?', '짧으면 자르지 않는다')
+})
+
+console.log('\n▸ 복습 응답 (SM-2 를 서버 한 곳에서만 돈다)')
+
+const mkRow = (id: string, repetition: number, ease = 2.5, state: 'pending' | 'done' = 'pending') => ({
+  id, quizItemId: `q-${id}`, repetition,
+  intervalDays: rev.BASE_INTERVALS[repetition], ease,
+  dueAt: new Date('2026-09-07T12:00:00Z'), state,
+})
+const ANSWER_NOW = new Date('2026-09-07T12:00:00Z')
+
+test('보통 이상으로 답하면 그 회차는 끝나고 ease 가 오른다', () => {
+  const row = mkRow('a', 1)
+  const plan = planAnswer(row, [row], 3, ANSWER_NOW, SEOUL, 21)
+  assert.equal(plan.update.state, 'done')
+  assert.equal(plan.update.grade, 3)
+  assert.ok(plan.update.ease > 2.5, `ease 가 안 올랐다: ${plan.update.ease}`)
+  assert.equal(plan.relearn, null)
+})
+
+test('모르겠음(0)이면 내일 같은 문제를 다시 낸다', () => {
+  const row = mkRow('a', 2)
+  const plan = planAnswer(row, [row], 0, ANSWER_NOW, SEOUL, 21)
+  assert.ok(plan.relearn, '재복습이 안 잡혔다')
+  assert.equal(plan.relearn!.intervalDays, 1)
+  assert.equal(plan.relearn!.quizItemId, row.quizItemId)
+  assert.ok(plan.update.ease < 2.5, 'ease 가 안 내려갔다')
+})
+
+test('마지막 회차를 보통 이상으로 통과하면 졸업한다', () => {
+  const row = mkRow('a', rev.MAX_REPETITION - 1)
+  assert.equal(planAnswer(row, [row], 2, ANSWER_NOW, SEOUL, 21).update.state, 'retired')
+  // 모르겠음이면 졸업하지 않는다
+  assert.equal(planAnswer(row, [row], 0, ANSWER_NOW, SEOUL, 21).update.state, 'done')
+})
+
+test('방금 답한 회차는 다시 잡지 않는다 — 넣으면 푼 문제의 due_at 이 되살아난다', () => {
+  const row = mkRow('a', 1)
+  const others = [mkRow('b', 2), mkRow('c', 3)]
+  const plan = planAnswer(row, [row, ...others], 3, ANSWER_NOW, SEOUL, 21)
+  assert.deepEqual(plan.reschedule.map((r) => r.id).sort(), ['b', 'c'])
+})
+
+test('쉽다고 하면 남은 회차가 뒤로 밀리고, 어렵다고 하면 당겨진다', () => {
+  const row = mkRow('a', 0)
+  const others = [mkRow('b', 3)]
+  const easy = planAnswer(row, [row, ...others], 3, ANSWER_NOW, SEOUL, 21).reschedule[0]
+  const hard = planAnswer(row, [row, ...others], 1, ANSWER_NOW, SEOUL, 21).reschedule[0]
+  assert.ok(easy.intervalDays > hard.intervalDays,
+    `쉬움 ${easy.intervalDays}일 <= 어려움 ${hard.intervalDays}일`)
+})
+
+test('새 ease 가 남은 회차에 그대로 심긴다 (SM-2 가 누적되어야 한다)', () => {
+  const row = mkRow('a', 0, 2.5)
+  const others = [mkRow('b', 2, 2.5)]
+  const plan = planAnswer(row, [row, ...others], 1, ANSWER_NOW, SEOUL, 21)
+  assert.equal(plan.reschedule[0].ease, plan.update.ease,
+    '남은 회차가 기본 ease 로 되돌아가면 몇 번을 어렵다고 해도 간격이 제자리다')
+})
+
+test('다시 잡힌 시각은 사용자 로컬 복습 시각이다', () => {
+  const row = mkRow('a', 0)
+  const others = [mkRow('b', 1)]
+  const plan = planAnswer(row, [row, ...others], 2, ANSWER_NOW, SEOUL, 21)
+  const due = new Date(plan.reschedule[0].dueAt)
+  const hour = Number(new Intl.DateTimeFormat('en-US',
+    { timeZone: SEOUL, hour: '2-digit', hourCycle: 'h23' }).format(due))
+  assert.equal(hour, 21)
+})
+
+test('잘못된 grade 는 거부한다', () => {
+  const row = mkRow('a', 0)
+  assert.throws(() => planAnswer(row, [row], 5, ANSWER_NOW, SEOUL, 21))
+  assert.throws(() => planAnswer(row, [row], -1, ANSWER_NOW, SEOUL, 21))
 })
 
 console.log('\n▸ 분야별 픽스처 (자가점검)')

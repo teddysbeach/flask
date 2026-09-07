@@ -90,7 +90,12 @@ class NotificationPrefs {
   /// 전체 스위치. 이걸 끄면 아래 스위치와 상관없이 아무것도 예약하지 않는다.
   bool get allEnabled => _prefs.getBool(_kAll) ?? true;
   bool get reviewEnabled => _prefs.getBool(_kReview) ?? true;
-  bool get marketingEnabled => _prefs.getBool(_kMarketing) ?? false;
+
+  /// 마케팅 알림은 **동의 이력이 먼저다.** 아직 이 화면에서 따로 고른 적이 없으면 null 을 돌려주고,
+  /// 화면이 약관 동의 때 남긴 값(`ConsentRecord.marketing`)을 쓰게 한다.
+  /// 여기서 false 로 뭉개면 동의했던 사용자가 이유 없이 거부로 보인다.
+  bool? get marketingChoice => _prefs.getBool(_kMarketing);
+  bool get marketingEnabled => marketingChoice ?? false;
 
   /// 복습 알림을 실제로 걸어야 하는지. 화면마다 두 스위치를 각각 보고 판단하면 어긋난다.
   bool get reviewNotificationsOn => allEnabled && reviewEnabled;

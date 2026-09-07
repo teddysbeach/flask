@@ -356,5 +356,17 @@ test('스트로크 id 는 시간순으로 정렬 가능하다', () => {
   assert.ok(a < b, '시간 접두사가 있어야 병합 정렬이 안정적이다')
 })
 
+console.log('\n▸ 도구 모드')
+
+// 지우개는 획을 만드는 도구가 아니라 모드다. 이 구분이 무너지면 둘 중 하나가 깨진다:
+// TOOLS 에 넣으면 지우개로 획이 그려지고, TOOL_MODES 에서 빼면 지우개를 켤 수 없다.
+test('지우개와 읽기 모드는 도구 모드이지 획 도구가 아니다', () => {
+  assert.ok(ink.TOOL_MODES.includes('eraser'), '지우개를 켤 수 없다')
+  assert.ok(ink.TOOL_MODES.includes('none'), '읽기 모드를 켤 수 없다')
+  assert.ok(!ink.TOOLS.includes('eraser'), '지우개로 획이 만들어진다')
+  assert.throws(() => ink.createStroke('eraser', '#000', 2, 'x', 0))
+  for (const t of ink.TOOLS) assert.ok(ink.TOOL_MODES.includes(t))
+})
+
 console.log(`\n${failures.length ? '실패 ' + failures.length + '개' : '전부 통과'} (통과 ${passed}개)\n`)
 if (failures.length) process.exit(1)

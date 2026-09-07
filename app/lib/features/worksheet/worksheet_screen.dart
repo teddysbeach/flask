@@ -157,7 +157,10 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
     final row = mapLearnResponse(message['payload']);
     if (row == null) return; // slider 등 저장 대상이 아닌 것
 
+    final wasClean = _pendingResponses.isEmpty;
     _pendingResponses[row['response_id']! as String] = row;
+    // "저장 대기 중" 표시를 바로 띄운다 — 사용자는 이걸 보고 앱을 닫아도 되는지 판단한다.
+    if (wasClean && mounted) setState(() {});
     _responseDebounce.run(() => unawaited(_flush(reason: 'learn')));
   }
 
@@ -190,13 +193,16 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
     _responseDebounce.dispose();
     _inkDebounce.dispose();
 
-    // 이미 저장 중이면 그게 끝난 뒤에 이어서 한 번 더 돈다.
+    // 이미 저장 중이면 그게 끝난 뒤에 이어서 한 번 더 돈다. 두 저장이 같은 rev 로
+    // 동시에 나가면 하나는 반드시 충돌하고, 사용자는 이유 없는 경고를 본다.
     final running = _inFlightSave;
-    final next = running == null ? _runSave(reason) : running.then((_) => _runSave(reason));
-    _inFlightSave = next.whenComplete(() {
-      if (identical(_inFlightSave, next)) _inFlightSave = null;
+    final chained = running == null ? _runSave(reason) : running.then((_) => _runSave(reason));
+    late final Future<void> wrapped;
+    wrapped = chained.whenComplete(() {
+      if (identical(_inFlightSave, wrapped)) _inFlightSave = null;
     });
-    return _inFlightSave!;
+    _inFlightSave = wrapped;
+    return wrapped;
   }
 
   Future<void> _runSave(String reason) async {
@@ -314,6 +320,7 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
   }
 
   Future<void> _applyTool(InkTool tool, {Color? color}) async {
+    if (!mounted) return;
     setState(() {
       _tool = tool;
       if (color != null) _penColor = color;
@@ -324,6 +331,10 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
       InkTool.none => {'tool': 'none'},
       InkTool.pen => {'tool': 'pen', 'color': _hex(_penColor ?? p.inkPen), 'width': 2.4},
       InkTool.highlighter => {'tool': 'highlighter', 'color': _hex(p.inkHighlighter), 'width': 16.0},
+      // 주의: 지금 ink-runtime 의 setTool 은 TOOLS(['pen','highlighter']) 밖의 값을 던진다.
+      // 그리기 쪽(onDown/onMove)은 'eraser' 를 이미 처리하므로 검증만 빠진 상태다.
+      // _eval 이 try/catch 로 감싸 화면은 살아 있지만, 런타임이 고쳐지기 전까지
+      // 지우개는 아무 일도 하지 않는다. (필기 런타임 담당에게 보고함)
       InkTool.eraser => {'tool': 'eraser'},
     };
     await _eval('window.ONPAR_INK.setTool(${jsonEncode(args)})');
@@ -355,7 +366,7 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         await _flush(reason: 'pop');
-        if (mounted) Navigator.of(context).pop();
+        if (context.mounted) Navigator.of(context).pop();
       },
       child: Scaffold(
         backgroundColor: p.surfaceBase,
@@ -488,14 +499,15 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
             }
           },
           onReceivedError: (c, request, error) {
-            if (!mounted || !request.isForMainFrame!) return;
+            // 본문이 아닌 리소스 하나가 실패한 것으로 학습지 전체를 오류로 덮지 않는다.
+            if (!mounted || request.isForMainFrame == false) return;
             setState(() => _pageError = AppError.of(
                   AppErrorKind.offline,
                   message: '학습지를 불러오지 못했어요. 연결을 확인하고 다시 시도해 주세요.',
                 ));
           },
           onReceivedHttpError: (c, request, response) {
-            if (!mounted || !(request.isForMainFrame ?? false)) return;
+            if (!mounted || request.isForMainFrame == false) return;
             // 서명 URL 은 1시간이면 만료된다. 다시 받아 오면 대개 풀린다.
             setState(() => _pageError =
                 AppError.of(AppError.kindOfStatus(response.statusCode ?? 500)));
@@ -587,7 +599,7 @@ class _InkToolbar extends StatelessWidget {
               child: Row(
                 children: [
                   _ToolButton(
-                    icon: DsIcons.zoomIn,
+                    icon: DsIcons.guide,
                     label: '읽기',
                     selected: tool == InkTool.none,
                     onTap: () => onTool(InkTool.none),
@@ -630,7 +642,7 @@ class _InkToolbar extends StatelessWidget {
                   ),
                   _Divider(color: p.borderSubtle),
                   _ToolButton(
-                    icon: DsIcons.profile,
+                    icon: DsIcons.activity,
                     label: '손가락',
                     selected: fingerDrawing,
                     onTap: onToggleFinger,
@@ -679,12 +691,14 @@ class _ToolButton extends StatelessWidget {
             ? p.brandTextOnSubtle
             : p.textSecondary;
 
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      selected: selected,
-      label: label,
-      child: ExcludeSemantics(
+    // 라벨은 Semantics 가, 탭 동작은 InkWell 이 만든다. 둘을 MergeSemantics 로 합치고
+    // 안쪽의 아이콘·글자는 장식으로 뺀다(안 그러면 "펜 펜" 처럼 두 번 읽힌다).
+    return MergeSemantics(
+      child: Semantics(
+        button: true,
+        enabled: enabled,
+        selected: selected,
+        label: label,
         child: Padding(
           padding: const EdgeInsets.all(DsSpace.s1),
           child: Material(
@@ -696,19 +710,21 @@ class _ToolButton extends StatelessWidget {
               child: Container(
                 constraints: const BoxConstraints(minWidth: 56, minHeight: 52),
                 padding: const EdgeInsets.symmetric(horizontal: DsSpace.s2, vertical: DsSpace.s1),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    DsIcon(icon, size: 20, color: fg),
-                    const SizedBox(height: 2),
-                    Text(
-                      label,
-                      style: dsTextStyle(DsType.caption, fg).copyWith(
-                        fontSize: 11,
-                        fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                child: ExcludeSemantics(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      DsIcon(icon, size: 20, color: fg),
+                      const SizedBox(height: 2),
+                      Text(
+                        label,
+                        style: dsTextStyle(DsType.caption, fg).copyWith(
+                          fontSize: 11,
+                          fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -729,11 +745,11 @@ class _ColorDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = DsTheme.of(context);
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: '펜 색 ${_colorName(context, color)}',
-      child: ExcludeSemantics(
+    return MergeSemantics(
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: '펜 색 ${_colorName(context, color)}',
         child: InkWell(
           onTap: onTap,
           customBorder: const CircleBorder(),
@@ -781,7 +797,7 @@ class _SaveIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = DsTheme.of(context);
-    final (label, widget) = saving
+    final (String label, Widget mark) = saving
         ? (
             '저장하는 중',
             SizedBox(
@@ -803,7 +819,7 @@ class _SaveIndicator extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              widget,
+              mark,
               const SizedBox(width: DsSpace.s1),
               Text(label, style: dsTextStyle(DsType.caption, p.textTertiary)),
             ],

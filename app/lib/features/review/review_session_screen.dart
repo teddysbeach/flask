@@ -56,7 +56,7 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
           confirmLabel: '그만하기',
           cancelLabel: '계속하기',
         );
-        if (leave && mounted) Navigator.of(context).pop();
+        if (leave && context.mounted) Navigator.of(context).pop();
       },
       child: Scaffold(
         backgroundColor: p.surfaceBase,

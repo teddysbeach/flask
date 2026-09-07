@@ -55,10 +55,9 @@ class HomeShell extends ConsumerWidget {
               icon: DsIcon(_tabs[i].icon, size: 22, color: p.textTertiary),
               selectedIcon: DsIcon(_tabs[i].icon, size: 22, color: p.brandTextOnSubtle),
               label: _tabs[i].label,
+              // 스크린리더는 label 로 "홈, 4개 중 1번째, 선택됨" 을 읽는다.
+              // 아이콘에 라벨을 또 달면 같은 말이 두 번 나온다 — 그래서 DsIcon 은 장식으로 둔다.
               tooltip: _tabs[i].label,
-              // 스크린리더는 "홈 탭, 4개 중 1번째, 선택됨" 으로 읽는다.
-              // 아이콘에 라벨을 또 달면 같은 말을 두 번 읽는다.
-              semanticLabel: '${_tabs[i].label} 탭',
             ),
         ],
       ),

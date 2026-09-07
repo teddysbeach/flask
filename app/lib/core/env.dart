@@ -19,6 +19,16 @@ class Env {
   static const termsUrl = String.fromEnvironment('TERMS_URL', defaultValue: 'https://onpar.app/terms');
   static const privacyUrl =
       String.fromEnvironment('PRIVACY_URL', defaultValue: 'https://onpar.app/privacy');
+  /// Google 로그인 클라이언트 id. 플랫폼마다 다르다.
+  /// 없으면 google_sign_in 이 플랫폼 설정 파일에서 찾는다 — 그래서 비어 있어도 동작할 수 있다.
+  static const googleIosClientId = String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
+  static const googleServerClientId = String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID');
+
+  static String? get googleIosClientIdOrNull =>
+      googleIosClientId.isEmpty ? null : googleIosClientId;
+  static String? get googleServerClientIdOrNull =>
+      googleServerClientId.isEmpty ? null : googleServerClientId;
+
   static const supportEmail =
       String.fromEnvironment('SUPPORT_EMAIL', defaultValue: 'help@onpar.app');
 

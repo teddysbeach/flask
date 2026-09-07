@@ -12,13 +12,12 @@ import '../create/create_screen.dart';
 
 /// 목록에 학습지 한 장을 그리는 방법. 홈과 서재가 같은 걸 쓴다 —
 /// 두 벌로 두면 "만드는 중" 배지가 한쪽에만 생기는 일이 반드시 생긴다.
+///
+/// 접근성: 별도의 Semantics 로 감싸지 않는다. InkWell 이 버튼 노드를 만들고
+/// 안의 글(제목·상태·시각)이 그대로 읽힌다. 통째로 합쳐 버리면 실패 카드 안의
+/// "다시 만들기" 가 눌리지 않는 글자가 된다.
 class WorksheetTile extends StatelessWidget {
-  const WorksheetTile({
-    super.key,
-    required this.worksheet,
-    required this.onTap,
-    this.onRetry,
-  });
+  const WorksheetTile({super.key, required this.worksheet, required this.onTap, this.onRetry});
 
   final WorksheetSummary worksheet;
 
@@ -33,69 +32,62 @@ class WorksheetTile extends StatelessWidget {
     final p = DsTheme.of(context);
     final failed = worksheet.status == WorksheetStatus.failed;
 
-    return Semantics(
-      button: true,
-      label: '${worksheet.displayTitle}, ${_statusLabel(worksheet.status)}',
-      child: ExcludeSemantics(
-        child: Material(
-          color: p.surfaceRaised,
-          borderRadius: BorderRadius.circular(DsRadius.lg),
-          child: InkWell(
-            onTap: onTap,
+    return Material(
+      color: p.surfaceRaised,
+      borderRadius: BorderRadius.circular(DsRadius.lg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(DsRadius.lg),
+        child: Container(
+          padding: const EdgeInsets.all(DsSpace.s4),
+          decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(DsRadius.lg),
-            child: Container(
-              padding: const EdgeInsets.all(DsSpace.s4),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(DsRadius.lg),
-                border: Border.all(color: p.borderSubtle),
-              ),
-              child: Column(
+            border: Border.all(color: p.borderSubtle),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          worksheet.displayTitle,
-                          style: dsTextStyle(DsType.bodyLg, p.textPrimary)
-                              .copyWith(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      const SizedBox(width: DsSpace.s2),
-                      WorksheetStatusBadge(status: worksheet.status),
-                    ],
-                  ),
-                  const SizedBox(height: DsSpace.s2),
-                  Text(
-                    _when(worksheet.createdAt),
-                    style: dsTextStyle(DsType.caption, p.textTertiary),
-                  ),
-                  if (failed) ...[
-                    const SizedBox(height: DsSpace.s3),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(DsSpace.s3),
-                      decoration: BoxDecoration(
-                        color: p.statusBgDanger,
-                        borderRadius: BorderRadius.circular(DsRadius.md),
-                      ),
-                      child: Text(
-                        worksheet.failureMessage,
-                        style: dsTextStyle(DsType.caption, p.textPrimary),
-                      ),
+                  Expanded(
+                    child: Text(
+                      worksheet.displayTitle,
+                      style: dsTextStyle(
+                        DsType.bodyLg,
+                        p.textPrimary,
+                      ).copyWith(fontWeight: FontWeight.w600),
                     ),
-                    if (onRetry != null) ...[
-                      const SizedBox(height: DsSpace.s2),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton(onPressed: onRetry, child: const Text('다시 만들기')),
-                      ),
-                    ],
-                  ],
+                  ),
+                  const SizedBox(width: DsSpace.s2),
+                  WorksheetStatusBadge(status: worksheet.status),
                 ],
               ),
-            ),
+              const SizedBox(height: DsSpace.s2),
+              Text(_when(worksheet.createdAt), style: dsTextStyle(DsType.caption, p.textTertiary)),
+              if (failed) ...[
+                const SizedBox(height: DsSpace.s3),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(DsSpace.s3),
+                  decoration: BoxDecoration(
+                    color: p.statusBgDanger,
+                    borderRadius: BorderRadius.circular(DsRadius.md),
+                  ),
+                  child: Text(
+                    worksheet.failureMessage,
+                    style: dsTextStyle(DsType.caption, p.textPrimary),
+                  ),
+                ),
+                if (onRetry != null) ...[
+                  const SizedBox(height: DsSpace.s2),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(onPressed: onRetry, child: const Text('다시 만들기')),
+                  ),
+                ],
+              ],
+            ],
           ),
         ),
       ),
@@ -103,7 +95,7 @@ class WorksheetTile extends StatelessWidget {
   }
 }
 
-/// 상태 배지. 색만으로 구분하지 않는다 — 아이콘·점·글자가 같이 간다.
+/// 상태 배지. 색만으로 구분하지 않는다 — 아이콘(또는 스피너)과 글자가 같이 간다.
 class WorksheetStatusBadge extends StatelessWidget {
   const WorksheetStatusBadge({super.key, required this.status});
 
@@ -138,19 +130,19 @@ class WorksheetStatusBadge extends StatelessWidget {
               color: fg,
             ),
           const SizedBox(width: DsSpace.s1),
-          Text(_statusLabel(status), style: dsTextStyle(DsType.caption, fg)),
+          Text(statusLabel(status), style: dsTextStyle(DsType.caption, fg)),
         ],
       ),
     );
   }
 }
 
-String _statusLabel(WorksheetStatus s) => switch (s) {
-      WorksheetStatus.queued => '기다리는 중',
-      WorksheetStatus.generating => '만드는 중',
-      WorksheetStatus.ready => '완성',
-      WorksheetStatus.failed => '실패',
-    };
+String statusLabel(WorksheetStatus s) => switch (s) {
+  WorksheetStatus.queued => '기다리는 중',
+  WorksheetStatus.generating => '만드는 중',
+  WorksheetStatus.ready => '완성',
+  WorksheetStatus.failed => '실패',
+};
 
 /// 목록에서는 "언제" 가 몇 시 몇 분보다 중요하다.
 String _when(DateTime at) {
@@ -193,16 +185,18 @@ class WorksheetTileSkeleton extends StatelessWidget {
 void openWorksheet(BuildContext context, WorksheetSummary w) {
   switch (w.status) {
     case WorksheetStatus.ready:
-      context.push(Routes.worksheet(w.id));
+      unawaited(context.push(Routes.worksheet(w.id)));
     case WorksheetStatus.queued:
     case WorksheetStatus.generating:
-      unawaited(Navigator.of(context).push(MaterialPageRoute<void>(
+      final progress = MaterialPageRoute<void>(
         builder: (_) => CreateProgressScreen(worksheetId: w.id),
-      )));
+      );
+      unawaited(Navigator.of(context).push(progress));
     case WorksheetStatus.failed:
       // 실패한 학습지는 열 것이 없다. 같은 주제로 다시 만들 수 있게 입력을 채워 준다.
-      unawaited(Navigator.of(context).push(MaterialPageRoute<void>(
+      final retry = MaterialPageRoute<void>(
         builder: (_) => CreateScreen(initialTopic: w.topic),
-      )));
+      );
+      unawaited(Navigator.of(context).push(retry));
   }
 }

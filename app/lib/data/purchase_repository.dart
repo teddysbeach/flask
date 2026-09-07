@@ -295,7 +295,8 @@ class PurchaseRepository {
       final rows = await _client
           .from('purchases')
           .select('id, product_id, quantity_granted, price_krw, state, purchased_at, created_at')
-          .order('purchased_at', ascending: false);
+          // purchased_at 이 비어 있는 행(옛 데이터)이 맨 위로 올라오지 않게 한다.
+          .order('purchased_at', ascending: false, nullsFirst: false);
       return rows.map(PurchaseRecord.fromMap).toList();
     } catch (e, st) {
       throw mapSupabaseError(e, st);

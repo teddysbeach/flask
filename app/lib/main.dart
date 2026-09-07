@@ -52,8 +52,9 @@ Future<void> main() async {
     runApp(
       ProviderScope(
         overrides: [
-          // 부팅 직후 동기적으로 읽어야 하는 값이라 미리 채워 넣는다.
-          sharedPrefsProvider.overrideWith((_) => Future.value(prefs)),
+          // 이미 읽은 값이라 **동기로** 넣는다. Future.value 로 넣으면 첫 프레임이
+          // AsyncLoading 이 되고, 그 틈에 라우터가 판정을 돌린다.
+          sharedPrefsProvider.overrideWith((_) => prefs),
           analyticsProvider.overrideWithValue(const DebugAnalytics()),
           crashReporterProvider.overrideWithValue(crash),
         ],

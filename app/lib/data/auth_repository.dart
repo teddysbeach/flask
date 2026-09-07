@@ -112,6 +112,19 @@ class AuthRepository {
     }
   }
 
+  /// 이메일 인증 메일 재전송. 가입은 됐는데 메일을 못 받은 사람이 막히는 자리다.
+  Future<void> resendEmailVerification(String email) async {
+    try {
+      await _auth.resend(
+        type: OtpType.signup,
+        email: email.trim(),
+        emailRedirectTo: '${Env.appScheme}://login-callback',
+      );
+    } catch (e, st) {
+      throw mapSupabaseError(e, st);
+    }
+  }
+
   /// 비밀번호 재설정 메일. 메일 존재 여부를 응답으로 알려주지 않는다(계정 존재 노출 방지).
   Future<void> sendPasswordReset(String email) async {
     try {

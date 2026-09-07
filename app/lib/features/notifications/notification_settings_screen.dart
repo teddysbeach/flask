@@ -89,6 +89,7 @@ class _NotificationSettingsScreenState extends ConsumerState<NotificationSetting
   Widget _form(NotificationPrefs prefs, Profile profile) {
     final p = DsTheme.of(context);
     final consent = ref.read(localFlagsProvider).consent;
+    final marketing = prefs.marketingChoice ?? consent?.marketing ?? false;
     final blocked = _permission == NotificationPermission.blocked ||
         _permission == NotificationPermission.denied;
 
@@ -118,7 +119,7 @@ class _NotificationSettingsScreenState extends ConsumerState<NotificationSetting
         _SwitchRow(
           title: '마케팅 정보 알림',
           description: '새 기능·혜택 소식을 보내 드려요. 안 받아도 복습 알림은 그대로 와요.',
-          value: prefs.allEnabled && prefs.marketingEnabled,
+          value: prefs.allEnabled && marketing,
           onChanged: _busy || !prefs.allEnabled ? null : (v) => _setMarketing(v, prefs, consent),
         ),
         if (consent != null)

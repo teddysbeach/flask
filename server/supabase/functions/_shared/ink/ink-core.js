@@ -35,6 +35,13 @@ export const MIN_ANCHOR_POINT_DISTANCE = 0.002
 
 export const TOOLS = ['pen', 'highlighter']
 
+/**
+ * setTool 이 받아들이는 모드. 스트로크를 **만드는** 도구(TOOLS)와 다르다.
+ *   eraser 는 획을 지우지 새로 그리지 않고, none 은 캔버스가 포인터를 놓아 본문 스크롤을 살린다.
+ * 이 둘을 TOOLS 에 넣으면 createStroke 가 지우개로 획을 만들어 버린다.
+ */
+export const TOOL_MODES = [...TOOLS, 'eraser', 'none']
+
 const roundTo = (n, p) => Math.round(n * 10 ** p) / 10 ** p
 const round = (n) => roundTo(n, COORD_PRECISION)
 

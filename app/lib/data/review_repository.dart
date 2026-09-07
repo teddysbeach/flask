@@ -58,11 +58,9 @@ class ReviewRepository {
 
   /// 자기 평가를 올린다. grade 0=모르겠음 1=어려움 2=보통 3=쉬움.
   ///
-  /// TODO(server): answer_review RPC — SM-2(ease 재계산·다음 회차 due_at·relearn 삽입·retired 졸업)는
-  /// `server/supabase/functions/_shared/review-schedule.ts` 의 `answerReview`/`rescheduleRemaining` 에만 있고,
-  /// 그걸 호출하는 RPC/엣지 함수가 아직 없다. 앱에 SM-2 를 다시 구현하면 규칙이 두 벌이 되어
-  /// 반드시 어긋나므로(그리고 어긋난 쪽은 언제나 클라이언트다) 여기서는 응답 사실만 기록한다.
-  /// RPC 가 생기면 이 update 를 `_client.rpc('answer_review', params: {...})` 로 갈아끼우면 된다.
+  /// SM-2(ease 재계산 · 남은 회차 due_at · 모르겠음이면 내일 재복습 · 마지막 회차 졸업)는
+  /// 서버의 `answer-review` 엣지 함수가 한다. 앱에 같은 계산을 두면 규칙이 두 벌이 되고,
+  /// 두 벌은 반드시 갈라진다 — 갈라지면 "쉽다고 했는데 내일 또 나오는" 식으로 조용히 틀린다.
   Future<void> answer({required String scheduleId, required int grade}) async {
     // 서버 제약(0~3)과 같은 범위다. 화면 버그로 범위를 벗어난 값이 나가면 여기서 먼저 잡는다 —
     // 서버가 뱉은 제약 위반 문구가 사용자 화면에 나가면 안 된다.
@@ -71,11 +69,10 @@ class ReviewRepository {
           message: '평가를 다시 골라 주세요.', code: 'grade_out_of_range');
     }
     try {
-      await _client.from('review_schedules').update({
-        'state': 'done',
-        'grade': grade,
-        'answered_at': DateTime.now().toUtc().toIso8601String(),
-      }).eq('id', scheduleId);
+      await _client.functions.invoke(
+        'answer-review',
+        body: {'schedule_id': scheduleId, 'grade': grade},
+      );
     } catch (e, st) {
       throw mapSupabaseError(e, st);
     }

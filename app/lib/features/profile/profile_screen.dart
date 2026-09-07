@@ -83,12 +83,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   String? _initialName;
   String? _avatarPath;
   bool _avatarCleared = false;
+  bool _hydrated = false;
 
   bool _saving = false;
   bool _uploading = false;
   double _progress = 0;
   String? _uploadError;
   XFile? _lastPick;
+
+  @override
+  void initState() {
+    super.initState();
+    // 프로바이더에 이미 값이 있으면 첫 프레임 전에 채운다. build 안에서 컨트롤러를 건드리면
+    // 그리는 도중에 알림이 나가서, 사용자가 타이핑하던 글자가 되감기는 버그가 된다.
+    _hydrate(ref.read(profileProvider).valueOrNull);
+  }
+
+  /// 서버 값으로 입력칸을 딱 한 번 채운다. 두 번 채우면 사용자가 고치던 것을 덮어쓴다.
+  void _hydrate(Profile? me) {
+    if (_hydrated || me == null) return;
+    _hydrated = true;
+    _initialName = me.displayName ?? '';
+    _name.text = _initialName!;
+  }
 
   @override
   void dispose() {
@@ -104,6 +121,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(profileProvider);
+    ref.listen(profileProvider, (_, next) => _hydrate(next.valueOrNull));
 
     return PopScope(
       canPop: !_dirty,
@@ -136,10 +154,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Widget _form(Profile me) {
     final p = DsTheme.of(context);
-    _initialName ??= me.displayName ?? '';
-    if (_name.text.isEmpty && _initialName!.isNotEmpty && !_dirty) {
-      _name.text = _initialName!;
-    }
     final nameError = NicknameRule.validate(_name.text);
 
     return ListView(

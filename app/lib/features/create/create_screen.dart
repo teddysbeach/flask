@@ -50,8 +50,7 @@ class CreateScreen extends ConsumerStatefulWidget {
 }
 
 class _CreateScreenState extends ConsumerState<CreateScreen> {
-  late final TextEditingController _topic =
-      TextEditingController(text: widget.initialTopic ?? '');
+  late final TextEditingController _topic = TextEditingController(text: widget.initialTopic ?? '');
   final _focus = FocusNode();
 
   CreateLevel _level = CreateLevel.beginner;
@@ -109,7 +108,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
       // 쿼터 소진은 실패가 아니다. 오류 화면 대신 살 수 있는 곳으로 보낸다.
       if (err.kind == AppErrorKind.quotaExhausted) {
         // TODO(analytics): paywallOpen — 진입 지점(create_quota)
-        context.push(Routes.paywall);
+        unawaited(context.push(Routes.paywall));
         return;
       }
       setState(() => _error = err);
@@ -133,7 +132,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
           confirmLabel: '나가기',
           cancelLabel: '계속 쓰기',
         );
-        if (leave && mounted) Navigator.of(context).pop();
+        if (leave && context.mounted) Navigator.of(context).pop();
       },
       child: Scaffold(
         backgroundColor: p.surfaceBase,
@@ -165,11 +164,17 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
           children: [
             DsIcon(DsIcons.info, size: 36, color: p.textTertiary),
             const SizedBox(height: DsSpace.s4),
-            Text('남은 학습지를 다 쓰셨어요',
-                textAlign: TextAlign.center, style: dsTextStyle(DsType.h3, p.textPrimary)),
+            Text(
+              '남은 학습지를 다 쓰셨어요',
+              textAlign: TextAlign.center,
+              style: dsTextStyle(DsType.h3, p.textPrimary),
+            ),
             const SizedBox(height: DsSpace.s2),
-            Text('충전하면 이어서 만들 수 있어요.',
-                textAlign: TextAlign.center, style: dsTextStyle(DsType.body, p.textSecondary)),
+            Text(
+              '충전하면 이어서 만들 수 있어요.',
+              textAlign: TextAlign.center,
+              style: dsTextStyle(DsType.body, p.textSecondary),
+            ),
             const SizedBox(height: DsSpace.s6),
             FilledButton(
               onPressed: () {
@@ -194,11 +199,12 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(DsSpace.s4, DsSpace.s4, DsSpace.s4, DsSpace.s12),
       children: [
-        Text('무엇을 배우고 싶으세요?',
-            style: dsTextStyle(DsType.h2, p.textPrimary).copyWith(fontWeight: FontWeight.w700)),
+        Text(
+          '무엇을 배우고 싶으세요?',
+          style: dsTextStyle(DsType.h2, p.textPrimary).copyWith(fontWeight: FontWeight.w700),
+        ),
         const SizedBox(height: DsSpace.s2),
-        Text('한 줄이면 충분해요. 개념 하나가 가장 잘 나와요.',
-            style: dsTextStyle(DsType.body, p.textSecondary)),
+        Text('한 줄이면 충분해요. 개념 하나가 가장 잘 나와요.', style: dsTextStyle(DsType.body, p.textSecondary)),
         const SizedBox(height: DsSpace.s4),
 
         TextField(
@@ -248,8 +254,10 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
         ),
 
         const SizedBox(height: DsSpace.s6),
-        Text('어느 정도로 만들까요?',
-            style: dsTextStyle(DsType.h3, p.textPrimary).copyWith(fontWeight: FontWeight.w700)),
+        Text(
+          '어느 정도로 만들까요?',
+          style: dsTextStyle(DsType.h3, p.textPrimary).copyWith(fontWeight: FontWeight.w700),
+        ),
         const SizedBox(height: DsSpace.s3),
         for (final level in CreateLevel.values) ...[
           _LevelOption(
@@ -260,10 +268,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
           const SizedBox(height: DsSpace.s2),
         ],
 
-        if (_error != null) ...[
-          const SizedBox(height: DsSpace.s4),
-          _ErrorNotice(error: _error!),
-        ],
+        if (_error != null) ...[const SizedBox(height: DsSpace.s4), _ErrorNotice(error: _error!)],
 
         const SizedBox(height: DsSpace.s6),
         Semantics(
@@ -276,11 +281,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
         ),
         const SizedBox(height: DsSpace.s3),
         // 연타 방지. 쿼터를 깎는 버튼이라 위젯에서도 한 겹 막는다(RequestGuard 와 두 겹).
-        OnceButton(
-          enabled: _valid,
-          onPressed: _submit,
-          child: const Text('학습지 만들기'),
-        ),
+        OnceButton(enabled: _valid, onPressed: _submit, child: const Text('학습지 만들기')),
       ],
     );
   }
@@ -297,11 +298,13 @@ class _LevelOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = DsTheme.of(context);
-    return Semantics(
-      inMutuallyExclusiveGroup: true,
-      selected: selected,
-      label: '${level.label}, ${level.hint}',
-      child: ExcludeSemantics(
+    // MergeSemantics 가 있어야 라벨(Semantics)과 탭 동작(InkWell)이 한 노드가 된다.
+    // Semantics 만 얹고 안을 ExcludeSemantics 로 덮으면 읽히기는 해도 눌리지 않는다.
+    return MergeSemantics(
+      child: Semantics(
+        inMutuallyExclusiveGroup: true,
+        selected: selected,
+        label: '${level.label}, ${level.hint}',
         child: Material(
           color: selected ? p.brandPrimarySubtle : p.surfaceRaised,
           borderRadius: BorderRadius.circular(DsRadius.lg),
@@ -310,8 +313,7 @@ class _LevelOption extends StatelessWidget {
             borderRadius: BorderRadius.circular(DsRadius.lg),
             child: Container(
               constraints: const BoxConstraints(minHeight: 56),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: DsSpace.s4, vertical: DsSpace.s3),
+              padding: const EdgeInsets.symmetric(horizontal: DsSpace.s4, vertical: DsSpace.s3),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(DsRadius.lg),
                 border: Border.all(
@@ -326,10 +328,13 @@ class _LevelOption extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(level.label,
-                            style: dsTextStyle(DsType.bodyLg,
-                                    selected ? p.brandTextOnSubtle : p.textPrimary)
-                                .copyWith(fontWeight: FontWeight.w600)),
+                        Text(
+                          level.label,
+                          style: dsTextStyle(
+                            DsType.bodyLg,
+                            selected ? p.brandTextOnSubtle : p.textPrimary,
+                          ).copyWith(fontWeight: FontWeight.w600),
+                        ),
                         const SizedBox(height: DsSpace.s1),
                         Text(level.hint, style: dsTextStyle(DsType.caption, p.textSecondary)),
                       ],
@@ -368,17 +373,24 @@ class _ErrorNotice extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DsIcon(inProgress ? DsIcons.info : DsIcons.warning,
-                size: 18, color: inProgress ? p.statusInfo : p.statusDanger),
+            DsIcon(
+              inProgress ? DsIcons.info : DsIcons.warning,
+              size: 18,
+              color: inProgress ? p.statusInfo : p.statusDanger,
+            ),
             const SizedBox(width: DsSpace.s2),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (inProgress)
-                    Text('만드는 중인 학습지가 있어요',
-                        style: dsTextStyle(DsType.body, p.textPrimary)
-                            .copyWith(fontWeight: FontWeight.w600)),
+                    Text(
+                      '만드는 중인 학습지가 있어요',
+                      style: dsTextStyle(
+                        DsType.body,
+                        p.textPrimary,
+                      ).copyWith(fontWeight: FontWeight.w600),
+                    ),
                   if (inProgress) const SizedBox(height: DsSpace.s1),
                   // 서버 원문이 아니라 AppError.message 만 나간다.
                   Text(error.message, style: dsTextStyle(DsType.body, p.textSecondary)),

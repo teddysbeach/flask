@@ -41,6 +41,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       if (event != null) _onPurchaseEvent(event);
     });
 
+    // TODO(analytics): paywallViewed
     return Scaffold(
       appBar: AppBar(
         title: const Text('학습지 충전'),

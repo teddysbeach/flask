@@ -283,8 +283,10 @@ export function createInkLayer(opts) {
       // 문자열로 부르는 실수가 잦다. 상태를 망가뜨린 뒤 스트로크를 만들 때 터지면
       // 원인을 찾기 어렵다 — 여기서 바로 막고, 도구는 이전 값을 유지한다.
       const kind = typeof next === 'string' ? next : next && next.tool
-      if (kind !== 'none' && !core.TOOLS.includes(kind)) {
-        throw new Error(`알 수 없는 도구: ${kind} (${core.TOOLS.join(', ')} 또는 none)`)
+      // 받아들이는 것은 TOOL_MODES 다. TOOLS(획을 만드는 도구)로 검사하면
+      // 지우개가 거부된다 — 아래 onDown/onMove 는 이미 eraser 를 처리하고 있다.
+      if (!core.TOOL_MODES.includes(kind)) {
+        throw new Error(`알 수 없는 도구: ${kind} (${core.TOOL_MODES.join(', ')})`)
       }
       const opts = typeof next === 'string' ? {} : next
       tool = { kind, color: opts.color || tool.color, width: opts.width || tool.width }

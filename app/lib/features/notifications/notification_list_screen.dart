@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -101,7 +103,7 @@ class _NotificationListScreenState extends ConsumerState<NotificationListScreen>
       // 사용자는 "앱이 고장났다"고 읽는다.
       await ref.read(worksheetRepositoryProvider).get(entry.worksheetId);
       if (!mounted) return;
-      context.push('${Routes.worksheet(entry.worksheetId)}?quizId=${entry.quizItemId}');
+      unawaited(context.push('${Routes.worksheet(entry.worksheetId)}?quizId=${entry.quizItemId}'));
     } on AppError catch (e) {
       if (!mounted) return;
       AppFeedback.toast(

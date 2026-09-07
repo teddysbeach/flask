@@ -142,3 +142,60 @@ end $$;
 
 reset role;
 do $$ begin raise notice '── responses RLS 테스트 전부 통과 ──'; end $$;
+
+-- ── upsert 경로 (앱이 실제로 쓰는 방식) ──────────────────────────────────
+-- 앱은 디바운스로 같은 자리를 여러 번 저장한다. 두 번째 저장이 권한에서 막히면
+-- 학생이 고쳐 쓴 답이 조용히 사라진다 — 화면에는 저장된 것처럼 보인 채로.
+set role authenticated;
+set request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
+
+do $$
+declare
+  w1 uuid := 'cccccccc-0000-0000-0000-000000000001';
+  u1 uuid := '33333333-3333-3333-3333-333333333333';
+  q1 uuid := 'cccccccc-1111-0000-0000-000000000001';
+  v  int;
+begin
+  -- 앱은 user_id 와 quiz_item_id 를 같이 보낸다(NOT NULL, 그리고 어느 문항인지).
+  insert into public.responses (worksheet_id, user_id, quiz_item_id, response_id, kind, chars, ink_strokes)
+  values (w1, u1, q1, 'quiz-9', 'written', 12, 0);
+
+  -- 같은 자리를 다시 저장. PostgREST 는 보낸 컬럼을 전부 DO UPDATE SET 에 넣는다.
+  insert into public.responses (worksheet_id, user_id, quiz_item_id, response_id, kind, chars, ink_strokes, text)
+  values (w1, u1, q1, 'quiz-9', 'written', 40, 1, '고쳐 쓴 답')
+  on conflict (worksheet_id, response_id) do update
+    set chars = excluded.chars, ink_strokes = excluded.ink_strokes, text = excluded.text,
+        user_id = excluded.user_id, quiz_item_id = excluded.quiz_item_id, kind = excluded.kind;
+
+  select chars into v from public.responses where worksheet_id = w1 and response_id = 'quiz-9';
+  if v <> 40 then raise exception 'FAIL 두 번째 저장이 반영되지 않았다 (chars=%)', v; end if;
+  raise notice 'PASS upsert: 같은 자리를 다시 저장할 수 있다';
+
+  -- 학습 과정을 담을 칸. 정답보다 변화가 중요하다.
+  update public.responses
+     set revision_history = '[{"chars":12,"at":1},{"chars":40,"at":2}]'::jsonb,
+         feedback_seen = true, changed_mind = true
+   where worksheet_id = w1 and response_id = 'quiz-9';
+  raise notice 'PASS 고쳐 쓴 이력과 피드백 열람 여부가 저장된다';
+
+  -- 넓힌 권한이 구멍이 되지 않아야 한다.
+  begin
+    update public.responses set user_id = '44444444-4444-4444-4444-444444444444'
+     where worksheet_id = w1 and response_id = 'quiz-9';
+    raise exception 'FAIL 응답 소유자가 바뀌었다';
+  exception when insufficient_privilege then
+    raise notice 'PASS 응답 소유자는 바꿀 수 없다';
+  end;
+
+  begin
+    update public.responses set quiz_item_id = null
+     where worksheet_id = w1 and response_id = 'quiz-9';
+    raise exception 'FAIL 가리키는 문항이 바뀌었다';
+  exception when insufficient_privilege then
+    raise notice 'PASS 응답이 가리키는 문항은 바꿀 수 없다';
+  end;
+
+  raise notice '── responses upsert 테스트 전부 통과 ──';
+end $$;
+
+reset role;
