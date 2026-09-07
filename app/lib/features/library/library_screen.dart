@@ -11,7 +11,11 @@ import '../../ui/states/app_state_views.dart';
 import 'library_controller.dart';
 import 'worksheet_tile.dart';
 
-/// 만든 학습지가 전부 쌓이는 곳. 무한 스크롤이지만 요청은 한 번에 하나만 나간다.
+/// 조건으로 찾는 곳 — 검색어와 상태 필터.
+///
+/// 만든 학습지가 **전부** 보이는 곳은 홈이다. 여기는 그중에서 골라내는 화면이라,
+/// 같은 컨트롤러의 걸러진 목록(`visible`)을 그린다. 목록 자체가 두 벌이 되면
+/// 한쪽에서 지운 학습지가 다른 쪽에 남는다.
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
 
@@ -89,7 +93,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
     return Scaffold(
       backgroundColor: p.surfaceBase,
-      appBar: AppBar(title: const Text('서재')),
+      appBar: AppBar(title: const Text('찾기')),
       body: SafeArea(
         top: false,
         bottom: false,

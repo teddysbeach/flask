@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/app_error.dart';
+import '../../data/supabase.dart';
 import '../../data/worksheet_repository.dart';
 import '../../domain/models.dart';
 
@@ -172,7 +173,17 @@ class LibraryController extends StateNotifier<LibraryState> {
   }
 }
 
+/// 홈과 찾기 탭이 **함께 보는** 목록.
+///
+/// 두 벌로 두면 한쪽에서 지운 학습지가 다른 쪽에 남고, 같은 페이지를 두 번 받아 온다.
+/// 홈은 `items`(거르지 않은 전부)를, 찾기는 `visible`(검색·필터를 건 것)을 그린다.
+///
+/// autoDispose 가 아니다. 탭 두 개가 IndexedStack 안에서 살아 있어 어차피 안 죽고,
+/// 죽지 않는 것을 autoDispose 로 두면 "계정이 바뀌어도 안 비워진다" 는 사실이 숨는다.
+/// 그래서 계정을 **명시적으로** 지켜본다 — 로그아웃하고 다른 계정으로 들어왔는데
+/// 앞사람의 학습지 목록이 그대로 남아 있으면 안 된다.
 final libraryControllerProvider =
-    StateNotifierProvider.autoDispose<LibraryController, LibraryState>(
-  (ref) => LibraryController(ref.watch(worksheetRepositoryProvider)),
-);
+    StateNotifierProvider<LibraryController, LibraryState>((ref) {
+  ref.watch(currentUserProvider);
+  return LibraryController(ref.watch(worksheetRepositoryProvider));
+});

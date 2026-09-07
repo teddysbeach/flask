@@ -20,6 +20,7 @@ import '../../data/supabase.dart';
 import '../../data/worksheet_repository.dart';
 import '../../domain/models.dart';
 import '../../ui/states/app_state_views.dart';
+import '../library/library_controller.dart';
 import 'worksheet_assets.dart';
 import '../../ui/widgets/feedback.dart';
 import 'worksheet_response_mapping.dart';
@@ -641,6 +642,7 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
     if (next == null || next.trim() == data.sheet.displayTitle) return;
     try {
       await ref.read(worksheetRepositoryProvider).rename(widget.worksheetId, next);
+      unawaited(ref.read(libraryControllerProvider.notifier).refresh());
       // 제목은 뷰어·서재·홈이 같이 들고 있다. 한 곳만 고치면 서로 다른 제목이 보인다.
       ref.invalidate(worksheetViewProvider(widget.worksheetId));
       if (mounted) AppFeedback.toast(context, '제목을 바꿨어요.');
@@ -686,6 +688,9 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
 
     try {
       await ref.read(worksheetRepositoryProvider).delete(widget.worksheetId);
+      // 홈과 찾기가 같은 목록을 본다. 지운 장이 목록에 남아 있으면 눌렀을 때
+      // "없는 학습지" 오류가 나고, 사용자는 삭제가 실패한 줄 안다.
+      unawaited(ref.read(libraryControllerProvider.notifier).refresh());
       if (!mounted) return;
       // 지운 학습지의 뷰어에 남아 있을 이유가 없다.
       if (context.canPop()) {

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onpar/core/routes.dart';
 import 'package:onpar/data/stats_repository.dart';
@@ -57,6 +59,40 @@ void main() {
       expect(const LibraryState().narrowed, isFalse);
       expect(const LibraryState(query: '미분').narrowed, isTrue);
       expect(const LibraryState(filter: LibraryFilter.failed).narrowed, isTrue);
+    });
+  });
+
+  group('홈과 찾기는 한 목록을 본다', () {
+    WorksheetSummary sheet(String id, {WorksheetStatus s = WorksheetStatus.ready}) =>
+        WorksheetSummary(id: id, topic: '주제 $id', status: s, createdAt: DateTime(2026));
+
+    test('홈은 필터·검색을 적용하지 않는다', () {
+      // 찾기 탭에서 "실패" 를 걸어 두었다고 홈이 좁아지면 안 된다.
+      // 홈은 items 를, 찾기는 visible 을 그린다.
+      final state = LibraryState(
+        items: [sheet('1'), sheet('2', s: WorksheetStatus.failed)],
+        filter: LibraryFilter.failed,
+        query: '아무거나',
+      );
+      expect(state.items.length, 2, reason: '홈이 보는 목록');
+      expect(state.visible, isEmpty, reason: '찾기가 보는 목록');
+    });
+  });
+
+  group('목록이 갱신되는 자리', () {
+    test('만들기·완성·삭제·제목수정 뒤에 공유 목록을 다시 받는다', () {
+      // 홈과 찾기가 한 컨트롤러를 보므로, 목록을 바꾸는 곳은 모두 새로 받아야 한다.
+      // 안 부르면 방금 만든 학습지가 홈에 없고, 지운 학습지가 목록에 남는다.
+      const callers = {
+        'lib/features/create/create_screen.dart': '만들기 주문',
+        'lib/features/create/create_progress_screen.dart': '완성·실패',
+        'lib/features/worksheet/worksheet_screen.dart': '삭제·제목 수정',
+      };
+      for (final entry in callers.entries) {
+        final src = File(entry.key).readAsStringSync();
+        expect(src, contains('libraryControllerProvider.notifier'),
+            reason: '${entry.value} 뒤에 목록을 다시 받지 않는다 (${entry.key})');
+      }
     });
   });
 

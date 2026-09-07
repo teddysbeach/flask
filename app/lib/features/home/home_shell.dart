@@ -18,7 +18,9 @@ class HomeShell extends ConsumerStatefulWidget {
 
   static const _tabs = <_ShellTab>[
     _ShellTab(icon: DsIcons.home, label: '홈'),
-    _ShellTab(icon: DsIcons.library, label: '서재'),
+    // 홈이 모든 학습지를 보여주게 된 뒤로, 이 탭의 일은 **조건으로 찾는 것**이다.
+    // 이름이 '서재' 면 홈과 같은 일을 하는 곳처럼 보인다.
+    _ShellTab(icon: DsIcons.search, label: '찾기'),
     _ShellTab(icon: DsIcons.review, label: '복습'),
     _ShellTab(icon: DsIcons.settings, label: '설정'),
   ];

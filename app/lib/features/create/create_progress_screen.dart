@@ -12,6 +12,7 @@ import '../../data/profile_repository.dart';
 import '../../data/worksheet_repository.dart';
 import '../../domain/models.dart';
 import '../../ui/states/app_state_views.dart';
+import '../library/library_controller.dart';
 
 /// 생성 중인 학습지 하나를 지켜본다. 리포지터리가 Realtime 대신 폴링으로 받쳐 주고,
 /// 5분이 넘으면 timeout 을 던진다.
@@ -103,7 +104,11 @@ class _CreateProgressScreenState extends ConsumerState<CreateProgressScreen> {
     // 완성되면 곧바로 뷰어로. build 안에서 화면을 바꾸면 안 되므로 프레임 뒤로 미룬다.
     ref.listen(worksheetProgressProvider(widget.worksheetId), (_, next) {
       final w = next.valueOrNull;
-      if (w == null || w.status != WorksheetStatus.ready) return;
+      if (w == null || !w.isTerminal) return;
+      // 홈 목록의 "만드는 중" 을 완성(또는 실패)으로 바꾼다. 안 부르면 사용자는
+      // 다 만들어진 학습지를 보고 나온 뒤에도 홈에서 계속 만드는 중을 본다.
+      unawaited(ref.read(libraryControllerProvider.notifier).refresh());
+      if (w.status != WorksheetStatus.ready) return;
       WidgetsBinding.instance.addPostFrameCallback((_) => _openWorksheet());
     });
 

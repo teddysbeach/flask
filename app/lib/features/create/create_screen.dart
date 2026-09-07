@@ -14,6 +14,7 @@ import '../../core/routes.dart';
 import '../../data/profile_repository.dart';
 import '../../data/worksheet_repository.dart';
 import '../../ui/states/app_state_views.dart';
+import '../library/library_controller.dart';
 import '../../ui/widgets/feedback.dart';
 
 /// 서버가 받는 난이도. 화면 문구와 서버 값을 한곳에서 묶어 둔다 —
@@ -158,6 +159,9 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
 
       // 쿼터가 줄었다. 홈이 옛 숫자를 들고 있으면 사용자는 한 장을 더 쓸 수 있다고 믿는다.
       ref.invalidate(profileProvider);
+      // 홈 목록에도 "만드는 중" 한 장이 생겨야 한다. 안 부르면 사용자는 방금 주문한
+      // 학습지가 홈에 없는 것을 보고 주문이 안 들어갔다고 생각한다.
+      unawaited(ref.read(libraryControllerProvider.notifier).refresh());
 
       // 되돌아올 곳은 진행 화면이 아니라 여기 이전이다 — 만들기 화면은 역할을 마쳤다.
       // 라우터를 거쳐야 한다. Navigator 로 직접 얹으면 진행 화면이 라우터 스택 밖에 떠서,
