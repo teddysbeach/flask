@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onpar_design_system/onpar_design_system.dart';
 
+import '../../core/analytics.dart';
 import '../../core/bootstrap.dart';
 import '../../core/routes.dart';
 
@@ -49,7 +50,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   void initState() {
     super.initState();
-    // TODO(analytics): onboardingStart
+    ref.read(analyticsProvider).track(AnalyticsEvent.onboardingStart);
   }
 
   @override
@@ -61,10 +62,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Future<void> _finish({required bool skipped}) async {
     // 온보딩을 봤다는 사실은 기기에 남는다 — 건너뛰어도 마찬가지다.
     // 안 남기면 앱을 켤 때마다 같은 세 장을 다시 보게 된다.
+    final analytics = ref.read(analyticsProvider);
+    // 어디까지 보고 건너뛰었는지가 온보딩을 고칠 때 쓰는 유일한 단서다.
     if (skipped) {
-      // TODO(analytics): onboardingSkip
+      analytics.track(AnalyticsEvent.onboardingSkip, props: {'page': _index, 'pages': _pages.length});
     } else {
-      // TODO(analytics): onboardingComplete
+      analytics.track(AnalyticsEvent.onboardingComplete, props: {'pages': _pages.length});
     }
     await ref.read(localFlagsProvider).setOnboarded(true);
     if (!mounted) return;

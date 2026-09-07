@@ -17,6 +17,9 @@ enum AnalyticsEvent {
   signupComplete,
   loginComplete,
   logout,
+  /// 만들기 화면에 들어온 것. 제출(worksheetCreateStart)과 반드시 구분한다 —
+  /// 둘을 한 이름으로 쓰면 한 번 만들 때 이벤트가 두세 번 나가서 생성 성공률이 낮게 보인다.
+  worksheetCreateEntry,
   worksheetCreateStart,
   worksheetCreateComplete,
   worksheetCreateFailed,

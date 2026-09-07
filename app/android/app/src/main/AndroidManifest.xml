@@ -1,0 +1,148 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- ══ 권한 ═══════════════════════════════════════════════════════════
+         원칙: 쓰지 않는 권한은 선언하지 않는다. 선언 자체가 Play 데이터 세이프티 항목을
+         늘리고, 설치 전 권한 목록에 나타나 설치율을 떨어뜨린다.
+         여기 없는 것들은 "빠뜨린" 게 아니라 "일부러 뺀" 것이다. 아래 주석에 이유를 남긴다. -->
+
+    <!-- 서버(Supabase)와 학습지 HTML 을 받아 온다. HTTPS 만 쓴다 —
+         android:usesCleartextTraffic 은 넣지 않는다(기본값이 이미 차단이다). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- 복습 알림. Android 13(API 33)부터 런타임 권한이다.
+         첫 실행에 묻지 않고 첫 학습지를 만든 뒤에 묻는다(lib/core/permissions.dart). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <!-- ── 정확한 알람: 왜 필요한가 ───────────────────────────────────────
+         복습 알림은 "사용자가 고른 시각"과 "야간 금지 구간(22~08시)" 두 약속을 지켜야 한다
+         (lib/core/notifications.dart 의 kQuietStartHour / kQuietEndHour).
+         inexact 알람은 Doze 유지보수 창까지 밀릴 수 있어서, 21시에 걸어 둔 알림이
+         23시에 울리는 일이 생긴다 — 우리가 하지 않겠다고 한 바로 그 일이다.
+         그래서 정확한 알람을 "쓸 수 있으면 쓴다".
+
+         SCHEDULE_EXACT_ALARM 만 선언한다. 이것은 Android 14 이상에서 기본 거부이고
+         사용자가 설정에서 켜고 끌 수 있다. 그래서 앱은 권한 없이도 동작해야 하고,
+         실제로 그렇게 되어 있다 — canScheduleExactNotifications() 가 false 면
+         inexactAllowWhileIdle 로 떨어진다(NotificationService._scheduleMode).
+         알림이 유실돼도 복습 큐는 서버가 소스 오브 트루스라 앱을 열면 복원된다.
+
+         USE_EXACT_ALARM 은 **넣지 않는다**. 그건 사용자가 끌 수 없는 자동 승인 권한이고,
+         Play 정책상 알람시계·타이머·캘린더처럼 정확한 시각이 앱의 핵심 기능인 부류에만
+         허용된다. ONPAR 은 학습지 앱이다. 신청하면 반려당하는 게 정상이다. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+
+    <!-- 인앱 결제(in_app_purchase). 장수 소모품 결제에 쓴다. -->
+    <uses-permission android:name="com.android.vending.BILLING"/>
+
+    <!-- 프로필 사진을 직접 찍을 때. 이걸 선언하면 촬영 전에 런타임 요청이 필요해지고,
+         permission_handler 의 Permission.camera 와 시스템 설정의 토글이 생긴다
+         (거부당했을 때 "설정 열기" 로 보낼 곳이 있어야 한다). -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+
+    <!-- 카메라가 없는 기기(일부 태블릿·크롬북)에서도 설치되게 한다.
+         CAMERA 권한을 선언하면 Play 가 자동으로 카메라를 필수 기능으로 잡아 버린다. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
+
+    <!-- ── 일부러 넣지 않은 권한 ──────────────────────────────────────────
+         READ_MEDIA_IMAGES / READ_EXTERNAL_STORAGE
+             image_picker 는 시스템 포토 피커를 쓴다. 사용자가 고른 사진 한 장만
+             넘어오므로 저장소 권한이 필요 없다. 선언하면 "사진 및 동영상 전체 접근" 이
+             데이터 세이프티에 붙는데, 우리는 앨범을 읽지 않는다.
+         RECEIVE_BOOT_COMPLETED
+             재부팅 뒤 알림을 다시 걸어 주는 권한. 복습 스케줄의 소스 오브 트루스는
+             서버라서 앱을 열면 큐가 복원된다. 부팅 브로드캐스트를 받을 이유가 없다.
+         ACCESS_*_LOCATION / RECORD_AUDIO / READ_CONTACTS / READ_PHONE_STATE
+             쓰는 기능이 없다. docs/plan/16-app-checklist.md 에서 "없음" 으로 못 박았다.
+         WAKE_LOCK / VIBRATE
+             flutter_local_notifications 의 매니페스트에서 병합되어 들어온다.
+             알림을 울리기 위한 일반 권한이라 사용자에게 묻지 않는다. -->
+
+    <application
+        android:label="@string/app_name"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize"
+            android:screenOrientation="fullUser">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+
+            <!-- ── 딥링크 1: 커스텀 스킴 me.popol.onpar:// ──────────────────
+                 Supabase 이메일 인증 · 비밀번호 재설정 · OAuth 리다이렉트가 돌아오는 통로.
+                 lib/core/env.dart 의 APP_SCHEME 기본값과 같아야 한다.
+                 도메인 검증이 필요 없어 항상 동작한다 — 그래서 인증 흐름은 이쪽을 쓴다.
+                 예: me.popol.onpar://worksheet/{id}?quiz={quizId}, me.popol.onpar://review -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="me.popol.onpar"/>
+            </intent-filter>
+
+            <!-- ── 딥링크 2: App Links https://onpar.app/... ────────────────
+                 autoVerify 가 붙으면 OS 가 설치 시점에
+                 https://onpar.app/.well-known/assetlinks.json 을 받아 서명 지문을 대조한다.
+                 통과해야 "브라우저로 열까요?" 선택지 없이 바로 앱이 열린다.
+                 파일이 없거나 지문이 다르면 조용히 검증만 실패하고 링크는 브라우저로 간다
+                 (앱이 깨지지는 않는다).
+
+                 서버 쪽 짝:
+                   {"relation":["delegate_permission/common.handle_all_urls"],
+                    "target":{"namespace":"android_app","package_name":"me.popol.onpar",
+                              "sha256_cert_fingerprints":["<Play 앱 서명 키 SHA-256>"]}}
+                 Play 앱 서명을 쓰면 업로드 키가 아니라 **Play 가 쥔 배포 키** 지문이어야 한다.
+                 확인: adb shell pm get-app-links me.popol.onpar -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="onpar.app"/>
+            </intent-filter>
+        </activity>
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+
+    <!-- Required to query activities that can process text, see:
+         https://developer.android.com/training/package-visibility and
+         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- url_launcher: 약관·스토어 링크는 브라우저로, 문의는 메일 앱으로 넘긴다.
+             Android 11+ 는 이 선언이 없으면 canLaunchUrl 이 항상 false 다. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO"/>
+            <data android:scheme="mailto"/>
+        </intent>
+    </queries>
+</manifest>

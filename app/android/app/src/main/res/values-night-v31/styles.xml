@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- values-v31 의 다크 모드 짝. 리소스 한정자 우선순위는 night 가 버전보다 앞이라,
+     이 파일이 없으면 다크 모드 Android 12 기기는 values-night 로 떨어지면서
+     windowSplashScreen* 설정을 잃는다.
+
+     Android 12(API 31)부터 시스템이 스플래시를 직접 그린다. windowBackground 는 무시되고
+     아래 세 속성만 읽는다. 이걸 안 채우면 흰 바탕에 런처 아이콘이 뜨면서
+     주황 스플래시가 그 뒤에 한 번 더 나와 화면이 두 번 바뀐다. -->
+<resources>
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <item name="android:windowSplashScreenBackground">@color/brand_primary</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+    </style>
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">?android:colorBackground</item>
+    </style>
+</resources>

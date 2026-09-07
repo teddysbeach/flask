@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 프로세스가 뜨는 동안 보이는 창. 여기서 브랜드 스플래시를 그린다. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+    <!-- Flutter 엔진이 첫 프레임을 그린 뒤부터 쓰는 창 배경.
+         여기서도 스플래시를 유지하면 앱 배경이 주황으로 남는다. 시스템 배경으로 돌린다. -->
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">?android:colorBackground</item>
+    </style>
+</resources>

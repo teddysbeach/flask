@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:onpar_design_system/onpar_design_system.dart';
 
+import '../../core/analytics.dart';
 import '../../core/app_error.dart';
 import '../../core/routes.dart';
 import '../../data/profile_repository.dart';
@@ -31,6 +32,33 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   String? _busyProductId;
   bool _restoring = false;
 
+  /// 결제 화면 조회는 한 번만 센다. build 는 상품이 로드될 때마다 다시 불린다.
+  bool _viewTracked = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_viewTracked) return;
+    _viewTracked = true;
+    ref.read(analyticsProvider).track(AnalyticsEvent.paywallView, props: {'from': _entryPoint()});
+  }
+
+  /// 어디서 들어왔는지. **부르는 쪽이 아니라 이 화면이** 한 번만 쏜다 —
+  /// 진입 지점마다 이벤트를 쏘면 결제 화면 조회 수가 경로 수만큼 부풀려진다.
+  ///
+  /// 딥링크로도 들어올 수 있으니 값은 우리가 아는 모양만 통과시킨다.
+  /// 바깥에서 넣은 문자열이 그대로 분석 도구에 쌓이게 두지 않는다.
+  String _entryPoint() {
+    String? raw;
+    try {
+      raw = GoRouterState.of(context).uri.queryParameters['from'];
+    } catch (_) {
+      raw = null;
+    }
+    if (raw == null || raw.isEmpty) return 'direct';
+    return RegExp(r'^[a-z][a-z0-9_]{0,23}$').hasMatch(raw) ? raw : 'other';
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = DsTheme.of(context);
@@ -41,7 +69,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       if (event != null) _onPurchaseEvent(event);
     });
 
-    // TODO(analytics): paywallViewed
     return Scaffold(
       appBar: AppBar(
         title: const Text('학습지 충전'),
@@ -161,6 +188,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     final store = offer.store;
     if (store == null) return;
     setState(() => _busyProductId = offer.catalog.id);
+    // 상품 id 는 우리가 정한 고정 문자열이다(가격·영수증은 싣지 않는다).
+    ref.read(analyticsProvider)
+        .track(AnalyticsEvent.purchaseStart, props: {'product_id': offer.catalog.id});
     await ref.read(purchaseRepositoryProvider).buy(store);
     // 여기서 끝이 아니다 — 결과는 purchaseEventsProvider 로 온다.
     // 결제창이 뜬 뒤 앱이 죽어도 다음 실행에서 스트림이 그 거래를 다시 들고 온다.
@@ -168,6 +198,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
   Future<void> _restore() async {
     setState(() => _restoring = true);
+    ref.read(analyticsProvider).track(AnalyticsEvent.purchaseRestore);
     try {
       await ref.read(purchaseRepositoryProvider).restorePurchases();
       if (!mounted) return;

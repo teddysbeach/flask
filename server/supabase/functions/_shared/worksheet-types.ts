@@ -306,9 +306,9 @@ export interface WorksheetContent {
     } | null
   }
 
-  /** ⑤ 연습 — 문제 5개(far 2개 이상) + 확장 과제. */
+  /** ⑤ 연습 — 문제 4~7개(far 2개 이상, 증거 종류 3가지 이상) + 확장 과제. */
   practice: {
-    quiz: QuizItem[]                    // 정확히 5개
+    quiz: QuizItem[]                    // 4~7개. 개수가 아니라 evidence 종류로 숙달을 센다
     extended: { title: string; detail: string; estimated_minutes: number }[]   // 0~3
   }
 

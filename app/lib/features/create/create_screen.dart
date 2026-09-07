@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onpar_design_system/onpar_design_system.dart';
 
+import '../../core/analytics.dart';
 import '../../core/app_error.dart';
 import '../../core/logger.dart';
 import '../../core/routes.dart';
@@ -60,7 +61,13 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
   void initState() {
     super.initState();
     _topic.addListener(_onTopicChanged);
-    // TODO(analytics): worksheetCreateStart
+    // 들어온 것과 제출한 것은 다른 이벤트다. worksheetCreateStart 를 여기서도 쏘면
+    // 주문 한 건이 두 번 세어져 생성 성공률이 반토막으로 보인다.
+    // 들어와 놓고 제출하지 않은 비율은 장수를 깎는 화면이라 따로 봐야 한다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(analyticsProvider).track(AnalyticsEvent.worksheetCreateEntry);
+    });
   }
 
   @override
@@ -87,7 +94,12 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
     setState(() => _error = null);
 
     try {
-      // TODO(analytics): worksheetCreateSubmit — level, topicLength
+      // 주제 원문은 절대 싣지 않는다. 무엇을 배우려는지가 그대로 분석 도구에 쌓이면
+      // 그 자체가 민감정보다 — 길이만 남긴다.
+      ref.read(analyticsProvider).track(AnalyticsEvent.worksheetCreateStart, props: {
+        'level': _level.value,
+        'topic_length': _trimmed.runes.length,
+      });
       final id = await ref
           .read(worksheetRepositoryProvider)
           .create(topic: _trimmed, level: _level.value);
@@ -106,10 +118,17 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
       if (!mounted) return;
 
       // 쿼터 소진은 실패가 아니다. 오류 화면 대신 살 수 있는 곳으로 보낸다.
+      // paywallView 는 결제 화면이 스스로 한 번만 쏜다 — 진입 지점만 쿼리로 넘긴다.
       if (err.kind == AppErrorKind.quotaExhausted) {
-        // TODO(analytics): paywallOpen — 진입 지점(create_quota)
-        unawaited(context.push(Routes.paywall));
+        unawaited(context.push('${Routes.paywall}?from=create_quota'));
         return;
+      }
+      // 취소는 실패가 아니다 — 이벤트도 크래시 리포트도 남기지 않는다.
+      if (!err.isCancelled) {
+        // 서버 원문은 싣지 않는다. 실패의 종류만 남긴다.
+        ref.read(analyticsProvider).track(AnalyticsEvent.worksheetCreateFailed,
+            props: {'stage': 'submit', 'kind': err.kind.name});
+        ref.read(crashReporterProvider).recordError(e, st, context: 'worksheet.create');
       }
       setState(() => _error = err);
     }
@@ -177,10 +196,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
             ),
             const SizedBox(height: DsSpace.s6),
             FilledButton(
-              onPressed: () {
-                // TODO(analytics): paywallOpen — 진입 지점(create_empty)
-                context.push(Routes.paywall);
-              },
+              onPressed: () => context.push('${Routes.paywall}?from=create_empty'),
               child: const Text('충전하기'),
             ),
           ],

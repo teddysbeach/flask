@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onpar_design_system/onpar_design_system.dart';
 
+import '../../core/analytics.dart';
 import '../../core/bootstrap.dart';
 import '../../core/routes.dart';
 import '../../domain/models.dart';
@@ -57,7 +58,11 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
       AppFeedback.toast(context, '동의를 저장하지 못했어요. 다시 시도해 주세요.', danger: true);
       return;
     }
-    // TODO(analytics): consentAccept
+    // 동의 여부(선택 항목 포함)와 버전만 남긴다. 본문·개인정보는 싣지 않는다.
+    ref.read(analyticsProvider).track(AnalyticsEvent.consentAccept, props: {
+      'version': ConsentScreen.version,
+      'marketing': _marketing,
+    });
     if (!mounted) return;
     final onDone = widget.onDone;
     if (onDone != null) {

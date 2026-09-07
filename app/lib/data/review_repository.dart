@@ -30,7 +30,8 @@ class ReviewRepository {
           .eq('state', 'pending')
           .lte('due_at', DateTime.now().toUtc().toIso8601String())
           .order('due_at', ascending: true)
-          .limit(limit);
+          .limit(limit)
+          .withTimeout();
       return _map(rows);
     } catch (e, st) {
       throw mapSupabaseError(e, st);
@@ -49,7 +50,8 @@ class ReviewRepository {
           .eq('state', 'pending')
           .gt('due_at', DateTime.now().toUtc().toIso8601String())
           .order('due_at', ascending: true)
-          .limit(limit);
+          .limit(limit)
+          .withTimeout();
       return _map(rows);
     } catch (e, st) {
       throw mapSupabaseError(e, st);
@@ -72,7 +74,7 @@ class ReviewRepository {
       await _client.functions.invoke(
         'answer-review',
         body: {'schedule_id': scheduleId, 'grade': grade},
-      );
+      ).withTimeout();
     } catch (e, st) {
       throw mapSupabaseError(e, st);
     }

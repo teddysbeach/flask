@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 런처에 뜨는 이름. 한국어 앱이지만 브랜드는 로마자 그대로 쓴다. -->
+    <string name="app_name">ONPAR</string>
+</resources>

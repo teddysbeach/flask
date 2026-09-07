@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/app_config_repository.dart';
 import '../domain/models.dart';
 import 'env.dart';
 import 'version_gate.dart';
@@ -70,9 +71,10 @@ final appGateProvider = FutureProvider<AppGate>((ref) async {
   }
 });
 
-/// 실제 호출은 data 계층이 꽂는다. core 가 Supabase 를 직접 알지 않게 둔다.
+/// 실제 호출은 data 계층이 한다. core 는 Supabase 를 직접 알지 않고 함수 하나만 본다 —
+/// 테스트는 [appConfigRepositoryProvider] 나 [appPlatformProvider] 만 갈아끼우면 된다.
 final _gateClientProvider = Provider<Future<Map<String, Object?>?> Function()>(
-  (ref) => () async => null,
+  (ref) => ref.watch(appConfigRepositoryProvider).fetch,
 );
 
 /// 부팅 판정 결과.

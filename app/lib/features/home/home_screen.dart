@@ -62,7 +62,9 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(height: DsSpace.s8),
               FilledButton(
                 onPressed: () {
-                  // TODO(analytics): worksheetCreateEntry — 진입 지점(home)
+                  // 진입 지점 자체는 이벤트로 남기지 않는다. 화면 조회(/create)는 라우터가 잡고,
+                  // "만들기 시작" 은 실제로 주문이 나가는 순간(create 화면의 제출)에 한 번만 남긴다.
+                  // 여기서도 worksheetCreateStart 를 쏘면 한 번 만들 때 두 번 세어진다.
                   context.push(Routes.create);
                 },
                 child: const Text('학습지 만들기'),

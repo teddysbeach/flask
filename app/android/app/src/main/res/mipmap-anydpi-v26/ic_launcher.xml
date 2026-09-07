@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 적응형 아이콘(API 26+). 런처가 배경과 전경을 따로 잡고 마스크·시차 효과를 준다.
+     전경 PNG 는 108dp 캔버스지만 실제로 보이는 것은 가운데 72dp 원 안쪽이다 —
+     마크가 그 안에 들어가는지는 assets/icon/build_icons.mjs 의 REACH 검사가 보증한다. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+    <monochrome android:drawable="@mipmap/ic_launcher_foreground"/>
+</adaptive-icon>

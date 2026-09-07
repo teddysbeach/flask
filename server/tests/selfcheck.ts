@@ -32,10 +32,10 @@ const NATURAL_EXAMPLE: Record<string, string[]> = {
   language: ['compare', 'scene'],
   finance: ['calc', 'compare'],
   history: ['scene', 'compare'],
-  business: ['steps', 'compare', 'scene'],
-  health: ['steps', 'scene'],
+  business: ['steps', 'compare', 'scene', 'calc'],  // 손익분기·마진은 실제로 계산해 보는 것이 예시다
+  health: ['steps', 'scene', 'compare'],            // 두 방법을 나란히 놓는 표가 흔하다
   cooking: ['steps', 'compare'],
-  psychology: ['scene', 'steps'],
+  psychology: ['scene', 'steps', 'compare'],        // 두 사람의 기록을 견주는 것이 이 분야의 자료다
 }
 
 interface Row {

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onpar_design_system/onpar_design_system.dart';
 
+import '../../core/analytics.dart';
 import '../../core/app_error.dart';
 import '../../core/logger.dart';
 import '../../core/routes.dart';
@@ -55,7 +56,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   @override
   void initState() {
     super.initState();
-    // TODO(analytics): signupStart
+    ref.read(analyticsProvider).track(AnalyticsEvent.signupStart);
   }
 
   @override
@@ -117,6 +118,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       final error = AppError.from(e, st);
       if (error.isCancelled) return;
       final exists = (error.code ?? '').contains('exists');
+      // 이미 가입된 이메일은 우리 쪽 고장이 아니다 — 리포트에 남기면 진짜 고장이 묻힌다.
+      if (!exists) ref.read(crashReporterProvider).recordError(e, st, context: 'signup');
       setState(() {
         _alreadyRegistered = exists;
         _emailError = exists ? error.message : null;
@@ -138,7 +141,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     }
 
     if (!mounted) return;
-    // TODO(analytics): signupComplete
+    // 이메일 주소·닉네임은 싣지 않는다. 가입이 끝났다는 사실만 남긴다.
+    ref.read(analyticsProvider).track(AnalyticsEvent.signupComplete,
+        props: {'method': 'password', 'has_session': repo.session != null});
     context.go(Routes.verify, extra: VerifyArgs(mode: VerifyMode.email, target: email));
   }
 

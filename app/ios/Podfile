@@ -1,0 +1,90 @@
+# ONPAR iOS.
+#
+# 최소 iOS 버전은 **13.0** 이다. 의존성이 요구하는 값 중 가장 높은 것을 따랐다.
+#   in_app_purchase_storekit 0.4.8   → 13.0
+#   image_picker_ios 0.8.13          → 13.0
+#   url_launcher_ios 6.3.6           → 13.0
+#   shared_preferences_foundation    → 13.0
+#   flutter_inappwebview_ios 1.1.2   → 12.0
+#   sign_in_with_apple               → 실제 API 가 13.0 부터다
+# Flutter 3.35 의 기본 배포 타깃도 13.0 이라 더 내릴 이유가 없다.
+# 올리려면 위 목록이 아니라 "어느 기기를 버리는가" 를 근거로 올려야 한다.
+platform :ios, '13.0'
+
+# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+flutter_ios_podfile_setup
+
+target 'Runner' do
+  use_frameworks!
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  target 'RunnerTests' do
+    inherit! :search_paths
+  end
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+
+    target.build_configurations.each do |config|
+      # 플러그인 중 몇 개는 자기 podspec 에 더 낮은 배포 타깃을 적어 두는데,
+      # Xcode 16 은 그걸 경고로 뱉는다. 앱과 같은 값으로 맞춘다.
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+
+      # ── permission_handler 가 컴파일할 권한을 우리가 쓰는 셋으로 못 박는다 ──────
+      #
+      # permission_handler_apple 은 기본값으로 위치·마이크·연락처·캘린더·건강까지
+      # **전부** 컴파일한다. 그러면 바이너리 안에 CLLocationManager · AVAudioSession 같은
+      # API 참조가 남고, App Store 는 "선언되지 않은 권한 API 를 쓴다" 며 반려하거나
+      # 개인정보 고지 항목을 늘리라고 요구한다.
+      #
+      # 그래서 셋만 켠다: 알림 · 사진 · 카메라 (lib/core/permissions.dart 와 같은 목록).
+      # 여기에 권한을 하나 더 켜면 Info.plist 에 문구를 같이 넣어야 한다 — 짝이다.
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] += [
+        'PERMISSION_EVENTS=0',
+        'PERMISSION_EVENTS_FULL_ACCESS=0',
+        'PERMISSION_REMINDERS=0',
+        'PERMISSION_CONTACTS=0',
+        'PERMISSION_MICROPHONE=0',
+        'PERMISSION_SPEECH_RECOGNIZER=0',
+        'PERMISSION_LOCATION=0',
+        'PERMISSION_LOCATION_WHENINUSE=0',
+        'PERMISSION_MEDIA_LIBRARY=0',
+        'PERMISSION_SENSORS=0',
+        'PERMISSION_BLUETOOTH=0',
+        'PERMISSION_APP_TRACKING_TRANSPARENCY=0',
+        'PERMISSION_CRITICAL_ALERTS=0',
+        'PERMISSION_ASSISTANT=0',
+        # 쓰는 것들 — 명시적으로 켜 둔다.
+        'PERMISSION_NOTIFICATIONS=1',
+        'PERMISSION_PHOTOS=1',
+        'PERMISSION_CAMERA=1',
+      ]
+    end
+  end
+end

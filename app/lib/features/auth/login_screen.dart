@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onpar_design_system/onpar_design_system.dart';
 
+import '../../core/analytics.dart';
 import '../../core/app_error.dart';
 import '../../core/routes.dart';
 import '../../data/auth_repository.dart';
@@ -54,7 +55,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void _showFailure(Object error, StackTrace stack) {
     final e = AppError.from(error, stack);
     // 사용자가 소셜 로그인 창을 스스로 닫은 것은 실패가 아니다. 아무 말도 하지 않는다.
+    // 취소는 오류가 아니므로 크래시 리포트에도 남기지 않는다 — 남기면 진짜 오류가 묻힌다.
     if (e.isCancelled) return;
+    ref.read(crashReporterProvider).recordError(error, stack, context: 'login');
     setState(() {
       if (e.kind == AppErrorKind.validation) {
         // 어느 쪽이 틀렸는지는 알려주지 않는다 — 알려주면 계정 존재 여부가 샌다.
@@ -85,7 +88,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       await ref.read(authRepositoryProvider).signInWithEmail(email: email, password: password);
       if (!mounted) return;
-      // TODO(analytics): loginComplete
+      ref.read(analyticsProvider).track(AnalyticsEvent.loginComplete, props: {'method': 'password'});
       // 이동은 라우터가 한다. 여기서는 입력만 정리한다.
       TextInput.finishAutofillContext();
     } catch (e, st) {
@@ -98,7 +101,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _clearErrors();
     try {
       await ref.read(authRepositoryProvider).signInWithApple();
-      // TODO(analytics): loginComplete
+      ref.read(analyticsProvider).track(AnalyticsEvent.loginComplete, props: {'method': 'apple'});
     } catch (e, st) {
       if (!mounted) return;
       _showFailure(e, st);
@@ -112,7 +115,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await ref
           .read(authRepositoryProvider)
           .signInWithGoogle(iosClientId: null, serverClientId: null);
-      // TODO(analytics): loginComplete
+      ref.read(analyticsProvider).track(AnalyticsEvent.loginComplete, props: {'method': 'google'});
     } catch (e, st) {
       if (!mounted) return;
       _showFailure(e, st);

@@ -79,9 +79,103 @@ lib/
 **필기 좌표는 요소 기준 정규화(v2)** 라 화면 폭이 바뀌어도 필기가 자기 문제에 붙어 있다.
 자세한 것은 `docs/plan/06-annotation.md`.
 
+## 네이티브 빌드
+
+`ios/` 와 `android/` 는 `flutter create --org me.popol --project-name onpar` 로 만든 뒤
+아래 값들을 손으로 맞춘 것이다. 다시 만들면 덮어써지니 `flutter create` 를 다시 돌리지 않는다.
+
+| | 값 | 근거 |
+|---|---|---|
+| 번들 ID / applicationId | `me.popol.onpar` | `Env.appScheme` 기본값과 같아야 커스텀 스킴이 산다 |
+| 표시 이름 | `ONPAR` | `Info.plist` / `res/values/strings.xml` |
+| 최소 iOS | **13.0** | `in_app_purchase_storekit`·`image_picker_ios`·`url_launcher_ios`·`shared_preferences_foundation` 이 13.0 을 요구한다. `flutter_inappwebview` 는 12.0 이라 이쪽이 상한 |
+| 최소 Android | **minSdk 24** | `image_picker_android`·`url_launcher_android`·`shared_preferences_android` 가 24 를 요구한다 |
+| targetSdk / compileSdk | **36** | Play 는 최신 targetSdk 를 요구하고, `flutter_timezone` 이 compileSdk 35 이상을 요구한다 |
+
+```bash
+export PATH="/opt/flutter/bin:$PATH"
+
+flutter build apk --debug              # Android SDK 필요
+flutter build appbundle --release      # 릴리스 서명 키 필요(아래)
+cd ios && pod install && cd ..         # macOS + CocoaPods 필요
+flutter build ipa
+```
+
+`flutter build bundle` 은 네이티브 툴체인 없이도 돌아서, Dart 쪽만 확인할 때 쓴다.
+
+### 권한 — 쓰는 것과 안 쓰는 것
+
+셋만 쓴다. 알림 · 사진 · 카메라. `lib/core/permissions.dart` 가 다루는 목록과 정확히 같다.
+
+| 권한 | iOS | Android | 언제 |
+|---|---|---|---|
+| 알림 | 런타임 요청(문구 없음) | `POST_NOTIFICATIONS` | 첫 학습지를 만든 뒤 복습 알림용 |
+| 사진 | `NSPhotoLibraryUsageDescription` | (없음 — 시스템 포토 피커) | 프로필 사진을 고를 때 |
+| 카메라 | `NSCameraUsageDescription` | `CAMERA` | 프로필 사진을 직접 찍을 때 |
+
+그 밖에 Android 는 `INTERNET`, `SCHEDULE_EXACT_ALARM`, `com.android.vending.BILLING` 세 개를 더 쓴다.
+`SCHEDULE_EXACT_ALARM` 은 "야간(22~08시)에는 안 보낸다" 는 약속을 지키기 위한 것이고,
+없어도 근사 예약으로 떨어지게 되어 있다. `USE_EXACT_ALARM` 은 넣지 않는다 — 사용자가 끌 수 없는
+권한이라 알람시계·캘린더 앱에만 허용된다.
+
+**안 넣은 것:** 위치 · 마이크 · 연락처 · 캘린더 · `READ_MEDIA_IMAGES` · `RECEIVE_BOOT_COMPLETED` ·
+원격 푸시(`aps-environment`) · `usesCleartextTraffic`.
+이유는 각 파일 주석에 적어 두었다. 안 쓰는 권한을 선언하면 개인정보 고지 항목만 늘어난다.
+
+iOS 는 `Podfile` 의 `post_install` 이 `permission_handler` 를 이 셋만 컴파일하도록 못 박는다.
+그렇게 안 하면 위치·마이크 API 참조가 바이너리에 남아 심사에서 걸린다.
+
+### 딥링크
+
+| 형태 | 어디에 | 검증 |
+|---|---|---|
+| `me.popol.onpar://...` | iOS `CFBundleURLTypes`, Android intent-filter | 없음(항상 동작) |
+| `https://onpar.app/...` | iOS `Runner.entitlements` (`applinks:onpar.app`), Android `autoVerify="true"` | 도메인에 올린 파일로 검증 |
+
+Universal Links / App Links 는 **서버에 파일을 올려야** 산다. 안 올려도 앱은 멀쩡히 뜨고
+링크만 브라우저로 간다.
+
+- `https://onpar.app/.well-known/apple-app-site-association` — `TEAMID.me.popol.onpar`
+- `https://onpar.app/.well-known/assetlinks.json` — Play **앱 서명 키**(업로드 키가 아니다)의 SHA-256
+
+받는 쪽 규칙은 `lib/core/deep_links.dart` 한 곳에 있다. 새 경로를 열려면 거기와 위 두 파일을 같이 고친다.
+
+### 아이콘과 스플래시
+
+`flutter_launcher_icons` / `flutter_native_splash` 를 **쓰지 않는다.** 생성물이 네이티브 파일을
+덮어쓰면 왜 바뀌었는지 추적할 수 없다. 대신 SVG 원본 하나에서 필요한 PNG 를 굽는다.
+
+```bash
+node app/assets/icon/build_icons.mjs   # Playwright(Chromium)로 SVG → PNG
+```
+
+- 마크: 흰 점 여섯 개 = 6단계. 읽는 순서대로 커진다. 배경은 `design/design_tokens.json` 의 `brandPrimary`(#FF6600)
+- 스크립트가 마크가 Android 적응형 아이콘의 안전 원(가운데 66%)을 벗어나지 않는지 검사한다
+- 스플래시는 `ios/Runner/Base.lproj/LaunchScreen.storyboard` 와
+  `android/.../res/drawable*/launch_background.xml`(+ Android 12 이상용 `values-v31/styles.xml`)에 직접 있다
+
+### 릴리스 서명 (Android)
+
+`android/key.properties` 가 있으면 그 키로, 없으면 디버그 키로 서명한다.
+클론 직후에도 `flutter build apk` 가 그냥 되게 하려는 것이다. 이 파일은 커밋하지 않는다.
+
+```properties
+storePassword=...
+keyPassword=...
+keyAlias=upload
+storeFile=/절대/경로/upload-keystore.jks
+```
+
+릴리스 빌드는 R8 로 축소한다(`isMinifyEnabled`). `flutter_local_notifications` 가 예약 알림을
+Gson 으로 직렬화하므로 `proguard-rules.pro` 의 keep 규칙이 필요하다 —
+**첫 릴리스 전에 실기기에서 알림 예약을 한 번 확인한다.**
+
 ## 아직 안 된 것
 
 - Storage 업로드 배선(필기 파일, 프로필 이미지) — rev 잠금까지는 되어 있다
 - Firebase/Sentry — 인터페이스만 있고 SDK 는 계정이 생긴 뒤에
-- iOS/Android 네이티브 설정(번들 ID · 딥링크 · 권한 문구 · 아이콘)
+- **실기기 빌드 미검증** — 네이티브 설정은 다 들어갔지만(위 §네이티브 빌드)
+  이 환경에 Android SDK 도 Xcode 도 없어서 APK/IPA 를 실제로 구워 보지 못했다
+- 릴리스 서명 키(`android/key.properties`)와 Apple Team ID — 계정이 생긴 뒤에
+- 도메인 검증 파일 두 개(`assetlinks.json`, `apple-app-site-association`) — onpar.app 에 올려야 딥링크가 산다
 - **실기기에서 Apple Pencil 필압 확인** — 이게 가장 큰 미검증 가정이다

@@ -160,7 +160,7 @@ class AuthRepository {
       await _client.functions.invoke('delete-account', body: {
         'reason': reason,
         if (detail != null && detail.isNotEmpty) 'detail': detail,
-      });
+      }).withTimeout(kTransferTimeout);
       await _auth.signOut();
     } catch (e, st) {
       throw mapSupabaseError(e, st);

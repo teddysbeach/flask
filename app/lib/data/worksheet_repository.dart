@@ -22,7 +22,7 @@ class WorksheetRepository {
     try {
       var q = _client.from('worksheets').select();
       if (before != null) q = q.lt('created_at', before.toUtc().toIso8601String());
-      final rows = await q.order('created_at', ascending: false).limit(pageSize);
+      final rows = await q.order('created_at', ascending: false).limit(pageSize).withTimeout();
       return rows.map((r) => WorksheetSummary.fromMap(r)).toList();
     } catch (e, st) {
       throw mapSupabaseError(e, st);
@@ -31,7 +31,7 @@ class WorksheetRepository {
 
   Future<WorksheetSummary> get(String id) async {
     try {
-      final row = await _client.from('worksheets').select().eq('id', id).single();
+      final row = await _client.from('worksheets').select().eq('id', id).single().withTimeout();
       return WorksheetSummary.fromMap(row);
     } catch (e, st) {
       throw mapSupabaseError(e, st);
@@ -45,10 +45,12 @@ class WorksheetRepository {
     final key = 'create:${topic.trim()}:$level';
     return _guard.dedupe(key, () async {
       try {
+        // 서버는 202 로 바로 답한다. 여기서 오래 기다릴 이유가 없다 —
+        // 생성이 끝나는 것은 watch() 가 지켜본다.
         final res = await _client.functions.invoke(
           'generate-worksheet',
           body: {'topic': topic.trim(), 'level': level},
-        );
+        ).withTimeout();
         final data = res.data;
         if (data is Map && data['worksheet_id'] is String) {
           return data['worksheet_id'] as String;
@@ -89,7 +91,8 @@ class WorksheetRepository {
     try {
       return await _client.storage
           .from('worksheets')
-          .createSignedUrl(htmlPath, ttl.inSeconds);
+          .createSignedUrl(htmlPath, ttl.inSeconds)
+          .withTimeout();
     } catch (e, st) {
       throw mapSupabaseError(e, st);
     }
@@ -129,7 +132,8 @@ class WorksheetRepository {
         final inserted = await _client
             .from('annotations')
             .insert({...patch, 'worksheet_id': worksheetId, 'user_id': userId, 'format_version': 2})
-            .select('rev');
+            .select('rev')
+            .withTimeout();
         return (inserted.first['rev'] as num).toInt();
       }
 
@@ -138,7 +142,8 @@ class WorksheetRepository {
           .update(patch)
           .eq('worksheet_id', worksheetId)
           .eq('rev', rev)
-          .select('rev');
+          .select('rev')
+          .withTimeout();
 
       if (rows.isEmpty) {
         throw AppError.of(
@@ -160,7 +165,8 @@ class WorksheetRepository {
           .from('annotations')
           .select('strokes_path, rev, format_version')
           .eq('worksheet_id', worksheetId)
-          .limit(1);
+          .limit(1)
+          .withTimeout();
       if (rows.isEmpty) return (path: null, rev: 0, formatVersion: 2);
       final r = rows.first;
       return (
@@ -185,7 +191,7 @@ class WorksheetRepository {
       await _client.from('responses').upsert(
             rows.map((r) => {...r, 'worksheet_id': worksheetId, 'user_id': userId}).toList(),
             onConflict: 'worksheet_id,response_id',
-          );
+          ).withTimeout();
     } catch (e, st) {
       throw mapSupabaseError(e, st);
     }

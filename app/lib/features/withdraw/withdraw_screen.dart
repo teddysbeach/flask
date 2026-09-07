@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onpar_design_system/onpar_design_system.dart';
 
+import '../../core/analytics.dart';
 import '../../core/app_error.dart';
 import '../../core/routes.dart';
 import '../../data/auth_repository.dart';
@@ -108,6 +109,10 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
   bool get _canSubmit => !_working && _confirm.text.trim() == _confirmWord;
 
   Future<void> _submit() async {
+    // 확인 창 **앞에서** 센다. 여기와 withdrawComplete 사이의 차이가
+    // "마지막에 마음을 돌린 사람" 이고, 그게 탈퇴 흐름에서 볼 만한 유일한 숫자다.
+    ref.read(analyticsProvider).track(AnalyticsEvent.withdrawStart,
+        props: {'reason': (_reason ?? WithdrawReason.other).name});
     final ok = await AppFeedback.confirm(
       context,
       title: '정말 탈퇴할까요?',
@@ -128,7 +133,9 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
             detail: _detail.text.trim(),
           );
       if (!mounted) return;
-      // TODO(analytics): accountDeleted
+      // 탈퇴 사유는 닫힌 목록(enum 키)이라 실어도 안전하다. 자유 입력(detail)은 싣지 않는다.
+      ref.read(analyticsProvider).track(AnalyticsEvent.withdrawComplete,
+          props: {'reason': (_reason ?? WithdrawReason.other).name});
       // 로컬 플래그·보안 저장소 정리와 화면 이동은 라우터가 authState 변화를 보고 한다.
       setState(() {
         _done = true;

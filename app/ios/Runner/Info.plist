@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>ONPAR</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>ONPAR</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+
+	<!-- 한국어 앱이다. 심사에서 기본 언어가 영어로 잡히면 권한 문구도 영어로 읽힌다. -->
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>ko</string>
+	</array>
+
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+
+	<!-- ── 권한 문구 ──────────────────────────────────────────────────────
+	     Apple 은 "이 앱은 카메라가 필요합니다" 같은 모호한 문구를 반려한다.
+	     **언제 · 무엇에 · 어디까지** 쓰는지를 쓴다. 여기 없는 권한은 앱이 쓰지 않는다는 뜻이다.
+	     위치(NSLocation*)·마이크(NSMicrophone*)·연락처(NSContacts*)·캘린더·건강 키는
+	     의도적으로 넣지 않았다. 선언하는 순간 개인정보 처리방침과 Privacy Nutrition Label 에
+	     항목이 늘어나는데, ONPAR 은 그 데이터를 쓰지 않는다. -->
+	<key>NSCameraUsageDescription</key>
+	<string>프로필 사진을 직접 찍을 때만 카메라를 켭니다. 찍은 사진은 프로필 이미지로만 쓰이며, 학습지를 풀거나 필기할 때는 카메라를 쓰지 않습니다.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>프로필 사진으로 쓸 이미지를 고를 때만 사진에 접근합니다. 직접 고른 사진 한 장만 읽고, 앨범 전체를 훑거나 다른 사진을 서버로 보내지 않습니다.</string>
+
+	<!-- ── 딥링크 ────────────────────────────────────────────────────────
+	     커스텀 스킴. 이메일 인증 · 비밀번호 재설정 · OAuth 리다이렉트가 앱으로 돌아오는 통로다.
+	     lib/core/env.dart 의 APP_SCHEME 기본값과 같아야 한다.
+	     https://onpar.app 로 들어오는 Universal Links 는 Runner.entitlements 가 담당한다. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>me.popol.onpar</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>me.popol.onpar</string>
+			</array>
+		</dict>
+		<!-- Google 로그인은 역방향 클라이언트 ID 를 URL 스킴으로 요구한다.
+		     실제 값(com.googleusercontent.apps.NNNN-xxxx)은 Google Cloud 콘솔에서
+		     iOS 클라이언트를 만든 뒤에 나온다. 그때 아래 주석을 풀고 값을 채운다.
+		     GOOGLE_IOS_CLIENT_ID(dart-define)와 짝이다.
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>google-signin</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.CHANGE-ME</string>
+			</array>
+		</dict>
+		-->
+	</array>
+
+	<!-- 밖으로 나가는 링크. launchUrl(externalApplication) 자체는 이 목록이 없어도 되지만,
+	     canLaunchUrl 로 미리 물어볼 때는 필요하다. 여는 것만 하고 데이터를 주고받지 않는다. -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>https</string>
+		<string>mailto</string>
+		<string>itms-apps</string>
+	</array>
+
+	<!-- ── 화면 방향 ──────────────────────────────────────────────────────
+	     아이패드에서 학습지를 가로로 펴 놓고 애플펜슬로 쓴다. 아이폰도 가로를 막지 않는다
+	     (긴 문제·표를 볼 때 가로가 낫다). 아이폰만 upside-down 을 뺀다 — 홈 인디케이터가
+	     위로 가면 제스처가 어긋난다. -->
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+
+	<!-- 상태 바 색은 화면마다 다르다(스플래시는 주황, 본문은 흰 배경).
+	     Flutter 의 SystemChrome / AnnotatedRegion 이 정하게 하려면 뷰컨트롤러 기반이어야 한다. -->
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<true/>
+	<key>UIStatusBarHidden</key>
+	<false/>
+
+	<!-- ProMotion 120Hz. 애플펜슬 필기 지연이 눈에 띄게 줄어든다 — 이 앱의 핵심 상호작용이다. -->
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<!-- 트랙패드·마우스·펜슬 호버 같은 간접 입력 이벤트를 받는다. -->
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+
+	<!-- 통신은 전부 HTTPS(Supabase)다. NSAppTransportSecurity 예외를 두지 않는다 —
+	     예외를 하나라도 열면 심사에서 근거를 요구받고, 우리는 열 이유가 없다. -->
+
+	<!-- 표준 HTTPS/TLS 만 쓴다. 이 키가 없으면 업로드할 때마다 수출 규정 질문에 답해야 한다. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+</dict>
+</plist>

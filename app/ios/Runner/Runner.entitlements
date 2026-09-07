@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Universal Links. https://onpar.app/worksheet/{id} 같은 주소가 사파리를 거치지 않고
+	     바로 앱으로 들어온다. lib/core/deep_links.dart 가 받는 도메인과 같아야 한다.
+
+	     서버 쪽 짝: https://onpar.app/.well-known/apple-app-site-association 를
+	     Content-Type: application/json 으로, 리다이렉트 없이 내려 줘야 한다.
+	       {"applinks":{"details":[{"appIDs":["TEAMID.me.popol.onpar"],
+	                                "components":[{"/":"/worksheet/*"},{"/":"/review"},
+	                                              {"/":"/paywall"},{"/":"/notices"},
+	                                              {"/":"/settings"},{"/":"/reset-password"}]}]}}
+	     TEAMID 는 Apple Developer 계정이 생긴 뒤에 채운다. -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:onpar.app</string>
+	</array>
+
+	<!-- Apple 로그인(sign_in_with_apple). 소셜 로그인을 하나라도 넣으면 Apple 은
+	     iOS 앱에 Apple 로그인을 함께 넣도록 요구한다 — Google 로그인이 있으니 필수다. -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
+
+	<!-- aps-environment(원격 푸시)는 넣지 않는다. 복습 알림은 전부 로컬 알림이고
+	     (flutter_local_notifications), 서버가 푸시를 보내는 경로는 아직 없다.
+	     쓰지 않는 capability 를 켜 두면 프로비저닝 프로파일만 복잡해진다. -->
+</dict>
+</plist>

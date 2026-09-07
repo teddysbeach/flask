@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onpar_design_system/onpar_design_system.dart';
 
+import '../../core/analytics.dart';
 import '../../core/app_error.dart';
 import '../../core/bootstrap.dart';
 import '../../core/notifications.dart';
@@ -125,7 +126,9 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
             scheduleId: item.scheduleId,
             grade: grade,
           );
-      // TODO(analytics): reviewAnswer
+      // 문제 원문·답안은 싣지 않는다. 채점 등급과 몇 번째인지만 남긴다.
+      ref.read(analyticsProvider).track(AnalyticsEvent.reviewAnswer,
+          props: {'grade': grade, 'index': _index, 'total': total});
       if (!mounted) return;
 
       final last = _index + 1 >= total;

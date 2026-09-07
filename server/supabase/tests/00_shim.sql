@@ -31,7 +31,9 @@ language sql stable as $$
 $$;
 
 create table if not exists storage.buckets (
-  id text primary key, name text not null, public boolean not null default false
+  id text primary key, name text not null, public boolean not null default false,
+  -- 실제 Supabase 의 storage.buckets 에 있는 컬럼. 버킷 단위 용량/타입 제한을 마이그레이션이 건다.
+  file_size_limit bigint, allowed_mime_types text[]
 );
 create table if not exists storage.objects (
   id        uuid primary key default gen_random_uuid(),
@@ -40,6 +42,12 @@ create table if not exists storage.objects (
   owner     uuid
 );
 alter table storage.objects enable row level security;
+
+-- 실제 Supabase 는 authenticated 에 storage 접근을 열어 두고 RLS 로만 막는다.
+-- shim 이 이걸 안 주면 정책이 아니라 테이블 권한에서 먼저 막혀 테스트가 정책을 검증하지 못한다.
+grant usage on schema storage to anon, authenticated, service_role;
+grant select, insert, update, delete on storage.objects to authenticated;
+grant select on storage.buckets to anon, authenticated;
 
 create or replace function storage.foldername(name text) returns text[]
 language sql immutable as $$

@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/analytics.dart';
 import '../core/app_error.dart';
 import '../core/logger.dart';
 import 'supabase.dart';
@@ -183,11 +184,23 @@ class PurchaseRecord {
 }
 
 class PurchaseRepository {
-  PurchaseRepository(this._iap, this._client, {required String platform}) : _platform = platform {
+  /// 분석·크래시 어댑터를 화면이 아니라 여기서 받는 이유: 결제 결과는 **아무 화면도
+  /// 열려 있지 않을 때** 도착한다(가족 승인, 앱을 껐다 켠 사이의 재전달).
+  /// 결제 화면에서만 재면 그 건들이 통째로 빠진다.
+  PurchaseRepository(
+    this._iap,
+    this._client, {
+    required String platform,
+    Analytics analytics = const DebugAnalytics(),
+    CrashReporter crash = const DebugCrashReporter(),
+  })  : _platform = platform,
+        _analytics = analytics,
+        _crash = crash {
     _sub = _iap.purchaseStream.listen(
       _onPurchases,
       onError: (Object e, StackTrace st) {
         AppLogger.error('purchase stream failed', error: e, stack: st);
+        _crash.recordError(e, st, context: 'purchase.stream');
         _emit(PurchaseEvent(PurchasePhase.failed, error: AppError.from(e, st)));
       },
     );
@@ -196,6 +209,8 @@ class PurchaseRepository {
   final InAppPurchase _iap;
   final SupabaseClient _client;
   final String _platform;
+  final Analytics _analytics;
+  final CrashReporter _crash;
 
   StreamSubscription<List<PurchaseDetails>>? _sub;
   final _events = StreamController<PurchaseEvent>.broadcast();
@@ -320,6 +335,12 @@ class PurchaseRepository {
         case PurchaseAction.cancelled:
           _emit(PurchaseEvent(PurchasePhase.cancelled, productId: purchase.productID));
         case PurchaseAction.failed:
+          // 실패의 종류만 남긴다. 영수증·스토어 원문 메시지는 싣지 않는다.
+          _analytics.track(AnalyticsEvent.purchaseFailed, props: {
+            'product_id': purchase.productID,
+            'stage': 'store',
+            'kind': (verdict.error?.kind ?? AppErrorKind.unknown).name,
+          });
           _emit(PurchaseEvent(
             PurchasePhase.failed,
             productId: purchase.productID,
@@ -337,13 +358,18 @@ class PurchaseRepository {
       final result = await _verify(verdict.body!);
       // 검증이 끝난 뒤에야 거래를 닫는다. 순서를 바꾸면 검증 실패 = 돈만 받고 지급 없음이 된다.
       await _complete(purchase);
-      // TODO(analytics): purchaseComplete
+      // 지급이 끝난 뒤에만 센다. 영수증(raw)과 가격은 싣지 않는다 — 장수만 남긴다.
+      _analytics.track(AnalyticsEvent.purchaseComplete, props: {
+        'product_id': purchase.productID,
+        'granted': result.granted,
+        'already_processed': result.alreadyProcessed,
+      });
       _emit(PurchaseEvent(
         result.alreadyProcessed ? PurchasePhase.alreadyOwned : PurchasePhase.granted,
         productId: purchase.productID,
         granted: result.granted,
       ));
-    } on AppError catch (e) {
+    } on AppError catch (e, st) {
       // 다시 시도할 여지가 없는 실패(영수증 자체가 가짜)면 거래를 닫는다.
       // 안 닫으면 iOS 가 앱을 켤 때마다 같은 영수증을 계속 재전달한다.
       //
@@ -352,13 +378,24 @@ class PurchaseRepository {
       // 서버 `purchases` 의 `unique (platform, transaction_id)` 가 막고,
       // `grant_quota_from_purchase` 는 이미 처리된 영수증에 `already_processed` 를 돌려준다.
       if (!e.retryable) await _complete(purchase);
+      // 돈은 빠졌는데 지급이 안 된 건이다. 반드시 리포트에 남는다.
+      _analytics.track(AnalyticsEvent.purchaseFailed, props: {
+        'product_id': purchase.productID,
+        'stage': 'verify',
+        'kind': e.kind.name,
+      });
+      _crash.recordError(e, st, context: 'purchase.verify', fatal: false);
       _emit(PurchaseEvent(PurchasePhase.failed, productId: purchase.productID, error: e));
     }
   }
 
   Future<({int granted, bool alreadyProcessed})> _verify(Map<String, Object?> body) async {
     try {
-      final res = await _client.functions.invoke('verify-purchase', body: body);
+      // 영수증 검증은 스토어 왕복이 끼어 있어 조금 더 준다. 그래도 상한은 있어야 한다 —
+      // 여기서 멈추면 사용자는 돈을 냈는데 장수가 안 늘어난 화면을 무한히 본다.
+      final res = await _client.functions
+          .invoke('verify-purchase', body: body)
+          .withTimeout(kTransferTimeout);
       final data = res.data;
       if (data is Map) {
         return (
@@ -409,6 +446,8 @@ final purchaseRepositoryProvider = Provider<PurchaseRepository>((ref) {
     InAppPurchase.instance,
     ref.watch(supabaseProvider),
     platform: ref.watch(purchasePlatformProvider),
+    analytics: ref.watch(analyticsProvider),
+    crash: ref.watch(crashReporterProvider),
   );
   // 스트림 구독이 남으면 결제 결과가 죽은 화면으로 흘러간다.
   ref.onDispose(() => unawaited(repo.dispose()));

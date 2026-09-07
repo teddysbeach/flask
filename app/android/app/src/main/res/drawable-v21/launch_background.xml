@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 스플래시. 브랜드 색 바탕 + 흰 마크.
+     flutter_native_splash 를 쓰지 않는다 — 생성물이 이 파일을 덮어쓰면 왜 바뀌었는지 남지 않는다.
+     이미지는 assets/icon/build_icons.mjs 가 굽는다(drawable-*/splash_logo.png).
+     라이트/다크 상관없이 같은 화면을 보여 준다. 스플래시는 브랜드지 테마가 아니다. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/brand_primary" />
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/splash_logo" />
+    </item>
+</layer-list>

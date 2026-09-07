@@ -12,6 +12,8 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../core/app_error.dart';
 import '../../core/logger.dart';
 import '../../data/profile_repository.dart';
+import '../../data/storage_repository.dart';
+import '../../data/supabase.dart';
 import '../../domain/models.dart';
 import '../../ui/states/app_state_views.dart';
 import '../../ui/widgets/feedback.dart';
@@ -55,7 +57,8 @@ class NicknameRule {
 class AvatarRule {
   const AvatarRule._();
 
-  static const maxBytes = 5 * 1024 * 1024;
+  /// 버킷(`avatars`)이 2MB 에서 끊는다. 앱이 더 크게 잡으면 사용자는 다 올린 뒤에 거절당한다.
+  static const maxBytes = 2 * 1024 * 1024;
   static const allowedExtensions = {'jpg', 'jpeg', 'png'};
 
   static String extensionOf(String path) {
@@ -70,7 +73,7 @@ class AvatarRule {
       return 'JPG 나 PNG 사진만 올릴 수 있어요. 다른 사진으로 골라 주세요.';
     }
     if (bytes > maxBytes) {
-      return '사진이 너무 커요(5MB까지). 다른 사진을 골라 주세요.';
+      return '사진이 너무 커요(2MB까지). 다른 사진을 골라 주세요.';
     }
     return null;
   }
@@ -81,9 +84,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _picker = ImagePicker();
 
   String? _initialName;
-  String? _avatarPath;
-  bool _avatarCleared = false;
   bool _hydrated = false;
+
+  /// 방금 고른 사진의 로컬 파일. 서명 URL 을 받아오기 전에도 바뀐 얼굴을 바로 보여준다.
+  String? _localPreview;
 
   bool _saving = false;
   bool _uploading = false;
@@ -113,10 +117,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     super.dispose();
   }
 
-  bool get _dirty =>
-      (_initialName != null && _name.text.trim() != _initialName) ||
-      _avatarPath != null ||
-      _avatarCleared;
+  /// 사진은 고르는 즉시 올라가고 저장까지 끝난다(반쯤 저장된 프로필을 만들지 않으려는 것).
+  /// 그래서 "저장 안 한 변경" 은 닉네임뿐이다 — 사진까지 여기 넣으면
+  /// 이미 저장된 것을 두고 "버릴까요?" 를 묻게 된다.
+  bool get _dirty => _initialName != null && _name.text.trim() != _initialName;
 
   @override
   Widget build(BuildContext context) {
@@ -130,7 +134,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         final leave = await AppFeedback.confirm(
           context,
           title: '바꾼 내용을 버릴까요?',
-          message: '저장하지 않은 닉네임과 사진은 사라져요.',
+          message: '저장하지 않은 닉네임은 사라져요. (사진은 이미 저장됐어요.)',
           confirmLabel: '버리기',
           cancelLabel: '계속 쓰기',
         );
@@ -163,7 +167,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           child: Column(
             children: [
               _Avatar(
-                path: _avatarCleared ? null : _avatarPath,
+                localPath: _localPreview,
+                // 서명 URL 은 만료되므로 DB 가 아니라 화면이 뜰 때마다 새로 받는다.
+                remoteUrl: ref.watch(avatarUrlProvider).valueOrNull,
                 fallback: (me.displayName ?? '').trim(),
                 uploading: _uploading,
                 progress: _progress,
@@ -256,12 +262,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (source == null) return;
 
     if (source == _PickAction.reset) {
-      setState(() {
-        _avatarPath = null;
-        _lastPick = null;
-        _uploadError = null;
-        _avatarCleared = true;
-      });
+      await _resetAvatar();
       return;
     }
 
@@ -325,7 +326,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     await openAppSettings();
   }
 
+  /// 올린 뒤에 DB 를 고친다. 순서를 뒤집으면 `avatar_path` 는 있는데 파일이 없어서
+  /// 프로필 사진이 영영 안 뜨는 상태가 남는다.
   Future<void> _upload(XFile file) async {
+    final userId = ref.read(currentUserProvider)?.id;
+    if (userId == null) {
+      setState(() => _uploadError = AppError.of(AppErrorKind.unauthorized).message);
+      return;
+    }
+    final previous = ref.read(profileProvider).valueOrNull?.avatarPath;
+
     setState(() {
       _lastPick = file;
       _uploading = true;
@@ -334,27 +344,97 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     });
 
     try {
-      // TODO(storage): Supabase Storage `avatars` 버킷에 올리고 public URL 을 profiles 에 쓴다.
-      //   업로드 진행률은 그때 실제 바이트 진행률로 갈아끼운다. 지금은 화면 흐름만 완성해 둔다.
-      //   올린 뒤에는 이전 파일을 지운다 — 안 지우면 사진을 바꿀 때마다 쓰레기가 쌓인다.
-      for (var step = 1; step <= 5; step++) {
-        await Future<void>.delayed(const Duration(milliseconds: 120));
-        if (!mounted) return;
-        setState(() => _progress = step / 5);
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
+      // 읽기는 끝났고 이제 올린다. 진행률은 두 단계뿐이다 —
+      // storage 클라이언트가 바이트 진행률을 주지 않으므로, 있지도 않은 숫자를 지어내지 않는다.
+      setState(() => _progress = 0.4);
+
+      final ext = AvatarRule.extensionOf(file.path);
+      // 같은 이름으로 덮어쓰면 캐시가 옛 사진을 계속 보여준다. 그래서 이름을 새로 만들고,
+      // DB 까지 성공한 뒤에 옛 파일을 지운다 — 안 지우면 사진을 바꿀 때마다 쓰레기가 쌓인다.
+      final path = StoragePaths.avatar(
+        userId: userId,
+        extension: ext,
+        stamp: DateTime.now().millisecondsSinceEpoch,
+      );
+
+      await ref.read(storageRepositoryProvider).putAvatar(
+            path,
+            bytes,
+            contentType: StoragePaths.avatarContentType(ext),
+          );
+      if (mounted) setState(() => _progress = 0.8);
+
+      await ref.read(profileRepositoryProvider).setAvatarPath(path);
+
+      if (previous != null && previous.isNotEmpty && previous != path) {
+        // 여기서 실패해도 사용자에게는 아무 일도 아니다(새 사진은 이미 저장됐다). 쓰레기 파일만 남는다.
+        try {
+          await ref.read(storageRepositoryProvider).removeAvatar(previous);
+        } catch (e, st) {
+          AppLogger.error('옛 프로필 사진 삭제 실패', error: e, stack: st);
+        }
       }
+
+      ref.invalidate(profileProvider);
       if (!mounted) return;
       setState(() {
-        _avatarPath = file.path;
-        _avatarCleared = false;
+        _localPreview = file.path;
         _uploading = false;
+        _progress = 1;
+        _lastPick = null;
       });
       AppFeedback.toast(context, '프로필 사진을 바꿨어요.');
     } catch (e, st) {
-      AppLogger.error('avatar upload failed', error: e, stack: st);
+      final err = AppError.from(e, st);
+      AppLogger.error('avatar upload failed', error: err, stack: st);
       if (!mounted) return;
       setState(() {
         _uploading = false;
-        _uploadError = '사진을 올리지 못했어요. 잠시 뒤에 다시 시도해 주세요.';
+        // 실패 원인이 용량·형식이면 다시 시도해도 같은 결과다. 그때는 그 문구를 그대로 보여준다.
+        _uploadError = err.kind == AppErrorKind.validation
+            ? err.message
+            : '사진을 올리지 못했어요. 잠시 뒤에 다시 시도해 주세요.';
+      });
+    }
+  }
+
+  /// 기본 이미지로 되돌리기: 파일을 지우고 `avatar_path` 를 비운다.
+  /// DB 를 먼저 비운다 — 파일부터 지우면 실패했을 때 "경로는 있는데 사진이 없는" 상태가 남는다.
+  Future<void> _resetAvatar() async {
+    final previous = ref.read(profileProvider).valueOrNull?.avatarPath;
+    setState(() {
+      _uploadError = null;
+      _lastPick = null;
+    });
+    if (previous == null || previous.isEmpty) {
+      setState(() => _localPreview = null);
+      return;
+    }
+
+    setState(() => _uploading = true);
+    try {
+      await ref.read(profileRepositoryProvider).setAvatarPath(null);
+      try {
+        await ref.read(storageRepositoryProvider).removeAvatar(previous);
+      } catch (e, st) {
+        AppLogger.error('프로필 사진 파일 삭제 실패', error: e, stack: st);
+      }
+      ref.invalidate(profileProvider);
+      if (!mounted) return;
+      setState(() {
+        _localPreview = null;
+        _uploading = false;
+      });
+      AppFeedback.toast(context, '기본 이미지로 되돌렸어요.');
+    } catch (e, st) {
+      final err = AppError.from(e, st);
+      AppLogger.error('avatar reset failed', error: err, stack: st);
+      if (!mounted) return;
+      setState(() {
+        _uploading = false;
+        _uploadError = '기본 이미지로 되돌리지 못했어요. 잠시 뒤에 다시 시도해 주세요.';
       });
     }
   }
@@ -367,11 +447,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       await ref.read(profileRepositoryProvider).update(displayName: name);
       ref.invalidate(profileProvider);
       if (!mounted) return;
-      setState(() {
-        _initialName = name;
-        _avatarPath = null;
-        _avatarCleared = false;
-      });
+      setState(() => _initialName = name);
       AppFeedback.toast(context, '프로필을 저장했어요.');
       context.pop();
     } on AppError catch (e) {
@@ -386,15 +462,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 enum _PickAction { camera, gallery, reset }
 
 /// 동그란 프로필 사진. 사진이 없으면 닉네임 첫 글자를 쓴다.
+///
+/// 방금 고른 로컬 파일이 있으면 그것을, 없으면 서명 URL 을 쓴다.
+/// 올린 직후에 서명 URL 을 기다리면 얼굴이 잠깐 옛 사진으로 돌아갔다 온다.
 class _Avatar extends StatelessWidget {
   const _Avatar({
-    required this.path,
+    required this.localPath,
+    required this.remoteUrl,
     required this.fallback,
     required this.uploading,
     required this.progress,
   });
 
-  final String? path;
+  final String? localPath;
+  final String? remoteUrl;
   final String fallback;
   final bool uploading;
   final double progress;
@@ -403,11 +484,37 @@ class _Avatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = DsTheme.of(context);
     final initial = fallback.isEmpty ? '나' : fallback.characters.first;
+    final letter = Text(initial, style: dsTextStyle(DsType.h1, p.textTertiary));
+    final local = localPath;
+    final remote = remoteUrl;
+
+    Widget face;
+    if (local != null) {
+      face = Image.file(
+        File(local),
+        width: 96,
+        height: 96,
+        fit: BoxFit.cover,
+        // 파일이 지워졌거나 못 읽으면 기본 얼굴로 돌아간다 — 깨진 아이콘을 보이지 않는다.
+        errorBuilder: (_, __, ___) => letter,
+      );
+    } else if (remote != null) {
+      face = Image.network(
+        remote,
+        width: 96,
+        height: 96,
+        fit: BoxFit.cover,
+        // 서명 URL 이 만료됐거나 네트워크가 끊겨도 프로필 화면은 멀쩡해야 한다.
+        errorBuilder: (_, __, ___) => letter,
+      );
+    } else {
+      face = letter;
+    }
 
     return Semantics(
       label: uploading
           ? '프로필 사진 올리는 중 ${(progress * 100).round()} 퍼센트'
-          : path == null
+          : local == null && remote == null
               ? '기본 프로필 사진'
               : '프로필 사진',
       liveRegion: uploading,
@@ -423,17 +530,7 @@ class _Avatar extends StatelessWidget {
                 height: 96,
                 color: p.surfaceSunken,
                 alignment: Alignment.center,
-                child: path == null
-                    ? Text(initial, style: dsTextStyle(DsType.h1, p.textTertiary))
-                    : Image.file(
-                        File(path!),
-                        width: 96,
-                        height: 96,
-                        fit: BoxFit.cover,
-                        // 파일이 지워졌거나 못 읽으면 기본 얼굴로 돌아간다 — 깨진 아이콘을 보이지 않는다.
-                        errorBuilder: (_, __, ___) =>
-                            Text(initial, style: dsTextStyle(DsType.h1, p.textTertiary)),
-                      ),
+                child: face,
               ),
             ),
             if (uploading)

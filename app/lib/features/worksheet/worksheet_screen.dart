@@ -7,11 +7,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onpar_design_system/onpar_design_system.dart';
 
+import '../../core/analytics.dart';
 import '../../core/app_error.dart';
 import '../../core/connectivity.dart';
 import '../../core/logger.dart';
 import '../../core/request_guard.dart';
 import '../../core/routes.dart';
+import '../../data/storage_repository.dart';
 import '../../data/supabase.dart';
 import '../../data/worksheet_repository.dart';
 import '../../domain/models.dart';
@@ -27,6 +29,7 @@ class WorksheetViewData {
     required this.url,
     required this.rev,
     required this.strokesPath,
+    required this.formatVersion,
   });
 
   final WorksheetSummary sheet;
@@ -35,6 +38,9 @@ class WorksheetViewData {
   /// 필기 낙관적 잠금의 기준. 0 이면 아직 저장된 필기가 없다.
   final int rev;
   final String? strokesPath;
+
+  /// 저장된 필기의 포맷. 1 이면 옛 문서 좌표다 — 앱은 손대지 않고 그대로 런타임에 넘긴다.
+  final int formatVersion;
 }
 
 final worksheetViewProvider =
@@ -52,7 +58,13 @@ final worksheetViewProvider =
 
   final url = await repo.signedHtmlUrl(path);
   final meta = await repo.annotationMeta(id);
-  return WorksheetViewData(sheet: sheet, url: url, rev: meta.rev, strokesPath: meta.path);
+  return WorksheetViewData(
+    sheet: sheet,
+    url: url,
+    rev: meta.rev,
+    strokesPath: meta.path,
+    formatVersion: meta.formatVersion,
+  );
 });
 
 /// 필기 도구. 기본은 `none` — 펜을 들기 전에는 캔버스가 포인터를 먹지 않아 본문이 스크롤된다.
@@ -98,7 +110,15 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
   bool _pageLoaded = false;
   AppError? _pageError;
   bool _saving = false;
-  bool _conflicted = false;
+
+  /// 필기 저장을 멈춘 이유. null 이면 정상이고, 값이 있으면 그 문구가 배너로 뜬다.
+  ///
+  /// 저장을 멈추는 상황은 둘이다: 다른 기기와 충돌했을 때, 그리고 **저장된 필기를 못 불러왔을 때**.
+  /// 두 번째가 더 위험하다 — 못 불러온 채로 계속 저장하면 빈 캔버스가 옛 필기를 덮는다.
+  String? _inkSaveBlocked;
+
+  /// 서버에서 받은 필기를 화면에 넣는 중. 이때 오는 strokesChanged 는 사용자가 그린 게 아니다.
+  bool _applyingRemoteInk = false;
 
   /// 저장이 겹치지 않게. 두 저장이 같은 rev 로 나가면 하나는 반드시 충돌한다.
   Future<void>? _inFlightSave;
@@ -107,7 +127,11 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // TODO(analytics): worksheetOpen
+    // 학습지 id 는 싣지 않는다. 무엇을 몇 번 열었는지는 재지 않고, 열렸다는 것만 센다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(analyticsProvider).track(AnalyticsEvent.worksheetOpen);
+    });
   }
 
   @override
@@ -174,7 +198,9 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
     final canUndo = payload['canUndo'] == true;
     final canRedo = payload['canRedo'] == true;
 
-    _inkDirty = true;
+    // 방금 우리가 loadStrokes 로 넣은 것이면 "바뀜" 이 아니다.
+    // 여기서 dirty 로 세면 열자마자 같은 필기를 그대로 되올리고, rev 만 계속 올라간다.
+    if (!_applyingRemoteInk) _inkDirty = true;
     if (mounted &&
         (count != _strokeCount || canUndo != _canUndo || canRedo != _canRedo)) {
       setState(() {
@@ -183,7 +209,7 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
         _canRedo = canRedo;
       });
     }
-    _inkDebounce.run(() => unawaited(_flush(reason: 'ink')));
+    if (!_applyingRemoteInk) _inkDebounce.run(() => unawaited(_flush(reason: 'ink')));
   }
 
   // ── 저장 ────────────────────────────────────────────────────────────
@@ -238,60 +264,202 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
 
   Future<void> _saveInk() async {
     final web = _web;
-    if (web == null || !_inkDirty || _conflicted) return;
+    if (web == null || !_inkDirty || _inkSaveBlocked != null) return;
 
     final json = await _exportStrokes(web);
     if (json == null) return;
 
-    final userId = ref.read(currentUserProvider)?.id;
-    if (userId == null) {
-      _notify(AppError.of(AppErrorKind.unauthorized).message);
-      return;
-    }
-
-    // TODO(storage): 이 JSON 을 gzip 해서 `annotations` 버킷의 strokesPath 로 올린다.
-    //   지금은 메타(경로·획 수·크기·rev)만 기록한다. 업로드가 붙기 전까지 저장된 필기를
-    //   다시 내려받을 수는 없다 — 그래서 loadStrokes 도 아직 부르지 않는다.
-    final strokesPath = '$userId/${widget.worksheetId}.json';
-    final bytes = utf8.encode(json).length;
-
+    // 스냅샷을 떴다. 여기부터 그리는 획은 "다음 저장분" 이므로 dirty 를 지금 내린다 —
+    // 저장이 끝난 뒤에 내리면 업로드하는 동안 그은 획이 통째로 사라진다.
+    _inkDirty = false;
     try {
-      final next = await ref.read(worksheetRepositoryProvider).saveAnnotations(
-            worksheetId: widget.worksheetId,
-            strokesPath: strokesPath,
-            strokeCount: _strokeCount,
-            bytes: bytes,
-            rev: _rev,
-          );
-      _rev = next;
-      _inkDirty = false;
+      await _commitInk(json: json, rev: _rev);
     } on AppError catch (e, st) {
+      _inkDirty = true; // 못 올렸다. 다음 기회에 다시 올린다.
       if (e.code == 'annotation_conflict') {
-        // 다른 기기가 먼저 저장했다. 덮어쓰면 그쪽 필기가 말없이 사라진다 — 멈춘다.
-        await _onAnnotationConflict(e);
+        // 다른 기기가 먼저 저장했다. 덮어쓰면 그쪽 필기가 말없이 사라진다 — 합치거나 물어본다.
+        await _onAnnotationConflict(localJson: json);
         return;
       }
       AppLogger.error('필기 저장 실패', error: e, stack: st);
       _notify(e.message);
     } catch (e, st) {
+      _inkDirty = true;
       final err = AppError.from(e, st);
       AppLogger.error('필기 저장 실패', error: err, stack: st);
       _notify(err.message);
     }
   }
 
+  /// 필기 한 벌을 서버에 올린다. **파일 먼저, DB 나중.**
+  ///
+  /// 순서를 뒤집으면 DB 는 "저장됨(rev+1)" 인데 파일이 없는 상태가 생기고,
+  /// 다음에 열 때 필기가 통째로 사라진 것처럼 보인다 — 되돌릴 수 없는 손상이다.
+  /// 이 순서면 최악이라도 "파일은 올라갔는데 rev 가 안 오른" 상태고, 다음 저장이 같은 경로를 덮어 고친다.
+  ///
+  /// 실패는 그대로 던진다(호출한 쪽이 충돌과 그 밖을 갈라 처리한다).
+  Future<void> _commitInk({required String json, required int rev}) async {
+    final userId = ref.read(currentUserProvider)?.id;
+    if (userId == null) throw AppError.of(AppErrorKind.unauthorized);
+
+    final path = StoragePaths.annotations(userId: userId, worksheetId: widget.worksheetId);
+    final payload = InkCodec.encode(json);
+
+    await ref.read(storageRepositoryProvider).putAnnotations(path, payload.bytes);
+
+    final next = await ref.read(worksheetRepositoryProvider).saveAnnotations(
+          worksheetId: widget.worksheetId,
+          strokesPath: path,
+          // 화면 카운터가 아니라 방금 올린 문서에서 센다 — 저장된 것과 기록이 어긋나지 않는다.
+          strokeCount: InkCodec.strokeCount(json),
+          // `bytes` 는 실제 저장 용량이므로 압축 **후** 크기다.
+          bytes: payload.gzipBytes,
+          rev: rev,
+        );
+    _rev = next;
+    AppLogger.debug(
+      '필기 저장 rev=$next, ${payload.rawBytes}B → ${payload.gzipBytes}B '
+      '(${(payload.ratio * 100).round()}%)',
+    );
+  }
+
+  /// 저장된 필기를 화면에 되돌린다. **웹뷰 로드가 끝난 뒤에만** 부른다 —
+  /// 그 전에는 window.ONPAR_INK 가 아직 없다.
+  Future<void> _restoreInk(WorksheetViewData data) async {
+    final path = data.strokesPath;
+    // 첫 방문이면 저장된 필기가 없다. 오류가 아니다.
+    if (path == null || path.isEmpty) return;
+
+    try {
+      final gzipped = await ref.read(storageRepositoryProvider).getAnnotations(path);
+      if (gzipped == null) {
+        // 메타는 있는데 파일이 없다. 새로 쓰면 되는 상태이므로 오류로 덮지 않는다.
+        AppLogger.debug('저장된 필기 파일이 없어 복원을 건너뛴다');
+        return;
+      }
+      // formatVersion 이 1 이면 옛 문서 좌표(anchor 없음)다. 앱은 아무것도 고치지 않고 그대로 넘긴다 —
+      // 런타임의 ink-core `migrateStrokes` 가 anchor: null 로 읽어 그린다(docs/plan/06-annotation.md §4).
+      // 여기서 앱이 좌표를 손대면 옛 필기가 제자리에서 움직인다.
+      if (data.formatVersion == 1) AppLogger.debug('v1 필기를 그대로 런타임에 넘긴다');
+      await _applyStrokes(InkCodec.decode(gzipped));
+      _rev = data.rev;
+    } catch (e, st) {
+      final err = AppError.from(e, st);
+      AppLogger.error('필기 복원 실패', error: err, stack: st);
+      // 못 불러온 채로 계속 저장하면 **빈 캔버스가 저장된 필기를 덮는다**. 그래서 저장을 멈춘다.
+      if (mounted) {
+        setState(() => _inkSaveBlocked =
+            '저장해 둔 필기를 불러오지 못했어요. 옛 필기를 덮어쓰지 않으려고 지금은 저장하지 않아요.');
+      }
+    }
+  }
+
+  /// 서버에서 받은 필기를 캔버스에 넣는다.
+  Future<void> _applyStrokes(String json) async {
+    _applyingRemoteInk = true;
+    // loadStrokes 는 파싱된 객체를 받는다. 문자열을 그대로 넘기면 deserialize 가 빈 문서로 읽는다.
+    await _eval('window.ONPAR_INK.loadStrokes(JSON.parse(${jsonEncode(json)}))');
+    // loadStrokes 가 만든 strokesChanged 는 JS→Flutter 브리지를 타고 조금 늦게 온다.
+    // 곧바로 플래그를 내리면 방금 불러온 것을 "사용자가 그린 것" 으로 보고 그대로 되올린다.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    _applyingRemoteInk = false;
+    _inkDirty = false;
+  }
+
   /// 충돌. 자동으로 이기려 들지 않는다 — 필기를 지우는 건 되돌릴 수 없는 손상이다.
-  Future<void> _onAnnotationConflict(AppError error) async {
-    if (mounted) setState(() => _conflicted = true);
+  ///
+  /// 스트로크는 append-only 에 고유 id 를 가지고 지우개는 tombstone 이라, 대개는 **합칠 수 있다**.
+  /// 합치면 아무도 잃지 않는다. 합칠 수 없을 때만 사용자에게 묻는다.
+  Future<void> _onAnnotationConflict({required String localJson}) async {
+    if (mounted) {
+      setState(() => _inkSaveBlocked =
+          '다른 기기에서 먼저 저장했어요. 지금 쓴 필기는 아직 저장되지 않았어요.');
+    }
+
+    final String? remoteJson;
+    final int remoteRev;
     try {
       final meta = await ref.read(worksheetRepositoryProvider).annotationMeta(widget.worksheetId);
+      remoteRev = meta.rev;
       _rev = meta.rev;
-      // TODO(storage): meta.path 에서 최신 스트로크를 내려받아
-      //   `ONPAR_INK.loadStrokes(json)` 로 화면을 최신 상태로 맞춘다.
+      final path = meta.path;
+      final gzipped =
+          path == null ? null : await ref.read(storageRepositoryProvider).getAnnotations(path);
+      remoteJson = gzipped == null ? null : InkCodec.decode(gzipped);
     } catch (e, st) {
-      AppLogger.error('최신 필기 메타 조회 실패', error: AppError.from(e, st), stack: st);
+      AppLogger.error('최신 필기 조회 실패', error: AppError.from(e, st), stack: st);
+      _notify('최신 필기를 불러오지 못했어요. 연결을 확인하고 배너의 “불러오기” 를 눌러 주세요.');
+      return;
     }
-    _notify(error.message);
+
+    String merged;
+    try {
+      // 파일이 없으면 합칠 상대가 없다. 우리 것을 새 rev 로 올리면 잃는 게 없다.
+      merged =
+          remoteJson == null ? localJson : InkCodec.merge(local: localJson, remote: remoteJson);
+    } catch (e, st) {
+      AppLogger.error('필기 병합 실패', error: AppError.from(e, st), stack: st);
+      await _askConflictResolution(localJson: localJson, rev: remoteRev);
+      return;
+    }
+
+    try {
+      await _commitInk(json: merged, rev: remoteRev);
+    } catch (e, st) {
+      AppLogger.error('합친 필기 저장 실패', error: AppError.from(e, st), stack: st);
+      _notify('합친 필기를 저장하지 못했어요. 잠시 뒤에 다시 시도할게요.');
+      _inkDirty = true;
+      return;
+    }
+
+    await _applyStrokes(merged);
+    if (mounted) setState(() => _inkSaveBlocked = null);
+    _notify('다른 기기에서 쓴 필기와 지금 필기를 합쳤어요.');
+  }
+
+  /// 합칠 수 없을 때. 어느 쪽도 몰래 버리지 않고 사용자가 고르게 한다.
+  /// 아무것도 고르지 않으면 저장은 멈춘 채로 남는다 — 배너가 계속 보이고, 지금 필기는 화면에 그대로 있다.
+  Future<void> _askConflictResolution({required String localJson, required int rev}) async {
+    if (!mounted) return;
+    final overwrite = await AppFeedback.confirm(
+      context,
+      title: '두 필기를 합치지 못했어요',
+      message: '다른 기기에서 먼저 저장한 필기와 지금 필기를 자동으로 합칠 수 없었어요.\n'
+          '지금 필기로 덮어쓰면 다른 기기에서 쓴 필기는 이 학습지에서 사라져요.',
+      confirmLabel: '지금 필기로 덮어쓰기',
+      cancelLabel: '나중에',
+      destructive: true,
+    );
+    if (!overwrite) {
+      _inkDirty = true; // 아직 저장 안 된 상태 그대로 둔다. 배너도 그대로 남는다.
+      return;
+    }
+
+    try {
+      await _commitInk(json: localJson, rev: rev);
+      if (mounted) setState(() => _inkSaveBlocked = null);
+      _notify('지금 필기로 저장했어요.');
+    } catch (e, st) {
+      _inkDirty = true;
+      AppLogger.error('덮어쓰기 저장 실패', error: AppError.from(e, st), stack: st);
+      _notify('저장하지 못했어요. 잠시 뒤에 다시 시도해 주세요.');
+    }
+  }
+
+  /// 배너의 “불러오기”. 최신 필기를 받으면 저장 안 된 지금 필기는 사라지므로 먼저 물어본다.
+  Future<void> _reloadInkFromServer() async {
+    if (_inkDirty && mounted) {
+      final ok = await AppFeedback.confirm(
+        context,
+        title: '최신 필기를 불러올까요?',
+        message: '아직 저장되지 않은 지금 필기는 사라져요.',
+        confirmLabel: '불러오기',
+        cancelLabel: '그대로 두기',
+        destructive: true,
+      );
+      if (!ok) return;
+    }
+    _reloadEverything();
   }
 
   Future<String?> _exportStrokes(InAppWebViewController web) async {
@@ -378,7 +546,11 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
           child: Column(
             children: [
               if (offline) const OfflineBanner(),
-              if (_conflicted) _ConflictBanner(onReload: _reloadEverything),
+              if (_inkSaveBlocked != null)
+                _InkBlockedBanner(
+                  message: _inkSaveBlocked!,
+                  onReload: () => unawaited(_reloadInkFromServer()),
+                ),
               Expanded(
                 child: view.when(
                   loading: () => const LoadingView(label: '학습지를 여는 중'),
@@ -413,7 +585,7 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
 
   void _reloadEverything() {
     setState(() {
-      _conflicted = false;
+      _inkSaveBlocked = null;
       _pageLoaded = false;
       _pageError = null;
     });
@@ -490,8 +662,8 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
             await _applyTool(InkTool.none);
             await _eval('window.ONPAR_INK.setFingerDrawing($_fingerDrawing)');
 
-            // TODO(storage): data.strokesPath 에서 저장된 필기를 내려받아
-            //   `ONPAR_INK.loadStrokes(json)` 로 복원한다(다음 단계).
+            // 저장된 필기를 여기서 되돌린다. 웹뷰 로드가 끝난 뒤여야 window.ONPAR_INK 가 있다.
+            await _restoreInk(data);
 
             final quizId = widget.quizId;
             if (quizId != null && quizId.isNotEmpty) {
@@ -831,8 +1003,11 @@ class _SaveIndicator extends StatelessWidget {
 }
 
 /// 다른 기기가 먼저 저장했을 때. 덮어쓰기를 멈추고 사용자에게 말한다.
-class _ConflictBanner extends StatelessWidget {
-  const _ConflictBanner({required this.onReload});
+/// 필기 저장이 멈췄다는 알림. 조용히 멈추면 사용자는 저장되고 있다고 믿는다.
+class _InkBlockedBanner extends StatelessWidget {
+  const _InkBlockedBanner({required this.message, required this.onReload});
+
+  final String message;
   final VoidCallback onReload;
 
   @override
@@ -849,10 +1024,7 @@ class _ConflictBanner extends StatelessWidget {
             DsIcon(DsIcons.warning, size: 16, color: p.statusWarning),
             const SizedBox(width: DsSpace.s2),
             Expanded(
-              child: Text(
-                '다른 기기에서 먼저 저장했어요. 최신 필기를 불러온 뒤 이어서 쓸 수 있어요.',
-                style: dsTextStyle(DsType.caption, p.textPrimary),
-              ),
+              child: Text(message, style: dsTextStyle(DsType.caption, p.textPrimary)),
             ),
             TextButton(onPressed: onReload, child: const Text('불러오기')),
           ],

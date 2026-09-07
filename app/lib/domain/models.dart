@@ -5,6 +5,7 @@ class Profile {
   const Profile({
     required this.id,
     this.displayName,
+    this.avatarPath,
     required this.quotaTotal,
     required this.quotaUsed,
     required this.locale,
@@ -14,6 +15,11 @@ class Profile {
 
   final String id;
   final String? displayName;
+
+  /// 프로필 사진의 **Storage 경로**(`<user_id>/avatar_<stamp>.jpg`). URL 이 아니다.
+  /// 버킷이 비공개라 볼 때마다 서명 URL 을 새로 받는다 — 서명 URL 은 만료되므로
+  /// DB 에 넣으면 얼마 뒤부터 깨진 사진이 남는다.
+  final String? avatarPath;
   final int quotaTotal;
   final int quotaUsed;
   final String locale;
@@ -28,6 +34,7 @@ class Profile {
   factory Profile.fromMap(Map<String, dynamic> m) => Profile(
         id: m['id'] as String,
         displayName: m['display_name'] as String?,
+        avatarPath: m['avatar_path'] as String?,
         quotaTotal: (m['quota_total'] as num?)?.toInt() ?? 0,
         quotaUsed: (m['quota_used'] as num?)?.toInt() ?? 0,
         locale: m['locale'] as String? ?? 'ko',
@@ -35,9 +42,17 @@ class Profile {
         timezone: m['timezone'] as String? ?? 'Asia/Seoul',
       );
 
-  Profile copyWith({String? displayName, int? reviewHour, String? timezone}) => Profile(
+  /// `clearAvatar` 가 따로 있는 이유: null 은 "안 바꿈" 이라 "사진을 지웠다" 를 표현할 수 없다.
+  Profile copyWith({
+    String? displayName,
+    int? reviewHour,
+    String? timezone,
+    String? avatarPath,
+    bool clearAvatar = false,
+  }) => Profile(
         id: id,
         displayName: displayName ?? this.displayName,
+        avatarPath: clearAvatar ? null : (avatarPath ?? this.avatarPath),
         quotaTotal: quotaTotal,
         quotaUsed: quotaUsed,
         locale: locale,

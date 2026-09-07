@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onpar_design_system/onpar_design_system.dart';
 
+import '../../core/analytics.dart';
 import '../../core/app_error.dart';
 import '../../core/routes.dart';
 import '../../data/profile_repository.dart';
@@ -45,10 +46,14 @@ class _CreateProgressScreenState extends ConsumerState<CreateProgressScreen> {
   Duration _elapsed = Duration.zero;
   bool _left = false;
 
+  /// 실패 이벤트는 한 번만. build 는 여러 번 불린다.
+  bool _failReported = false;
+
   @override
   void initState() {
     super.initState();
-    // TODO(analytics): worksheetGenerateWatch
+    // 이 화면에 들어온 것 자체는 이벤트로 남기지 않는다 — 바로 앞의 제출에서
+    // worksheetCreateStart 를 이미 한 번 남겼고, 여기서 또 남기면 같은 주문이 두 번 세어진다.
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() => _elapsed += const Duration(seconds: 1));
@@ -59,6 +64,17 @@ class _CreateProgressScreenState extends ConsumerState<CreateProgressScreen> {
   void dispose() {
     _tick?.cancel();
     super.dispose();
+  }
+
+  /// 생성 실패를 한 번만 기록하고 실패 화면을 돌려준다.
+  /// `error_code` 는 서버가 정한 닫힌 코드(llm_refused 등)라 원문이 아니다.
+  Widget _reportFailure(WorksheetSummary w) {
+    if (!_failReported) {
+      _failReported = true;
+      ref.read(analyticsProvider).track(AnalyticsEvent.worksheetCreateFailed,
+          props: {'stage': 'generate', 'error_code': w.errorCode ?? 'unknown'});
+    }
+    return _failed(context, w);
   }
 
   (String, String) get _stage {
@@ -72,7 +88,9 @@ class _CreateProgressScreenState extends ConsumerState<CreateProgressScreen> {
   void _openWorksheet() {
     if (_left || !mounted) return;
     _left = true;
-    // TODO(analytics): worksheetGenerateDone
+    // 걸린 시간은 이 화면을 고칠 때 쓰는 유일한 숫자다. 주제·제목은 싣지 않는다.
+    ref.read(analyticsProvider).track(AnalyticsEvent.worksheetCreateComplete,
+        props: {'elapsed_sec': _elapsed.inSeconds});
     // 뒤로 가면 진행 화면이 아니라 그 앞으로 가야 한다.
     context.pushReplacement(Routes.worksheet(widget.worksheetId));
   }
@@ -113,7 +131,7 @@ class _CreateProgressScreenState extends ConsumerState<CreateProgressScreen> {
             );
           },
           data: (w) => switch (w.status) {
-            WorksheetStatus.failed => _failed(context, w),
+            WorksheetStatus.failed => _reportFailure(w),
             // ready 는 위 listen 이 화면을 바꾼다. 그 한 프레임 동안 보일 그림.
             WorksheetStatus.ready => const LoadingView(label: '학습지를 여는 중'),
             _ => _working(context, w),
@@ -243,7 +261,8 @@ class _CreateProgressScreenState extends ConsumerState<CreateProgressScreen> {
           onPressed: () {
             // 환불된 쿼터가 홈에 바로 보이게 한다.
             ref.invalidate(profileProvider);
-            // TODO(analytics): worksheetCreateRetry
+            // 다시 시도는 만들기 화면으로 돌아가는 것뿐이다. 실제 재시도는 거기서 제출할 때
+            // worksheetCreateStart 로 남는다 — 여기서 또 남기면 시도 수가 부풀려진다.
             Navigator.of(context).pop();
           },
           child: const Text('다시 시도'),

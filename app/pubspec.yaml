@@ -48,3 +48,10 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    # 브랜드 마크(주황, 투명 배경). 앱 안에서 로고를 그릴 때 쓴다.
+    # 런처 아이콘·스플래시는 여기가 아니라 네이티브 리소스에 있다
+    # (ios/Runner/Assets.xcassets, android/app/src/main/res).
+    # 원본 SVG 와 생성기는 assets/icon/ 에 있고 앱에 번들되지 않는다.
+    - assets/brand/

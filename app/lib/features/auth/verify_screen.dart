@@ -96,6 +96,10 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
         // 사용자가 버튼을 찾아 누르게 만들 이유가 없다.
         unawaited(_resend(silent: true));
       }
+    } else {
+      // 가입 직후라 인증 메일은 이미 한 통 나갔다. 들어오자마자 다시 보낼 수 있게 두면
+      // 두 통이 연달아 가고, 사용자는 어느 링크가 살아 있는지 헷갈린다.
+      _startCooldown();
     }
   }
 
@@ -127,11 +131,19 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
       _formError = null;
     });
     try {
-      await ref.read(authRepositoryProvider).sendPhoneOtp(widget.target);
+      final auth = ref.read(authRepositoryProvider);
+      if (_isPhone) {
+        await auth.sendPhoneOtp(widget.target);
+      } else {
+        await auth.resendEmailVerification(widget.target);
+      }
       if (!mounted) return;
       _startCooldown();
       if (!silent) {
-        AppFeedback.toast(context, '인증번호를 다시 보냈어요.');
+        AppFeedback.toast(
+          context,
+          _isPhone ? '인증번호를 다시 보냈어요.' : '인증 메일을 다시 보냈어요.',
+        );
       }
     } catch (e, st) {
       if (!mounted) return;
@@ -219,8 +231,13 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
         ),
         AuthFormError(message: _formError),
         const SizedBox(height: DsSpace.s8),
-        // TODO(auth): 인증 메일 재전송 API 가 아직 리포지터리에 없다.
-        // `AuthRepository.resendEmailVerification` 이 생기면 여기에 쿨다운과 함께 붙인다.
+        _ResendRow(
+          secondsLeft: _secondsLeft,
+          waitingLabel: '초 뒤에 메일을 다시 보낼 수 있어요',
+          idleLabel: '메일이 안 왔나요?',
+          onResend: () => unawaited(_resend()),
+        ),
+        const SizedBox(height: DsSpace.s3),
         OutlinedButton(
           onPressed: () => context.go(Routes.login),
           child: const Text('로그인 화면으로'),
@@ -354,10 +371,19 @@ class _Tips extends StatelessWidget {
 /// 재전송 줄. 쿨다운 동안 버튼을 잠그고 **남은 초를 글자로** 보여 준다 —
 /// 회색으로만 두면 사용자는 버튼이 고장 난 줄 안다.
 class _ResendRow extends StatelessWidget {
-  const _ResendRow({required this.secondsLeft, required this.onResend});
+  const _ResendRow({
+    required this.secondsLeft,
+    required this.onResend,
+    this.waitingLabel = '초 뒤에 다시 보낼 수 있어요',
+    this.idleLabel = '문자가 안 왔나요?',
+  });
 
   final int secondsLeft;
   final VoidCallback onResend;
+
+  /// 문자와 메일은 기다리는 대상이 다르다. 같은 문구를 쓰면 메일 화면에서 문자를 기다리게 된다.
+  final String waitingLabel;
+  final String idleLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -370,7 +396,7 @@ class _ResendRow extends StatelessWidget {
         children: [
           Flexible(
             child: Text(
-              waiting ? '$secondsLeft초 뒤에 다시 보낼 수 있어요' : '문자가 안 왔나요?',
+              waiting ? '$secondsLeft$waitingLabel' : idleLabel,
               style: dsTextStyle(DsType.body, p.textSecondary),
             ),
           ),

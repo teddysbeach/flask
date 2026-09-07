@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12(API 31)부터 시스템이 스플래시를 직접 그린다. windowBackground 는 무시되고
+     아래 세 속성만 읽는다. 이걸 안 채우면 흰 바탕에 런처 아이콘이 뜨면서
+     주황 스플래시가 그 뒤에 한 번 더 나와 화면이 두 번 바뀐다. -->
+<resources>
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <item name="android:windowSplashScreenBackground">@color/brand_primary</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+    </style>
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">?android:colorBackground</item>
+    </style>
+</resources>

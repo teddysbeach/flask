@@ -117,3 +117,18 @@ class AppError implements Exception {
         _ => AppErrorKind.unknown,
       };
 }
+
+/// 보통 요청의 상한. 이 시간을 넘기면 서버가 살아 있어도 사용자에게는 죽은 것이다.
+const kRequestTimeout = Duration(seconds: 15);
+
+/// 파일을 올리고 내리는 요청의 상한. 필기 문서는 커질 수 있어 넉넉히 준다.
+const kTransferTimeout = Duration(seconds: 30);
+
+extension RequestTimeout<T> on Future<T> {
+  /// 답하지 않는 요청을 유한한 시간 안에 오류로 바꾼다.
+  ///
+  /// 여기서 나는 `TimeoutException` 은 `mapSupabaseError` 가 `AppErrorKind.timeout` 으로 옮기고,
+  /// 화면은 "다시 시도" 를 띄운다. 이게 없으면 스피너가 영원히 도는 화면이 남는다 —
+  /// 사용자에게는 그게 가장 나쁜 실패다. 무엇이 잘못됐는지도, 무엇을 하면 되는지도 알 수 없다.
+  Future<T> withTimeout([Duration limit = kRequestTimeout]) => timeout(limit);
+}

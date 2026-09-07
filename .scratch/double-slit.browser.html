@@ -1,0 +1,2228 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>이중슬릿 실험, 경로가 구별되면 왜 줄무늬가 흐려질까</title>
+<style>:root {
+  --ds-color-brand-primary: #FF6600;
+  --ds-color-brand-primary-hover: #E14D00;
+  --ds-color-brand-primary-pressed: #E14D00;
+  --ds-color-brand-primary-subtle: #FFF2EC;
+  --ds-color-brand-primary-subtle-pressed: #FFE8DB;
+  --ds-color-brand-text-on-subtle: #E14D00;
+  --ds-color-brand-text: #FF6600;
+  --ds-color-brand-on-primary: #FFFFFF;
+  --ds-color-neutral-primary-base: #1A1C20;
+  --ds-color-neutral-primary-on-base: #FFFFFF;
+  --ds-color-surface-base: #F3F4F5;
+  --ds-color-surface-raised: #FFFFFF;
+  --ds-color-surface-sunken: #F7F8F9;
+  --ds-color-surface-overlay: #FFFFFF;
+  --ds-color-surface-pressed: #F7F8F9;
+  --ds-color-text-primary: #1A1C20;
+  --ds-color-text-secondary: #555D6D;
+  --ds-color-text-tertiary: #868B94;
+  --ds-color-text-disabled: #D1D3D8;
+  --ds-color-text-placeholder: #B0B3BA;
+  --ds-color-text-inverted: #FFFFFF;
+  --ds-color-text-on-brand: #FFFFFF;
+  --ds-color-border-subtle: #DCDEE3;
+  --ds-color-border-default: rgb(0 0 0 / 0.06274509803921569);
+  --ds-color-border-strong: #555D6D;
+  --ds-color-border-focus: #5E98FE;
+  --ds-color-status-success: #079171;
+  --ds-color-status-warning: #9B7821;
+  --ds-color-status-danger: #FA342C;
+  --ds-color-status-info: #217CF9;
+  --ds-color-status-bg-success: #EDFAF6;
+  --ds-color-status-bg-warning: #FFF7DE;
+  --ds-color-status-bg-danger: #FDF0F0;
+  --ds-color-status-bg-info: #EFF6FF;
+  --ds-color-ink-pen: #1A1C20;
+  --ds-color-ink-pen-blue: #5E98FE;
+  --ds-color-ink-pen-red: #FC6A66;
+  --ds-color-ink-highlighter: #E9C647;
+  --ds-color-ink-highlighter-alt: #FBDC65;
+  --ds-space-0: 0px;
+  --ds-space-1: 4px;
+  --ds-space-2: 8px;
+  --ds-space-3: 12px;
+  --ds-space-4: 16px;
+  --ds-space-6: 24px;
+  --ds-space-8: 32px;
+  --ds-space-12: 48px;
+  --ds-space-16: 64px;
+  --ds-radius-base: 8px;
+  --ds-radius-sm: 4px;
+  --ds-radius-md: 6px;
+  --ds-radius-lg: 8px;
+  --ds-radius-xl: 12px;
+  --ds-radius-2xl: 16px;
+  --ds-radius-3xl: 20px;
+  --ds-radius-4xl: 24px;
+  --ds-radius-full: 9999px;
+  --ds-shadow-sm: 0px 1px 4px #00000014;
+  --ds-shadow-md: 0px 2px 10px #0000001a;
+  --ds-shadow-lg: 0px 4px 16px #0000001f;
+  --ds-font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', system-ui, sans-serif;
+  --ds-font-mono: 'SF Mono', SFMono-Regular, ui-monospace, Menlo, Consolas, monospace;
+  --ds-sheet-width: 820px;
+  --ds-sheet-padding: 80px;
+  --ds-sheet-section-gap: 72px;
+  --ds-ink-space-sm: 96px;
+  --ds-ink-space-md: 160px;
+  --ds-ink-space-lg: 240px;
+  --ds-ws-body-size: 18px;
+  --ds-ws-body-lh: 1.78;
+  --ds-ws-body-weight: 400;
+  --ds-ws-section-title-size: 26px;
+  --ds-ws-section-title-lh: 1.35;
+  --ds-ws-section-title-weight: 700;
+  --ds-ws-section-num-size: 13px;
+  --ds-ws-section-num-lh: 1;
+  --ds-ws-section-num-weight: 700;
+  --ds-ws-quiz-question-size: 18px;
+  --ds-ws-quiz-question-lh: 1.7;
+  --ds-ws-quiz-question-weight: 500;
+  --ds-ws-caption-size: 14px;
+  --ds-ws-caption-lh: 1.6;
+  --ds-ws-caption-weight: 400;
+  --ds-ws-lead-size: 21px;
+  --ds-ws-lead-lh: 1.72;
+  --ds-ws-lead-weight: 500;
+  --ds-callout-story-accent: #FF6600;
+  --ds-callout-story-bg: #FFF2EC;
+  --ds-callout-tip-accent: #9B7821;
+  --ds-callout-tip-bg: #FFF7DE;
+  --ds-callout-caution-accent: #FA342C;
+  --ds-callout-caution-bg: #FDF0F0;
+  --ds-sheet-block-gap: 28px;
+  --ds-paper: #FFFFFF;
+}
+:root[data-theme="dark"] {
+  --ds-color-brand-primary: #FF6600;
+  --ds-color-brand-primary-hover: #FF9E65;
+  --ds-color-brand-primary-pressed: #FF9E65;
+  --ds-color-brand-primary-subtle: #31241F;
+  --ds-color-brand-primary-subtle-pressed: #4B291C;
+  --ds-color-brand-text-on-subtle: #FF6600;
+  --ds-color-brand-text: #FF6600;
+  --ds-color-brand-on-primary: #FFFFFF;
+  --ds-color-neutral-primary-base: #2B2E35;
+  --ds-color-neutral-primary-on-base: #16171B;
+  --ds-color-surface-base: #000000;
+  --ds-color-surface-raised: #16171B;
+  --ds-color-surface-sunken: #1D2025;
+  --ds-color-surface-overlay: #1D2025;
+  --ds-color-surface-pressed: #2B2E35;
+  --ds-color-text-primary: #F3F4F5;
+  --ds-color-text-secondary: #DCDEE3;
+  --ds-color-text-tertiary: #B0B3BA;
+  --ds-color-text-disabled: #5B606A;
+  --ds-color-text-placeholder: #868B94;
+  --ds-color-text-inverted: #16171B;
+  --ds-color-text-on-brand: #FFFFFF;
+  --ds-color-border-subtle: #393D46;
+  --ds-color-border-default: rgb(255 255 255 / 0.09019607843137255);
+  --ds-color-border-strong: #DCDEE3;
+  --ds-color-border-focus: #1E82EB;
+  --ds-color-status-success: #22B27F;
+  --ds-color-status-warning: #CA901C;
+  --ds-color-status-danger: #FF6E60;
+  --ds-color-status-info: #41A2F9;
+  --ds-color-status-bg-success: #202926;
+  --ds-color-status-bg-warning: #302819;
+  --ds-color-status-bg-danger: #322323;
+  --ds-color-status-bg-info: #202742;
+  --ds-color-ink-pen: #F3F4F5;
+  --ds-color-ink-pen-blue: #1E82EB;
+  --ds-color-ink-pen-red: #F73526;
+  --ds-color-ink-highlighter: #714E15;
+  --ds-color-ink-highlighter-alt: #543E15;
+  --ds-paper: #16171B;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ds-color-brand-primary: #FF6600;
+    --ds-color-brand-primary-hover: #FF9E65;
+    --ds-color-brand-primary-pressed: #FF9E65;
+    --ds-color-brand-primary-subtle: #31241F;
+    --ds-color-brand-primary-subtle-pressed: #4B291C;
+    --ds-color-brand-text-on-subtle: #FF6600;
+    --ds-color-brand-text: #FF6600;
+    --ds-color-brand-on-primary: #FFFFFF;
+    --ds-color-neutral-primary-base: #2B2E35;
+    --ds-color-neutral-primary-on-base: #16171B;
+    --ds-color-surface-base: #000000;
+    --ds-color-surface-raised: #16171B;
+    --ds-color-surface-sunken: #1D2025;
+    --ds-color-surface-overlay: #1D2025;
+    --ds-color-surface-pressed: #2B2E35;
+    --ds-color-text-primary: #F3F4F5;
+    --ds-color-text-secondary: #DCDEE3;
+    --ds-color-text-tertiary: #B0B3BA;
+    --ds-color-text-disabled: #5B606A;
+    --ds-color-text-placeholder: #868B94;
+    --ds-color-text-inverted: #16171B;
+    --ds-color-text-on-brand: #FFFFFF;
+    --ds-color-border-subtle: #393D46;
+    --ds-color-border-default: rgb(255 255 255 / 0.09019607843137255);
+    --ds-color-border-strong: #DCDEE3;
+    --ds-color-border-focus: #1E82EB;
+    --ds-color-status-success: #22B27F;
+    --ds-color-status-warning: #CA901C;
+    --ds-color-status-danger: #FF6E60;
+    --ds-color-status-info: #41A2F9;
+    --ds-color-status-bg-success: #202926;
+    --ds-color-status-bg-warning: #302819;
+    --ds-color-status-bg-danger: #322323;
+    --ds-color-status-bg-info: #202742;
+    --ds-color-ink-pen: #F3F4F5;
+    --ds-color-ink-pen-blue: #1E82EB;
+    --ds-color-ink-pen-red: #F73526;
+    --ds-color-ink-highlighter: #714E15;
+    --ds-color-ink-highlighter-alt: #543E15;
+    --ds-paper: #16171B;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--ds-color-surface-base);
+  font-family: var(--ds-font-sans);
+  color: var(--ds-color-text-primary);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  overflow-wrap: break-word;
+}
+
+/* 문서 폭은 유동이다(V6).
+   예전에는 820px 고정을 .sheet-scaler 의 scale() 로 줄여 화면에 맞췄는데,
+   390px 폰에서 배율이 0.47 이 되어 18px 본문이 8px 로 보였다. 읽을 수 없는 학습지였다.
+   필기 좌표는 이제 [data-ink-anchor] 요소 기준 정규화라 리플로우가 나도 획이 따라간다.
+   --ds-sheet-width 는 최대 폭 토큰으로 그대로 남는다(런타임·테스트가 읽는다). */
+.sheet-scaler { transform-origin: top left; will-change: transform; }
+.sheet {
+  width: 100%;
+  max-width: var(--ds-sheet-width, 820px);
+  margin: 0 auto;
+  padding: var(--ds-sheet-padding);
+  background: var(--ds-paper);
+  position: relative;
+}
+
+/* ── 아이콘 ──
+   currentColor 를 쓰므로 색은 주변 텍스트를 따라간다. */
+.ico { display: inline-block; vertical-align: -0.16em; flex: none; }
+
+/* ── 표지 ── */
+.sheet__header { margin-bottom: 64px; }
+.sheet__eyebrow {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 13px; font-weight: 700; letter-spacing: .1em;
+  color: var(--ds-color-brand-primary);
+  margin: 0 0 18px;
+}
+.sheet__title {
+  font-size: 40px; line-height: 1.22; font-weight: 700; letter-spacing: -1px;
+  margin: 0 0 18px;
+  text-wrap: balance;
+}
+.sheet__one-liner {
+  font-size: 19px; line-height: 1.68; font-weight: 400;
+  color: var(--ds-color-text-secondary);
+  margin: 0 0 24px;
+  max-width: 34em;
+}
+/* 칩을 나열하면 앱 UI 처럼 보인다. 가운뎃점으로 잇는 한 줄이 문서에 맞는다. */
+.sheet__meta {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 14px; color: var(--ds-color-text-tertiary);
+  padding-top: 22px;
+  border-top: 1px solid var(--ds-color-border-subtle);
+}
+.sheet__meta span + span::before { content: "·"; margin-right: 10px; opacity: .6; }
+
+/* ── 섹션 ──
+   카드가 아니다. 넉넉한 여백과 머리글의 가는 선으로만 나눈다. */
+.sec { margin-bottom: var(--ds-sheet-section-gap); }
+.sec:last-of-type { margin-bottom: 0; }
+
+.sec__head {
+  margin-bottom: 32px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--ds-color-border-subtle);
+}
+/* 번호와 아이콘은 제목과 나란히 두지 않는다. 마커가 셋이 겹치면 제목이 묻힌다. */
+.sec__label {
+  display: flex; align-items: center; gap: 8px;
+  color: var(--ds-color-brand-primary);
+  margin: 0 0 10px;
+}
+.sec__num {
+  font-size: var(--ds-ws-section-num-size);
+  font-weight: var(--ds-ws-section-num-weight);
+  letter-spacing: .14em;
+  font-variant-numeric: tabular-nums;
+}
+.sec__title {
+  font-size: var(--ds-ws-section-title-size);
+  line-height: var(--ds-ws-section-title-lh);
+  font-weight: var(--ds-ws-section-title-weight);
+  letter-spacing: -.5px;
+  margin: 0;
+}
+/* 단계가 무엇을 하는 자리인지 한 줄. 제목 아래에 조용히 놓인다. */
+.sec__lead {
+  font-size: 15px; line-height: 1.6;
+  color: var(--ds-color-text-tertiary);
+  margin: 6px 0 0;
+}
+.sec__body > *:first-child { margin-top: 0; }
+.sec__body > *:last-child  { margin-bottom: 0; }
+
+/* ── 본문 ── */
+.p {
+  font-size: var(--ds-ws-body-size);
+  line-height: var(--ds-ws-body-lh);   /* 1.78 — 펜으로 줄 사이에 끼워 쓸 여지 */
+  margin: 0 0 var(--ds-sheet-block-gap);
+  max-width: 38em;                      /* 한 줄이 너무 길면 눈이 되돌아올 자리를 잃는다 */
+}
+.p strong { font-weight: 700; }
+.p em {
+  font-style: normal;
+  background: linear-gradient(transparent 64%, var(--ds-color-ink-highlighter-alt) 64%);
+  padding-bottom: 1px;
+}
+code, .code {
+  font-family: var(--ds-font-mono);
+  font-size: .9em;
+  background: var(--ds-color-surface-sunken);
+  padding: 2px 6px; border-radius: var(--ds-radius-sm);
+  color: var(--ds-color-text-primary);
+}
+.h3 {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 19px; font-weight: 700; line-height: 1.5;
+  margin: 40px 0 16px; letter-spacing: -.3px;
+}
+.h3 .ico { color: var(--ds-color-text-tertiary); }
+.list { margin: 0 0 var(--ds-sheet-block-gap); padding-left: 24px; max-width: 38em; }
+.list li {
+  font-size: var(--ds-ws-body-size); line-height: var(--ds-ws-body-lh);
+  margin-bottom: 10px; padding-left: 4px;
+}
+.list li::marker { color: var(--ds-color-text-tertiary); }
+
+/* ── 문제 제시 ──
+   학습지 전체가 수렴하는 질문 하나. 제목 다음으로 가장 눈에 띄는 글줄이어야 한다.
+   상자가 아니라 굵은 브랜드 색 세로선과 큰 활자로 세운다. */
+.problem {
+  margin: 0 0 40px;
+  padding: 4px 0 4px 28px;
+  border-left: 4px solid var(--ds-color-brand-primary);
+  max-width: 34em;
+}
+.problem__q {
+  font-size: 25px; line-height: 1.5; font-weight: 700; letter-spacing: -.5px;
+  margin: 0;
+  color: var(--ds-color-text-primary);
+  text-wrap: balance;
+}
+.problem__why {
+  font-size: 16px; line-height: 1.7; margin: 14px 0 0;
+  color: var(--ds-color-text-secondary);
+}
+
+/* ── 관찰 지시 ──
+   "여기를 보세요" 목록. 번호가 곧 순서라 크게 세우고 항목 사이를 넉넉히 띄운다. */
+.notice {
+  list-style: none; counter-reset: notice;
+  margin: 0 0 var(--ds-sheet-block-gap); padding: 0; max-width: 38em;
+}
+.notice li {
+  display: grid; grid-template-columns: 32px 1fr; gap: 14px; align-items: start;
+  font-size: var(--ds-ws-body-size); line-height: var(--ds-ws-body-lh);
+  padding: 12px 0;
+  border-top: 1px solid var(--ds-color-border-subtle);
+}
+.notice li:first-child { border-top: 0; padding-top: 0; }
+.notice li::before {
+  counter-increment: notice; content: counter(notice);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; margin-top: 2px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-brand-primary-subtle);
+  color: var(--ds-color-brand-text-on-subtle);
+  font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+
+/* ── 일상 비유 ──
+   관찰한 것에 이름을 붙이는 첫 문장. 상자에 가두지 않고 리드 문단으로 세운다.
+   문제 제시의 질문보다는 한 단계 낮게 — 세로선을 가늘게 둔다. */
+.analogy {
+  display: block;
+  font-size: var(--ds-ws-lead-size);
+  line-height: var(--ds-ws-lead-lh);
+  font-weight: var(--ds-ws-lead-weight);
+  letter-spacing: -.2px;
+  margin: 0 0 36px;
+  padding-left: 24px;
+  border-left: 2px solid var(--ds-color-brand-primary);
+  max-width: 36em;
+}
+.analogy .ico { display: none; }   /* 리드 문단에는 아이콘을 넣지 않는다 */
+
+/* ── 용어 풀이 ──
+   사전처럼 읽히게. 가는 선으로 항목을 나눈다. */
+.glossary {
+  margin: 0 0 var(--ds-sheet-block-gap);
+  border-top: 1px solid var(--ds-color-border-subtle);
+}
+.glossary dt {
+  font-size: 16px; font-weight: 700;
+  padding: 16px 0 0;
+  color: var(--ds-color-text-primary);
+}
+.glossary dd {
+  font-size: 16px; line-height: 1.7; margin: 5px 0 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--ds-color-border-subtle);
+  color: var(--ds-color-text-secondary);
+  max-width: 40em;
+}
+
+/* ── 파르 ──
+   먼저 헤맨 사람이 옆에서 건네는 말. 회색 상자가 아니라 사람이 말하는 모양이어야 한다. */
+.par {
+  display: grid; grid-template-columns: 40px 1fr; gap: 16px;
+  margin: 36px 0 0;
+  padding: 22px 24px 22px 20px;
+  background: var(--ds-color-surface-sunken);
+  border-radius: var(--ds-radius-2xl);
+  max-width: 40em;
+}
+.par__badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: var(--ds-radius-full);
+  background: var(--ds-color-brand-primary); color: #fff;
+}
+.par__badge span { display: none; }        /* 이름은 아래 본문 쪽에서 낸다 */
+.par__name {
+  display: block; font-size: 13px; font-weight: 700;
+  color: var(--ds-color-brand-primary);
+  margin: 2px 0 6px; letter-spacing: -.01em;
+}
+.par__note {
+  font-size: 16px; line-height: 1.75; margin: 0;
+  color: var(--ds-color-text-primary);
+}
+
+/* ── 활동 ──
+   설명 뒤에 학생이 무언가를 하는 자리. 학습지에서 가장 중요한 요소라 가장 눈에 띄어야 한다. */
+.act {
+  margin: 0 0 var(--ds-sheet-block-gap);
+  padding: 24px 26px;
+  border: 2px solid var(--ds-color-brand-primary);
+  border-radius: var(--ds-radius-2xl);
+  max-width: 40em;
+}
+.act__label {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 13px; font-weight: 700; letter-spacing: .02em;
+  color: var(--ds-color-brand-primary); margin: 0 0 10px;
+}
+.act__prompt { font-size: 17px; line-height: 1.7; font-weight: 500; margin: 0; }
+.act__options { list-style: none; margin: 14px 0 0; padding: 0; }
+.act__options { margin: 14px 0 0; }
+.act__key { font-weight: 700; color: var(--ds-color-text-tertiary); }
+.act .ink-space { margin-top: 16px; }
+.act__reveal { margin-top: 16px; }
+.act__reveal summary {
+  display: inline-flex; align-items: center; gap: 6px;
+  cursor: pointer; font-size: 13px; font-weight: 700; list-style: none;
+  color: var(--ds-color-text-tertiary);
+  padding: 6px 12px; border-radius: var(--ds-radius-full);
+  border: 1px solid var(--ds-color-border-subtle);
+}
+.act__reveal summary::-webkit-details-marker { display: none; }
+.act__reveal-body {
+  margin-top: 12px; font-size: 16px; line-height: 1.72;
+  padding: 14px 18px; background: var(--ds-color-surface-sunken);
+  border-radius: var(--ds-radius-lg);
+}
+
+/* ── 서술형 응답: 타이핑 + 필기 ──
+   둘 중 하나만 두면 한쪽 학습자가 답을 남길 방법을 잃는다.
+   textarea 는 JS 없이도 쓰이는 진짜 입력칸이라 어떤 경우에도 숨기지 않는다. */
+.answer { margin-top: 16px; }
+.answer__text {
+  display: block; width: 100%;
+  font-family: inherit; font-size: 16px; line-height: 1.75;
+  color: var(--ds-color-text-primary);
+  padding: 12px 14px; min-height: 88px; resize: vertical;
+  background: var(--ds-color-surface-raised);
+  border: 1px solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-lg);
+}
+.answer__text::placeholder { color: var(--ds-color-text-placeholder); }
+.answer__text:focus-visible {
+  outline: 2px solid var(--ds-color-border-focus); outline-offset: 1px;
+  border-color: var(--ds-color-border-focus);
+}
+.answer .ink-space { margin-top: 10px; }
+
+/* ── 규칙의 경계 ──
+   V6 의 핵심 장치. 단순화가 절대법칙으로 굳는 것을 막는다.
+   콜아웃만큼 존재감이 있어야 하지만 '주의' 색(빨강)은 쓰지 않는다 —
+   예외는 경고가 아니라 개념의 일부다. 두 줄 구조가 눈에 보이게 가로선으로 나눈다. */
+.boundary {
+  margin: 0 0 var(--ds-sheet-block-gap);
+  padding: 4px 22px;
+  background: var(--ds-color-surface-sunken);
+  border-left: 3px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-lg);
+  max-width: 40em;
+}
+.boundary__holds, .boundary__breaks {
+  display: grid; grid-template-columns: 18px 1fr; gap: 10px; align-items: start;
+  font-size: 16px; line-height: 1.7;
+  margin: 0; padding: 16px 0;
+  color: var(--ds-color-text-primary);
+}
+.boundary__breaks { border-top: 1px solid var(--ds-color-border-subtle); }
+.boundary__holds::before, .boundary__breaks::before {
+  font-size: 15px; font-weight: 700; line-height: 1.8;
+  color: var(--ds-color-text-tertiary);
+}
+.boundary__holds::before { content: "○"; }
+.boundary__breaks::before { content: "×"; }
+
+/* ── 선택지 (라디오) ── */
+.act__opt {
+  display: grid; grid-template-columns: auto 26px 1fr; gap: 10px; align-items: start;
+  font-size: 16px; line-height: 1.65; padding: 10px 12px; margin: 0 -12px;
+  border-top: 1px solid var(--ds-color-border-subtle); cursor: pointer;
+  border-radius: var(--ds-radius-md);
+}
+.act__opt input { margin-top: 5px; accent-color: var(--ds-color-brand-primary); }
+.act__opt.is-picked { background: var(--ds-color-surface-sunken); }
+.act__opt.is-correct { background: var(--ds-callout-tip-bg); }
+.act__opt.is-wrong { background: var(--ds-callout-caution-bg); }
+.act__fb {
+  margin: 12px 0 0; padding: 12px 16px; font-size: 15px; line-height: 1.7;
+  background: var(--ds-callout-caution-bg); color: var(--ds-color-text-primary);
+  border-radius: var(--ds-radius-lg);
+}
+.act__fb::before { content: "이렇게 고르셨다면 — "; font-weight: 700; color: var(--ds-callout-caution-accent); }
+.act__attempt { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 14px; color: var(--ds-color-text-secondary); cursor: pointer; }
+.act__attempt input { accent-color: var(--ds-color-brand-primary); }
+.quiz__submit {
+  margin-top: 12px; padding: 9px 18px; font-size: 14px; font-weight: 700; cursor: pointer;
+  border: 0; border-radius: var(--ds-radius-full);
+  background: var(--ds-color-neutral-primary-base); color: var(--ds-color-neutral-primary-on-base);
+}
+.is-answered .quiz__submit { display: none; }
+/* 고르기 전에 답을 열려고 하면 살짝 흔들어 알린다 */
+@keyframes nudge { 0%,100% { transform: translateX(0) } 25% { transform: translateX(-4px) } 75% { transform: translateX(4px) } }
+.is-nudge { animation: nudge .3s ease 2; }
+.is-nudge .act__reveal summary, .is-nudge .quiz__a summary { color: var(--ds-callout-caution-accent); border-color: var(--ds-callout-caution-accent); }
+
+/* ── 맥락 노트 (접힘) ──
+   개념 안의 짧은 역사. 핵심 경로가 아니라 접어 두고, 원하면 편다. 섹션 자체는 접지 않는다. */
+.context {
+  margin: 36px 0 0; max-width: 40em;
+  border: 1px dashed var(--ds-color-border-default);
+  border-radius: var(--ds-radius-xl);
+  padding: 0 22px;
+}
+.context[open] { padding-bottom: 22px; }
+.context__summary {
+  display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none;
+  padding: 16px 0; font-size: 15px; font-weight: 700;
+  color: var(--ds-color-text-secondary);
+}
+.context__summary::-webkit-details-marker { display: none; }
+.context__summary .ico { color: var(--ds-color-text-tertiary); }
+.context[open] .context__summary { border-bottom: 1px solid var(--ds-color-border-subtle); margin-bottom: 18px; }
+.context__body .p { font-size: 16px; }
+.context__body > *:last-child { margin-bottom: 0; }
+
+/* ── 나가기 전에: 성찰 ── */
+.reflect + .reflect { margin-top: 32px; }
+.reflect { margin-top: 28px; max-width: 40em; }
+.reflect__prompt { display: flex; gap: 8px; align-items: start; font-size: 16px; font-weight: 700; line-height: 1.6; margin: 0; }
+.reflect__prompt .ico { color: var(--ds-color-brand-primary); margin-top: 3px; }
+
+/* ── 표지: 전제 ── */
+.sheet__assumes {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  font-size: 14px; color: var(--ds-color-text-secondary);
+  margin: 14px 0 0;
+}
+.sheet__assumes-label { color: var(--ds-color-text-tertiary); margin-right: 4px; }
+.sheet__assumes > span:not(.sheet__assumes-label) {
+  padding: 4px 10px; border-radius: var(--ds-radius-full);
+  background: var(--ds-color-surface-sunken);
+}
+
+/* ── 오답 진단 ── */
+.quiz__mis { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--ds-color-border-subtle); }
+.quiz__mis ul { margin: 6px 0 0; padding-left: 18px; }
+.quiz__mis li { font-size: 15px; line-height: 1.7; margin-bottom: 6px; }
+
+/* ── 콜아웃 ──
+   좌측 굵은 바 + 대문자 라벨은 오래된 관용구다. 옅은 면과 아이콘 라벨로 충분하다. */
+.callout {
+  margin: 0 0 var(--ds-sheet-block-gap);
+  padding: 22px 26px;
+  border-radius: var(--ds-radius-2xl);
+  max-width: 40em;
+}
+.callout--caution { background: var(--ds-callout-caution-bg); }
+.callout__label {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 13px; font-weight: 700; letter-spacing: -.01em;
+  margin: 0 0 10px;
+}
+.callout--caution .callout__label { color: var(--ds-callout-caution-accent); }
+.callout .p, .callout .list { margin-bottom: 0; font-size: 16px; }
+.callout .list li:last-child { margin-bottom: 0; }
+
+/* ── 카드 (다음 단계 / 확장 과제) ── */
+.cards { display: grid; gap: 14px; margin: 0 0 var(--ds-sheet-block-gap); max-width: 40em; }
+.card {
+  padding: 20px 22px;
+  border: 1px solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-xl);
+  background: var(--ds-color-surface-raised);
+}
+.card__title { font-size: 17px; font-weight: 700; margin: 0 0 7px; letter-spacing: -.2px; }
+.card__why { font-size: 16px; line-height: 1.7; color: var(--ds-color-text-secondary); margin: 0; }
+.card__hint {
+  font-size: 14px; color: var(--ds-color-text-tertiary); margin: 10px 0 0;
+}
+
+/* ── 타임라인 (맥락 노트의 사실들) ── */
+.timeline { list-style: none; margin: 0 0 var(--ds-sheet-block-gap); padding: 0; max-width: 40em; }
+.timeline li {
+  display: grid; grid-template-columns: 108px 1fr; gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--ds-color-border-subtle);
+}
+.timeline li:first-child { padding-top: 0; }
+.timeline li:last-child { border-bottom: 0; }
+.timeline__when {
+  font-size: 14px; font-weight: 700; line-height: 1.7;
+  color: var(--ds-color-brand-primary);
+}
+.timeline__what { font-size: 16px; line-height: 1.72; margin: 0; }
+/* 불확실한 사실은 눈에 보이게 표시한다. 정직성 규칙의 시각적 표현. */
+.conf {
+  display: inline-block;
+  font-size: 12px; font-weight: 700; padding: 2px 8px;
+  border-radius: var(--ds-radius-full); margin-left: 8px; vertical-align: 1px;
+}
+.conf--medium { background: var(--ds-callout-tip-bg); color: var(--ds-callout-tip-accent); }
+.conf--low    { background: var(--ds-callout-caution-bg); color: var(--ds-callout-caution-accent); }
+
+/* ── 예시 ── */
+.example { margin: 0 0 var(--ds-sheet-block-gap); max-width: 40em; }
+.example__caption {
+  font-size: 14px; color: var(--ds-color-text-tertiary); margin: 0 0 10px;
+}
+.ex-code, .ex-calc, .ex-steps, .ex-compare {
+  background: var(--ds-color-surface-sunken);
+  border-radius: var(--ds-radius-xl);
+}
+.ex-code {
+  margin: 0; padding: 20px 22px; overflow-x: auto;
+  font-family: var(--ds-font-mono); font-size: 14px; line-height: 1.7;
+}
+.ex-code code { background: none; padding: 0; }
+
+/* 계산 — 줄마다 한 단계. 손으로 따라 쓰기 좋게 넉넉히 띄운다 */
+.ex-calc { list-style: none; counter-reset: step; margin: 0; padding: 20px 24px; }
+.ex-calc li {
+  font-family: var(--ds-font-mono); font-size: 16px; line-height: 1.9;
+  padding: 7px 0 7px 32px; position: relative;
+}
+.ex-calc li + li { border-top: 1px solid var(--ds-color-border-subtle); }
+.ex-calc li::before {
+  counter-increment: step; content: counter(step);
+  position: absolute; left: 0; top: 12px;
+  font-family: var(--ds-font-sans); font-size: 12px; font-weight: 700;
+  color: var(--ds-color-text-tertiary);
+}
+
+/* 동작 순서 */
+.ex-steps { margin: 0; padding: 20px 24px 20px 44px; }
+.ex-steps li { font-size: 16px; line-height: 1.8; margin-bottom: 10px; }
+.ex-steps li:last-child { margin-bottom: 0; }
+
+/* 전 / 후 비교 */
+.ex-compare { padding: 8px 24px; }
+.ex-compare__row {
+  display: grid; grid-template-columns: 1fr 24px 1fr; gap: 14px; align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--ds-color-border-subtle);
+  font-size: 16px; line-height: 1.65;
+}
+.ex-compare__row:last-child { border-bottom: 0; }
+.ex-compare__before { color: var(--ds-color-text-secondary); }
+.ex-compare__after { font-weight: 700; }
+.ex-compare__arrow { color: var(--ds-color-brand-primary); font-weight: 700; text-align: center; }
+.ex-compare__full { grid-column: 1 / -1; }
+
+/* 장면 묘사 */
+.ex-scene {
+  margin: 0; padding: 22px 26px;
+  background: var(--ds-callout-story-bg);
+  border-radius: var(--ds-radius-2xl);
+}
+.ex-scene p { font-size: 16px; line-height: 1.75; margin: 0 0 8px; }
+.ex-scene p:last-child { margin-bottom: 0; }
+
+/* ── 문제 ── */
+.quiz { list-style: none; margin: 0; padding: 0; counter-reset: q; }
+.quiz__item { padding: 32px 0; border-top: 1px solid var(--ds-color-border-subtle); }
+.quiz__item:first-child { border-top: 0; padding-top: 0; }
+/* 번호 줄. 번호 옆에 이 문제가 무엇을 증거로 삼는지 작은 라벨로 붙는다.
+   문제는 개수가 아니라 증거 종류로 센다 — 그 사실이 학습자에게도 보여야 한다. */
+.quiz__head {
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 0 8px;
+}
+.quiz__head::before {
+  counter-increment: q; content: "Q" counter(q);
+  font-size: 13px; font-weight: 700; letter-spacing: .1em;
+  color: var(--ds-color-brand-primary);
+}
+.quiz__evidence {
+  font-size: 12px; font-weight: 700; line-height: 1.4;
+  padding: 3px 9px; border-radius: var(--ds-radius-full);
+  background: var(--ds-color-surface-sunken);
+  color: var(--ds-color-text-tertiary);
+}
+.quiz__q {
+  font-size: var(--ds-ws-quiz-question-size);
+  line-height: var(--ds-ws-quiz-question-lh);
+  font-weight: var(--ds-ws-quiz-question-weight);
+  letter-spacing: -.2px;
+  margin: 0; max-width: 36em;
+}
+.quiz__choices { list-style: none; margin: 16px 0 0; padding: 0; max-width: 36em; }
+.quiz__choices { margin: 16px 0 0; }
+.quiz__a { margin-top: 16px; }
+.quiz__a summary {
+  display: inline-flex; align-items: center; gap: 6px;
+  cursor: pointer; font-size: 14px; font-weight: 700;
+  color: var(--ds-color-text-tertiary); list-style: none;
+  padding: 7px 14px; border-radius: var(--ds-radius-full);
+  border: 1px solid var(--ds-color-border-subtle);
+}
+.quiz__a summary::-webkit-details-marker { display: none; }
+.quiz__a-body {
+  margin-top: 14px; padding: 20px 24px;
+  background: var(--ds-color-surface-sunken);
+  border-radius: var(--ds-radius-xl);
+  font-size: 16px; line-height: 1.75; max-width: 38em;
+}
+.quiz__a-body p { margin: 0 0 10px; }
+.quiz__a-body p:last-child { margin-bottom: 0; }
+.quiz__a-label {
+  font-size: 12px; font-weight: 700; letter-spacing: .06em;
+  color: var(--ds-color-text-tertiary); display: block; margin-bottom: 3px;
+}
+
+/* ── 체크리스트 ── */
+.checklist { list-style: none; margin: 0; padding: 0; max-width: 38em; }
+.checklist li {
+  display: grid; grid-template-columns: 24px 1fr; gap: 12px; align-items: start;
+  font-size: 16px; line-height: 1.75; margin-bottom: 14px;
+}
+.checklist li::before {
+  content: ""; width: 20px; height: 20px; margin-top: 3px;
+  border: 1.5px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-md);
+}
+
+/* ── 필기 여백 ──
+   같은 안내 문구를 열다섯 번 반복하면 그건 안내가 아니라 소음이다.
+   대신 아주 옅은 괘선을 깔아서 '여기 쓰라'는 걸 모양으로 알린다. */
+.ink-space {
+  margin-top: 24px;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0, transparent 39px,
+    var(--ds-color-border-subtle) 39px, var(--ds-color-border-subtle) 40px
+  );
+  border-radius: var(--ds-radius-md);
+}
+.ink-space[data-ink-space="sm"] { height: var(--ds-ink-space-sm); }
+.ink-space[data-ink-space="md"] { height: var(--ds-ink-space-md); }
+.ink-space[data-ink-space="lg"] { height: var(--ds-ink-space-lg); }
+
+/* ── 필기 레이어 ──
+   문서 흐름 안에 절대 배치한다. 본문과 같은 스크롤 컨테이너를 쓰므로
+   스크롤 동기화 문제가 애초에 생기지 않는다. docs/plan/06-annotation.md §1 */
+.ink-layer {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  touch-action: none;
+  z-index: 10;
+}
+
+/* ── 로버스트니스 예산 (접힘) ──
+   이 학습지가 막으려 한 오해와 어디서 어떻게 막았는지.
+   학습자보다 검토자를 위한 것이라 맨 끝에서 조용히 있어야 한다 — 회색, 작은 글씨, 접힘. */
+.guards {
+  margin: 56px 0 0; max-width: 40em;
+  border-top: 1px solid var(--ds-color-border-subtle);
+}
+.guards__summary {
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer; list-style: none;
+  padding: 16px 0 0;
+  font-size: 13px; font-weight: 700;
+  color: var(--ds-color-text-tertiary);
+}
+.guards__summary::-webkit-details-marker { display: none; }
+.guards__summary::before { content: "＋"; font-weight: 400; }
+.guards[open] .guards__summary::before { content: "－"; }
+.guards__list { list-style: none; margin: 8px 0 0; padding: 0; }
+.guards__item { padding: 14px 0; border-top: 1px solid var(--ds-color-border-subtle); }
+.guards__item:first-child { border-top: 0; }
+.guards__mis {
+  margin: 0; font-size: 14px; line-height: 1.65;
+  color: var(--ds-color-text-secondary);
+}
+.guards__mis::before { content: "오해 "; color: var(--ds-color-text-tertiary); font-weight: 700; }
+.guards__how {
+  margin: 5px 0 0; font-size: 13px; line-height: 1.65;
+  color: var(--ds-color-text-tertiary);
+}
+.guards__where {
+  display: inline-block; margin-right: 7px;
+  font-weight: 700; color: var(--ds-color-text-secondary);
+}
+
+.sheet__footer {
+  margin-top: 72px; padding-top: 24px;
+  border-top: 1px solid var(--ds-color-border-subtle);
+  font-size: 13px; color: var(--ds-color-text-tertiary);
+  display: flex; justify-content: space-between; align-items: center;
+}
+
+/* ── 좁은 화면 ──
+   축소해서 보여 주는 것은 대응이 아니다. 폰에서도 본문이 본문 크기로 읽혀야 한다. */
+@media (max-width: 900px) {
+  .sheet { padding: 56px 44px; }
+  .sheet__header { margin-bottom: 48px; }
+  .sec { margin-bottom: 56px; }
+}
+@media (max-width: 640px) {
+  :root {
+    --ds-ws-body-size: 17px;
+    --ds-ws-lead-size: 19px;
+    --ds-ws-section-title-size: 22px;
+    --ds-ws-quiz-question-size: 17px;
+    --ds-ink-space-md: 128px;
+    --ds-ink-space-lg: 180px;
+  }
+  .sheet { padding: 36px 20px; }
+  .sheet__header { margin-bottom: 36px; }
+  .sheet__title { font-size: 29px; letter-spacing: -.6px; margin-bottom: 14px; }
+  .sheet__one-liner { font-size: 17px; margin-bottom: 18px; }
+  .sheet__meta { flex-wrap: wrap; gap: 6px; padding-top: 16px; }
+  .sec { margin-bottom: 48px; }
+  .sec__head { margin-bottom: 24px; padding-bottom: 14px; }
+  .h3 { font-size: 18px; margin: 30px 0 14px; }
+  .problem { padding-left: 18px; margin-bottom: 30px; }
+  .problem__q { font-size: 21px; }
+  .analogy { padding-left: 16px; margin-bottom: 28px; }
+  .act { padding: 18px 16px; border-radius: var(--ds-radius-xl); }
+  .act__opt { margin: 0 -8px; padding: 10px 8px; }
+  .callout, .par, .ex-scene { padding: 18px 16px; }
+  .par { grid-template-columns: 32px 1fr; gap: 12px; }
+  .par__badge { width: 32px; height: 32px; }
+  .boundary { padding: 2px 16px; }
+  .quiz__item { padding: 24px 0; }
+  .quiz__a-body, .ex-code, .ex-calc, .ex-steps { padding: 16px; }
+  .ex-compare { padding: 4px 16px; }
+  /* 좁은 폭에서 '전 → 후' 를 세 칸으로 두면 양쪽이 두 글자씩 남는다 */
+  .ex-compare__row { grid-template-columns: 1fr; gap: 4px; }
+  .ex-compare__arrow { text-align: left; }
+  .timeline li { grid-template-columns: 1fr; gap: 2px; }
+  .notice li { grid-template-columns: 26px 1fr; gap: 10px; }
+  .notice li::before { width: 24px; height: 24px; }
+  .answer__text { font-size: 15px; min-height: 76px; }
+  .sheet__footer { margin-top: 48px; }
+}
+
+@media print {
+  body { background: #fff; }
+  .sec { break-inside: avoid; }
+  /* 접어 둔 보조 정보는 종이에서 열려 있어야 한다 — 종이에는 삼각형을 누를 방법이 없다. */
+  details { display: block; }
+  details > * { display: revert; }
+  details::details-content { content-visibility: visible; display: block; }
+  .context, .guards { break-inside: avoid; }
+  /* 답은 예외다. 문제와 정답이 같은 종이에 인쇄되면 문제가 아니다. */
+  .quiz__a, .act__reveal { display: none; }
+  /* 타이핑칸은 종이 위에서 그냥 줄 없는 빈 칸이다. 배경·그림자 없이 테두리만. */
+  .answer__text {
+    background: none; box-shadow: none; resize: none;
+    border: 1px solid var(--ds-color-border-strong);
+  }
+  .answer__text::placeholder { color: transparent; }
+}
+
+.fig__note { font-weight: 400; color: var(--ds-color-text-tertiary); }
+.fig__ctl { margin: 12px 0 0; display: grid; gap: 6px; font-size: 14px; color: var(--ds-color-text-secondary); }
+.fig__slider { width: 100%; accent-color: var(--ds-color-brand-primary); }
+.fig__readout { font-family: var(--ds-font-mono); font-size: 14px; color: var(--ds-color-text-primary); }
+.fig__readout b { color: var(--ds-color-brand-primary); }
+/* 정성 모형이라는 고정 문구. 슬라이더 바로 아래에 붙어 있어야 눈금과 함께 읽힌다. */
+.fig__ctl-note {
+  margin: 2px 0 0; font-size: 13px; line-height: 1.6;
+  color: var(--ds-color-text-tertiary);
+}
+/* JS 가 붙기 전에는 죽은 컨트롤이다. 런타임이 data-wired 를 달면 그때 보인다.
+   그림 자체(정적 SVG)는 그대로 보여야 하므로 컨트롤만 감춘다. */
+figure[data-interactive]:not([data-wired]) .fig__ctl { display: none; }
+/* 이 그림이 생략한 것. 눈에 띄되 본문을 밀어내지 않는 크기 — 점선 하나와 작은 글씨. */
+.fig__limits {
+  margin: 8px 0 0; padding-top: 8px;
+  border-top: 1px dashed var(--ds-color-border-subtle);
+  font-size: 13px; line-height: 1.65;
+  color: var(--ds-color-text-secondary);
+  max-width: 40em;
+}
+/* 출처·라이선스. 조용하지만 지울 수 없다. */
+.fig__credit {
+  margin: 8px 0 0; font-size: 12px; line-height: 1.6;
+  color: var(--ds-color-text-tertiary);
+}
+/* 실물 사진 */
+.fig-photo {
+  display: grid; gap: 10px;
+  border-radius: var(--ds-radius-xl); overflow: hidden;
+}
+.fig-photo--pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.fig-photo__img {
+  display: block; width: 100%; max-width: 100%; height: auto;
+  border-radius: var(--ds-radius-xl);
+  background: var(--ds-color-surface-sunken);
+}
+.fig-secant--live { stroke: var(--ds-color-status-info); stroke-width: 2.4; }
+.fig { margin: 0 0 var(--ds-sheet-block-gap); max-width: 40em; }
+.fig__svg {
+  display: block; width: 100%; height: auto;
+  background: var(--ds-color-surface-raised);
+  border: 1px solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-xl);
+}
+.fig__cap { font-size: 14px; color: var(--ds-color-text-tertiary); margin: 10px 0 0; }
+.fig__task {
+  font-size: 16px; font-weight: 700; margin: 14px 0 0;
+  color: var(--ds-color-text-primary);
+}
+.fig__task::before { content: "✎ "; color: var(--ds-color-brand-primary); }
+.fig-axis { stroke: var(--ds-color-border-strong); stroke-width: 1.2; }
+.fig-guide { stroke: var(--ds-color-border-default); stroke-width: 1; stroke-dasharray: 4 4; }
+.fig-panel { fill: var(--ds-color-surface-sunken); stroke: var(--ds-color-border-subtle); rx: 8; }
+.fig-curve { fill: none; stroke: var(--ds-color-text-primary); stroke-width: 2.4; stroke-linecap: round; }
+.fig-secant { stroke: var(--ds-color-status-info); stroke-width: 2; stroke-dasharray: 6 5; }
+.fig-tangent { stroke: var(--ds-color-brand-primary); stroke-width: 2.4; }
+.fig-pt { fill: var(--ds-color-text-primary); }
+.fig-pt--secant { fill: var(--ds-color-status-info); }
+.fig-pt--tangent { fill: var(--ds-color-brand-primary); }
+.fig-area { fill: var(--ds-color-brand-primary); fill-opacity: .28; stroke: var(--ds-color-brand-primary); stroke-width: 1.5; }
+.fig-bar { fill: var(--ds-color-text-tertiary); }
+.fig-bar--clip { fill: var(--ds-color-status-danger); }
+.fig-tick { font-size: 12px; fill: var(--ds-color-text-tertiary); font-family: var(--ds-font-sans); }
+.fig-tick--clip { fill: var(--ds-color-status-danger); font-weight: 700; }
+.fig-label { font-size: 13px; font-weight: 700; fill: var(--ds-color-text-secondary); font-family: var(--ds-font-sans); }
+
+@media (max-width: 640px) {
+  /* 두 장을 나란히 두면 각각이 손톱만 해진다. 좁은 화면에서는 위아래로 쌓는다. */
+  .fig-photo--pair { grid-template-columns: minmax(0, 1fr); }
+  .fig__task { font-size: 15px; }
+  .fig__ctl { font-size: 13px; }
+}
+@media print {
+  .fig-photo__img { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<div class="sheet-scaler">
+<article class="sheet" data-worksheet-id="w-browser" data-schema-version="3">
+<header class="sheet__header">
+<p class="sheet__eyebrow"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 10.0001V16.0112C5 16.3702 5 16.5496 5.05465 16.7081C5.10299 16.8482 5.18187 16.9759 5.28558 17.0817C5.40287 17.2015 5.5634 17.2818 5.88446 17.4423L11.2845 20.1423C11.5468 20.2735 11.678 20.3391 11.8156 20.3649C11.9375 20.3877 12.0625 20.3877 12.1844 20.3649C12.322 20.3391 12.4532 20.2735 12.7155 20.1423L18.1155 17.4423C18.4366 17.2818 18.5971 17.2015 18.7144 17.0817C18.8181 16.9759 18.897 16.8482 18.9453 16.7081C19 16.5496 19 16.3702 19 16.0112V10.0001M2 8.50006L11.6422 3.67895C11.7734 3.61336 11.839 3.58056 11.9078 3.56766C11.9687 3.55622 12.0313 3.55622 12.0922 3.56766C12.161 3.58056 12.2266 3.61336 12.3578 3.67895L22 8.50006L12.3578 13.3212C12.2266 13.3868 12.161 13.4196 12.0922 13.4325C12.0313 13.4439 11.9687 13.4439 11.9078 13.4325C11.839 13.4196 11.7734 13.3868 11.6422 13.3212L2 8.50006Z"/></svg>ONPAR 학습지</p>
+<h1 class="sheet__title">이중슬릿 실험, 경로가 구별되면 왜 줄무늬가 흐려질까</h1>
+<p class="sheet__one-liner">고전적인 입자 모델로도 파동 모델로도 다 설명되지 않는 실험, 그리고 두 경로의 결맞음이 하는 일</p>
+<div class="sheet__meta"><span>입문</span><span>본학습 28분</span><span>연습 16분</span><span>선택 과제 40분</span></div>
+<p class="sheet__assumes"><span class="sheet__assumes-label">이 학습지는 이걸 안다고 봐요</span><span>물결이 겹치면 커지거나 상쇄된다는 걸 본 적이 있다</span><span>확률이 무엇인지 안다</span><span>양자역학은 처음이어도 된다</span></p>
+</header>
+<section class="sec sec--core" id="sec-1" data-section="problem"><header class="sec__head"><p class="sec__label"><svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7.5 4.5C7.5 3.11929 8.61929 2 10 2C11.3807 2 12.5 3.11929 12.5 4.5V6H13.5C14.8978 6 15.5967 6 16.1481 6.22836C16.8831 6.53284 17.4672 7.11687 17.7716 7.85195C18 8.40326 18 9.10218 18 10.5H19.5C20.8807 10.5 22 11.6193 22 13C22 14.3807 20.8807 15.5 19.5 15.5H18V17.2C18 18.8802 18 19.7202 17.673 20.362C17.3854 20.9265 16.9265 21.3854 16.362 21.673C15.7202 22 14.8802 22 13.2 22H12.5V20.25C12.5 19.0074 11.4926 18 10.25 18C9.00736 18 8 19.0074 8 20.25V22H6.8C5.11984 22 4.27976 22 3.63803 21.673C3.07354 21.3854 2.6146 20.9265 2.32698 20.362C2 19.7202 2 18.8802 2 17.2V15.5H3.5C4.88071 15.5 6 14.3807 6 13C6 11.6193 4.88071 10.5 3.5 10.5H2C2 9.10218 2 8.40326 2.22836 7.85195C2.53284 7.11687 3.11687 6.53284 3.85195 6.22836C4.40326 6 5.10218 6 6.5 6H7.5V4.5Z"/></svg><span class="sec__num">01</span></p><h2 class="sec__title">문제 제시</h2><p class="sec__lead">아직은 못 푸는 문제 하나</p></header><div class="sec__body"><p class="p">전자총 하나가 슬릿 두 개가 뚫린 판을 향해 전자를 쏴요. 한 번에 <strong>딱 한 알</strong>, 앞의 전자가 화면에 닿은 뒤에야 다음 전자를 보내요. 판 뒤에는 전자가 닿을 때마다 점 하나를 찍는 검출 화면이 있어요. 이 장치를 밤새 켜 두면 아침까지 점 10,000개가 쌓여요.</p><div class="problem"><p class="problem__q">아침에 화면에는 어떤 모양이 쌓여 있을까요, 그리고 어느 슬릿을 지났는지 알아내는 장치를 붙이면 그 모양은 어떻게 바뀔까요?</p><p class="problem__why">&#39;관측하면 달라진다&#39; 는 말이 과학 기사와 유사과학 양쪽에서 쓰이는데, 이 실험을 알아야 어느 쪽이 맞는지 가릴 수 있어요.</p></div><p class="h3">이 학습지를 마치면</p><ul class="list"><li>세 경우(모래알 / 물결 / 전자 한 알씩)의 화면 분포를 보지 않고 종이에 그리기</li><li>경로를 알아내는 장치를 붙였을 때 줄무늬가 흐려지는 이유를 &#39;사람&#39; 이라는 단어 없이 두 문장으로 쓰기</li><li>ψ₁ = ψ₂ = 1 인 한 점에서 |ψ₁+ψ₂|² 과 |ψ₁|²+|ψ₂|² 의 상대 세기를 계산하고 두 값이 갈리는 이유 말하기</li></ul></div></section><section class="sec sec--core" id="sec-2" data-section="predict"><header class="sec__head"><p class="sec__label"><svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M22 12C22 17.5228 17.5228 22 12 22M22 12C22 6.47715 17.5228 2 12 2M22 12H18M12 22C6.47715 22 2 17.5228 2 12M12 22V18M2 12C2 6.47715 6.47715 2 12 2M2 12H6M12 2V6"/></svg><span class="sec__num">02</span></p><h2 class="sec__title">예측</h2><p class="sec__lead">설명을 읽기 전에 먼저 골라요</p></header><div class="sec__body"><div class="act act--predict" data-response-id="hook-1" data-response-kind="choice"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>먼저 예측해 보세요</p><p class="act__prompt">구멍 두 개가 뚫린 판 앞에서 전자를 한 알씩, 앞의 것이 화면에 닿은 뒤 다음 것을 쏴요. 점 10,000개를 쌓으면 화면에 무엇이 남을까요?</p><div class="act__options" role="radiogroup"><label class="act__opt"><input type="radio" name="hook-1" value="구멍 모양대로 두 무더기"><span class="act__key">①</span><span>구멍 모양대로 두 무더기</span></label><label class="act__opt"><input type="radio" name="hook-1" value="여러 줄의 밝고 어두운 무늬"><span class="act__key">②</span><span>여러 줄의 밝고 어두운 무늬</span></label><label class="act__opt"><input type="radio" name="hook-1" value="아무 규칙 없이 흩어짐"><span class="act__key">③</span><span>아무 규칙 없이 흩어짐</span></label></div><p class="act__fb" data-feedback-slot hidden></p><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>고르면 열려요</summary><div class="act__reveal-body">어느 쪽을 골랐는지 기억해 두세요. &#39;두 무더기&#39; 를 골라도 괜찮아요. 이 학습지의 핵심은 답이 아니라, 왜 그 답이 나오는지 그리고 무엇이 그 답을 바꾸는지예요.</div></details></div><div class="act act--explain" data-response-id="reason-2" data-response-kind="written"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>왜 그렇게 골랐나요</p><p class="act__prompt">왜 그렇게 골랐는지 한 줄로 적어 두세요. &#39;한 알씩이니까…&#39; 처럼 이유의 첫마디만 있어도 돼요.</p><div class="answer" data-answer-for="reason-2"><textarea class="answer__text" data-answer-text rows="3" placeholder="여기에 타이핑해도 되고, 아래 칸에 펜으로 써도 돼요"></textarea><div class="ink-space" data-ink-space="sm" data-ink-anchor="reason-2"></div></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 생각을 적었어요</label></div></div></section><section class="sec sec--core" id="sec-3" data-section="observe"><header class="sec__head"><p class="sec__label"><svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2.42012 12.7132C2.28394 12.4975 2.21584 12.3897 2.17772 12.2234C2.14909 12.0985 2.14909 11.9015 2.17772 11.7766C2.21584 11.6103 2.28394 11.5025 2.42012 11.2868C3.54553 9.50484 6.8954 5 12.0004 5C17.1054 5 20.4553 9.50484 21.5807 11.2868C21.7169 11.5025 21.785 11.6103 21.8231 11.7766C21.8517 11.9015 21.8517 12.0985 21.8231 12.2234C21.785 12.3897 21.7169 12.4975 21.5807 12.7132C20.4553 14.4952 17.1054 19 12.0004 19C6.8954 19 3.54553 14.4952 2.42012 12.7132Z"/><path d="M12.0004 15C13.6573 15 15.0004 13.6569 15.0004 12C15.0004 10.3431 13.6573 9 12.0004 9C10.3435 9 9.0004 10.3431 9.0004 12C9.0004 13.6569 10.3435 15 12.0004 15Z"/></svg><span class="sec__num">03</span></p><h2 class="sec__title">관찰</h2><p class="sec__lead">예측이 맞았는지 증거를 봐요</p></header><div class="sec__body"><p class="p">밤새 쌓인 점들을 세 가지 경우로 나란히 놓았어요. 첫 칸은 모래알을 뿌렸을 때, 둘째 칸은 물결을 보냈을 때, 셋째 칸이 전자를 한 알씩 쏜 결과예요. 아직 설명은 없어요. <strong>무엇이 보이는지만</strong> 적어요.</p><figure class="fig" id="fig-three" data-figure="three" data-readout="qualitative"><svg class="fig__svg" viewBox="0 0 600 340" role="img" aria-labelledby="fig-three-t" aria-describedby="fig-three-d"><title id="fig-three-t">무엇을 쏘느냐에 따라 화면에 남는 것</title><desc id="fig-three-d">세 개의 그래프. 모래알을 뿌리면 두 봉우리, 물결이면 여러 줄의 간섭무늬, 전자를 한 알씩 쏘아 쌓아도 간섭무늬.</desc><text class="fig-label" x="110.67" y="32.00" text-anchor="middle">모래알 (고전 입자)</text><rect class="fig-panel" x="24.00" y="52.00" width="173.33" height="264.00"/><path class="fig-area" d="M24.00 316.00L24.00 314.92L26.89 313.30L29.78 310.20L32.67 305.34L35.56 299.24L38.44 293.27L41.33 288.94L44.22 286.62L47.11 285.03L50.00 281.81L52.89 274.83L55.78 263.02L58.67 246.39L61.56 225.61L64.44 201.77L67.33 176.23L70.22 150.66L73.11 126.99L76.00 107.19L78.89 93.06L81.78 85.91L84.67 86.41L87.56 94.36L90.44 108.77L93.33 127.96L96.22 149.75L99.11 171.77L102.00 191.69L104.89 207.49L107.78 217.62L110.67 221.11L113.56 217.62L116.44 207.49L119.33 191.69L122.22 171.77L125.11 149.75L128.00 127.96L130.89 108.77L133.78 94.36L136.67 86.41L139.56 85.91L142.44 93.06L145.33 107.19L148.22 126.99L151.11 150.66L154.00 176.23L156.89 201.77L159.78 225.61L162.67 246.39L165.56 263.02L168.44 274.83L171.33 281.81L174.22 285.03L177.11 286.62L180.00 288.94L182.89 293.27L185.78 299.24L188.67 305.34L191.56 310.20L194.44 313.30L197.33 314.92L197.33 316.00Z"/><text class="fig-label" x="300.00" y="32.00" text-anchor="middle">물결 (파동)</text><rect class="fig-panel" x="213.33" y="52.00" width="173.33" height="264.00"/><path class="fig-area" d="M213.33 316.00L213.33 296.65L216.22 295.27L219.11 298.34L222.00 305.08L224.89 312.49L227.78 316.00L230.67 311.32L233.56 296.62L236.44 274.22L239.33 250.68L242.22 234.77L245.11 233.82L248.00 249.87L250.89 277.41L253.78 304.27L256.67 316.00L259.56 302.07L262.44 261.54L265.33 205.16L268.22 152.37L271.11 123.86L274.00 132.47L276.89 176.56L279.78 239.16L282.67 293.95L285.56 316.00L288.44 292.65L291.33 229.81L294.22 150.36L297.11 85.11L300.00 60.00L302.89 85.11L305.78 150.36L308.67 229.81L311.56 292.65L314.44 316.00L317.33 293.95L320.22 239.16L323.11 176.56L326.00 132.47L328.89 123.86L331.78 152.37L334.67 205.16L337.56 261.54L340.44 302.07L343.33 316.00L346.22 304.27L349.11 277.41L352.00 249.87L354.89 233.82L357.78 234.77L360.67 250.68L363.56 274.22L366.44 296.62L369.33 311.32L372.22 316.00L375.11 312.49L378.00 305.08L380.89 298.34L383.78 295.27L386.67 296.65L386.67 316.00Z"/><text class="fig-label" x="489.33" y="32.00" text-anchor="middle">전자 한 알씩 쌓음</text><rect class="fig-panel" x="402.67" y="52.00" width="173.33" height="264.00"/><path class="fig-area" d="M402.67 316.00L402.67 296.65L405.56 295.27L408.44 298.34L411.33 305.08L414.22 312.49L417.11 316.00L420.00 311.32L422.89 296.62L425.78 274.22L428.67 250.68L431.56 234.77L434.44 233.82L437.33 249.87L440.22 277.41L443.11 304.27L446.00 316.00L448.89 302.07L451.78 261.54L454.67 205.16L457.56 152.37L460.44 123.86L463.33 132.47L466.22 176.56L469.11 239.16L472.00 293.95L474.89 316.00L477.78 292.65L480.67 229.81L483.56 150.36L486.44 85.11L489.33 60.00L492.22 85.11L495.11 150.36L498.00 229.81L500.89 292.65L503.78 316.00L506.67 293.95L509.56 239.16L512.44 176.56L515.33 132.47L518.22 123.86L521.11 152.37L524.00 205.16L526.89 261.54L529.78 302.07L532.67 316.00L535.56 304.27L538.44 277.41L541.33 249.87L544.22 233.82L547.11 234.77L550.00 250.68L552.89 274.22L555.78 296.62L558.67 311.32L561.56 316.00L564.44 312.49L567.33 305.08L570.22 298.34L573.11 295.27L576.00 296.65L576.00 316.00Z"/></svg><figcaption class="fig__cap">무엇을 쏘느냐에 따라 화면에 남는 것</figcaption><p class="fig__limits">이 그림이 생략한 것 — 슬릿 폭과 회절을 뺀 이상화 모형이에요. 실제 사진에서는 세 칸의 무늬가 모두 넓게 퍼진 회절 봉투 안에 들어가요. 띠의 개수와 밝기 비율도 파장·거리에 따라 달라져요.</p><p class="fig__task">결과를 보기 전에, 세 번째 칸에 어떤 모양이 나올지 먼저 연필로 그려 보세요. 그다음 실제 결과와 비교하세요.</p><div class="ink-space" data-ink-space="md" data-ink-anchor="fig-three"></div></figure><p class="h3">여기를 보세요</p><ol class="notice"><li>세 번째 칸에서 밝은 띠가 몇 개인지 세어 보세요. 두 개인가요, 그보다 많은가요?</li><li>첫 번째 칸(모래알)과 세 번째 칸의 한가운데를 비교해 보세요. 어느 쪽이 한가운데가 밝은가요?</li><li>두 번째 칸(물결)과 세 번째 칸의 모양이 같은지 다른지 보세요.</li><li>전자는 한 번에 점 하나로 찍혀요. 그런데 점이 모인 모양은 어느 칸을 닮았나요?</li></ol><div class="act act--decide" data-response-id="compare-3" data-response-kind="choice"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>골라 보세요</p><p class="act__prompt">처음 예측과 비교해 보세요. 어땠나요?</p><div class="act__options" role="radiogroup"><label class="act__opt"><input type="radio" name="compare-3" value="맞았어요 — 여러 줄 무늬를 골랐어요"><span class="act__key">①</span><span>맞았어요 — 여러 줄 무늬를 골랐어요</span></label><label class="act__opt"><input type="radio" name="compare-3" value="틀렸어요 — 두 무더기를 골랐어요"><span class="act__key">②</span><span>틀렸어요 — 두 무더기를 골랐어요</span></label><label class="act__opt"><input type="radio" name="compare-3" value="반쯤 — 무늬는 맞혔지만 이유는 달랐어요"><span class="act__key">③</span><span>반쯤 — 무늬는 맞혔지만 이유는 달랐어요</span></label></div><p class="act__fb" data-feedback-slot hidden></p><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>고르면 열려요</summary><div class="act__reveal-body">&#39;두 무더기&#39; 를 골랐다면 아주 자연스러운 예측이에요. 한 알씩 가면 겹칠 상대가 없으니까요. 그런데 화면은 물결 칸과 같은 모양이에요. 이 어긋남이 다음 단계에서 풀 문제예요.</div></details></div><aside class="par"><span class="par__badge"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 15L6.92474 18.1137C6.49579 18.548 6.28131 18.7652 6.09695 18.7805C5.93701 18.7938 5.78042 18.7295 5.67596 18.6076C5.55556 18.4672 5.55556 18.162 5.55556 17.5515V15.9916C5.55556 15.444 5.10707 15.0477 4.5652 14.9683V14.9683C3.25374 14.7762 2.22378 13.7463 2.03168 12.4348C2 12.2186 2 11.9605 2 11.4444V6.8C2 5.11984 2 4.27976 2.32698 3.63803C2.6146 3.07354 3.07354 2.6146 3.63803 2.32698C4.27976 2 5.11984 2 6.8 2H14.2C15.8802 2 16.7202 2 17.362 2.32698C17.9265 2.6146 18.3854 3.07354 18.673 3.63803C19 4.27976 19 5.11984 19 6.8V11M19 22L16.8236 20.4869C16.5177 20.2742 16.3647 20.1678 16.1982 20.0924C16.0504 20.0255 15.8951 19.9768 15.7356 19.9474C15.5558 19.9143 15.3695 19.9143 14.9969 19.9143H13.2C12.0799 19.9143 11.5198 19.9143 11.092 19.6963C10.7157 19.5046 10.4097 19.1986 10.218 18.8223C10 18.3944 10 17.8344 10 16.7143V14.2C10 13.0799 10 12.5198 10.218 12.092C10.4097 11.7157 10.7157 11.4097 11.092 11.218C11.5198 11 12.0799 11 13.2 11H18.8C19.9201 11 20.4802 11 20.908 11.218C21.2843 11.4097 21.5903 11.7157 21.782 12.092C22 12.5198 22 13.0799 22 14.2V16.9143C22 17.8462 22 18.3121 21.8478 18.6797C21.6448 19.1697 21.2554 19.5591 20.7654 19.762C20.3978 19.9143 19.9319 19.9143 19 19.9143V22Z"/></svg></span><div><span class="par__name">파르</span><p class="par__note">이 부분은 직관에 안 맞는 게 정상이에요. 저도 처음엔 &#39;두 무더기&#39; 를 골랐어요. 지금 목표는 납득이 아니라 무슨 일이 벌어지는지 정확히 아는 거예요.</p></div></aside></div></section><section class="sec sec--core" id="sec-4" data-section="concept"><header class="sec__head"><p class="sec__label"><svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 10.0001V16.0112C5 16.3702 5 16.5496 5.05465 16.7081C5.10299 16.8482 5.18187 16.9759 5.28558 17.0817C5.40287 17.2015 5.5634 17.2818 5.88446 17.4423L11.2845 20.1423C11.5468 20.2735 11.678 20.3391 11.8156 20.3649C11.9375 20.3877 12.0625 20.3877 12.1844 20.3649C12.322 20.3391 12.4532 20.2735 12.7155 20.1423L18.1155 17.4423C18.4366 17.2818 18.5971 17.2015 18.7144 17.0817C18.8181 16.9759 18.897 16.8482 18.9453 16.7081C19 16.5496 19 16.3702 19 16.0112V10.0001M2 8.50006L11.6422 3.67895C11.7734 3.61336 11.839 3.58056 11.9078 3.56766C11.9687 3.55622 12.0313 3.55622 12.0922 3.56766C12.161 3.58056 12.2266 3.61336 12.3578 3.67895L22 8.50006L12.3578 13.3212C12.2266 13.3868 12.161 13.4196 12.0922 13.4325C12.0313 13.4439 11.9687 13.4439 11.9078 13.4325C11.839 13.4196 11.7734 13.3868 11.6422 13.3212L2 8.50006Z"/></svg><span class="sec__num">04</span></p><h2 class="sec__title">개념</h2><p class="sec__lead">본 것에 이름을 붙여요</p></header><div class="sec__body"><p class="analogy">잔잔한 물에 돌 두 개를 동시에 던져 보세요. 물결이 퍼지다가 서로 만나요. 어떤 곳은 물결이 겹쳐서 더 높아지고, 어떤 곳은 서로 상쇄돼서 잠잠해져요. 방금 본 세 번째 칸이 바로 그 무늬예요.</p><p class="h3">먼저 물결로 보면 무늬의 정체가 보여요</p><p class="p">물결이 구멍 두 개를 지나면 각 구멍에서 새 물결이 퍼져 나가요. 이 둘이 만나는 곳에서 마루끼리 만나면 더 커지고, 마루와 골이 만나면 서로 지워져요. 화면에 닿는 세기를 보면 <strong>센 곳과 약한 곳이 번갈아</strong> 나타나요. 이게 줄무늬예요.</p><div class="example" data-example-kind="steps"><p class="example__caption">집에서 비슷하게 해보려면</p><ol class="ex-steps"><li>넓은 대야에 물을 얕게 받아요.</li><li>가운데를 판으로 막고 틈 두 개를 만들어요.</li><li>한쪽에서 손가락으로 규칙적으로 물을 톡톡 쳐요.</li><li>틈 뒤쪽 물결이 겹치는 모양을 옆에서 보세요.</li></ol></div><div class="act act--predict" data-response-id="act-4" data-response-kind="choice"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>먼저 예측해 보세요</p><p class="act__prompt">물결이 구멍 두 개를 지나 화면에 닿으면, 밝은 줄이 몇 개 생길까요?</p><div class="act__options" role="radiogroup"><label class="act__opt"><input type="radio" name="act-4" value="1개"><span class="act__key">①</span><span>1개</span></label><label class="act__opt"><input type="radio" name="act-4" value="2개 (구멍이 둘이니까)"><span class="act__key">②</span><span>2개 (구멍이 둘이니까)</span></label><label class="act__opt"><input type="radio" name="act-4" value="여러 개"><span class="act__key">③</span><span>여러 개</span></label></div><p class="act__fb" data-feedback-slot hidden></p><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>고르면 열려요</summary><div class="act__reveal-body">여러 개예요. 구멍이 둘이라고 줄이 둘인 게 아니에요. 두 물결이 만나는 곳마다 세지거나 상쇄되니까 밝고 어두운 줄이 번갈아 여러 개 생겨요. &#39;2개&#39; 를 골랐다면 저와 같은 길을 오신 거예요. 모래알 그림이 아직 머리에 남아 있는 거예요.</div></details></div><div class="callout callout--caution"><p class="callout__label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11.9998 8.99999V13M11.9998 17H12.0098M10.6151 3.89171L2.39019 18.0983C1.93398 18.8863 1.70588 19.2803 1.73959 19.6037C1.769 19.8857 1.91677 20.142 2.14613 20.3088C2.40908 20.5 2.86435 20.5 3.77487 20.5H20.2246C21.1352 20.5 21.5904 20.5 21.8534 20.3088C22.0827 20.142 22.2305 19.8857 22.2599 19.6037C22.2936 19.2803 22.0655 18.8863 21.6093 18.0983L13.3844 3.89171C12.9299 3.10654 12.7026 2.71396 12.4061 2.58211C12.1474 2.4671 11.8521 2.4671 11.5935 2.58211C11.2969 2.71396 11.0696 3.10655 10.6151 3.89171Z"/></svg>흔한 실수</p><p class="p">줄무늬가 &#39;두 줄&#39; 일 거라고 짐작하는 거예요. 구멍이 둘이니 줄도 둘일 것 같지만, 실제로는 여러 줄이 나와요.</p></div><p class="h3">고전적인 입자 모델로는 줄무늬가 안 나와요</p><p class="p">구멍 두 개에 모래를 뿌린다고 생각해 보세요. 뒤쪽에는 구멍 모양대로 두 무더기가 쌓여요. 겹치는 무늬 같은 건 생기지 않아요. 모래알은 한 번에 한 구멍만 지나니까요. 그래서 줄무늬가 나오면 <strong>&#39;작은 모래알&#39; 이라는 고전 모델 하나로는 설명이 안 된다</strong> 는 뜻이에요. 검출은 한 점에 찍히고(입자처럼), 수많은 검출의 분포에는 간섭이 나타나요(파동처럼). 어느 한쪽을 고르는 문제가 아니라, 두 고전 모델 중 어느 하나로도 전부를 설명할 수 없다는 게 관찰된 사실이에요.</p><figure class="fig" id="fig-three" data-figure="three" data-readout="qualitative"><svg class="fig__svg" viewBox="0 0 600 340" role="img" aria-labelledby="fig-three-t" aria-describedby="fig-three-d"><title id="fig-three-t">무엇을 쏘느냐에 따라 화면에 남는 것</title><desc id="fig-three-d">세 개의 그래프. 모래알을 뿌리면 두 봉우리, 물결이면 여러 줄의 간섭무늬, 전자를 한 알씩 쏘아 쌓아도 간섭무늬.</desc><text class="fig-label" x="110.67" y="32.00" text-anchor="middle">모래알 (고전 입자)</text><rect class="fig-panel" x="24.00" y="52.00" width="173.33" height="264.00"/><path class="fig-area" d="M24.00 316.00L24.00 314.92L26.89 313.30L29.78 310.20L32.67 305.34L35.56 299.24L38.44 293.27L41.33 288.94L44.22 286.62L47.11 285.03L50.00 281.81L52.89 274.83L55.78 263.02L58.67 246.39L61.56 225.61L64.44 201.77L67.33 176.23L70.22 150.66L73.11 126.99L76.00 107.19L78.89 93.06L81.78 85.91L84.67 86.41L87.56 94.36L90.44 108.77L93.33 127.96L96.22 149.75L99.11 171.77L102.00 191.69L104.89 207.49L107.78 217.62L110.67 221.11L113.56 217.62L116.44 207.49L119.33 191.69L122.22 171.77L125.11 149.75L128.00 127.96L130.89 108.77L133.78 94.36L136.67 86.41L139.56 85.91L142.44 93.06L145.33 107.19L148.22 126.99L151.11 150.66L154.00 176.23L156.89 201.77L159.78 225.61L162.67 246.39L165.56 263.02L168.44 274.83L171.33 281.81L174.22 285.03L177.11 286.62L180.00 288.94L182.89 293.27L185.78 299.24L188.67 305.34L191.56 310.20L194.44 313.30L197.33 314.92L197.33 316.00Z"/><text class="fig-label" x="300.00" y="32.00" text-anchor="middle">물결 (파동)</text><rect class="fig-panel" x="213.33" y="52.00" width="173.33" height="264.00"/><path class="fig-area" d="M213.33 316.00L213.33 296.65L216.22 295.27L219.11 298.34L222.00 305.08L224.89 312.49L227.78 316.00L230.67 311.32L233.56 296.62L236.44 274.22L239.33 250.68L242.22 234.77L245.11 233.82L248.00 249.87L250.89 277.41L253.78 304.27L256.67 316.00L259.56 302.07L262.44 261.54L265.33 205.16L268.22 152.37L271.11 123.86L274.00 132.47L276.89 176.56L279.78 239.16L282.67 293.95L285.56 316.00L288.44 292.65L291.33 229.81L294.22 150.36L297.11 85.11L300.00 60.00L302.89 85.11L305.78 150.36L308.67 229.81L311.56 292.65L314.44 316.00L317.33 293.95L320.22 239.16L323.11 176.56L326.00 132.47L328.89 123.86L331.78 152.37L334.67 205.16L337.56 261.54L340.44 302.07L343.33 316.00L346.22 304.27L349.11 277.41L352.00 249.87L354.89 233.82L357.78 234.77L360.67 250.68L363.56 274.22L366.44 296.62L369.33 311.32L372.22 316.00L375.11 312.49L378.00 305.08L380.89 298.34L383.78 295.27L386.67 296.65L386.67 316.00Z"/><text class="fig-label" x="489.33" y="32.00" text-anchor="middle">전자 한 알씩 쌓음</text><rect class="fig-panel" x="402.67" y="52.00" width="173.33" height="264.00"/><path class="fig-area" d="M402.67 316.00L402.67 296.65L405.56 295.27L408.44 298.34L411.33 305.08L414.22 312.49L417.11 316.00L420.00 311.32L422.89 296.62L425.78 274.22L428.67 250.68L431.56 234.77L434.44 233.82L437.33 249.87L440.22 277.41L443.11 304.27L446.00 316.00L448.89 302.07L451.78 261.54L454.67 205.16L457.56 152.37L460.44 123.86L463.33 132.47L466.22 176.56L469.11 239.16L472.00 293.95L474.89 316.00L477.78 292.65L480.67 229.81L483.56 150.36L486.44 85.11L489.33 60.00L492.22 85.11L495.11 150.36L498.00 229.81L500.89 292.65L503.78 316.00L506.67 293.95L509.56 239.16L512.44 176.56L515.33 132.47L518.22 123.86L521.11 152.37L524.00 205.16L526.89 261.54L529.78 302.07L532.67 316.00L535.56 304.27L538.44 277.41L541.33 249.87L544.22 233.82L547.11 234.77L550.00 250.68L552.89 274.22L555.78 296.62L558.67 311.32L561.56 316.00L564.44 312.49L567.33 305.08L570.22 298.34L573.11 295.27L576.00 296.65L576.00 316.00Z"/></svg><figcaption class="fig__cap">무엇을 쏘느냐에 따라 화면에 남는 것</figcaption><p class="fig__limits">이 그림이 생략한 것 — 슬릿 폭과 회절을 뺀 이상화 모형이에요. 실제 사진에서는 세 칸의 무늬가 모두 넓게 퍼진 회절 봉투 안에 들어가요. 띠의 개수와 밝기 비율도 파장·거리에 따라 달라져요.</p><p class="fig__task">결과를 보기 전에, 세 번째 칸에 어떤 모양이 나올지 먼저 연필로 그려 보세요. 그다음 실제 결과와 비교하세요.</p><div class="ink-space" data-ink-space="md" data-ink-anchor="fig-three"></div></figure><div class="act act--decide" data-response-id="act-5" data-response-kind="choice"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>골라 보세요</p><p class="act__prompt">&#39;전자들끼리 부딪혀서 무늬가 생긴다&#39; 는 설명을 막으려면 실험 조건을 어떻게 잡아야 할까요?</p><div class="act__options" role="radiogroup"><label class="act__opt"><input type="radio" name="act-5" value="전자를 아주 많이 한꺼번에 쏜다"><span class="act__key">①</span><span>전자를 아주 많이 한꺼번에 쏜다</span></label><label class="act__opt"><input type="radio" name="act-5" value="앞의 전자가 화면에 닿은 뒤에 다음 전자를 쏜다"><span class="act__key">②</span><span>앞의 전자가 화면에 닿은 뒤에 다음 전자를 쏜다</span></label><label class="act__opt"><input type="radio" name="act-5" value="슬릿 사이 간격을 넓힌다"><span class="act__key">③</span><span>슬릿 사이 간격을 넓힌다</span></label></div><p class="act__fb" data-feedback-slot hidden></p><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>고르면 열려요</summary><div class="act__reveal-body">두 번째예요. 한 번에 한 알만 장치 안에 있으면 부딪힐 상대가 없어요. 그런데도 무늬가 쌓이니 &#39;서로 부딪혀서&#39; 는 설명이 못 돼요. 알갱이 하나가 혼자 그 무늬에 한몫하는 셈이에요. 이게 이 실험이 유명한 이유예요.</div></details></div><div class="callout callout--caution"><p class="callout__label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11.9998 8.99999V13M11.9998 17H12.0098M10.6151 3.89171L2.39019 18.0983C1.93398 18.8863 1.70588 19.2803 1.73959 19.6037C1.769 19.8857 1.91677 20.142 2.14613 20.3088C2.40908 20.5 2.86435 20.5 3.77487 20.5H20.2246C21.1352 20.5 21.5904 20.5 21.8534 20.3088C22.0827 20.142 22.2305 19.8857 22.2599 19.6037C22.2936 19.2803 22.0655 18.8863 21.6093 18.0983L13.3844 3.89171C12.9299 3.10654 12.7026 2.71396 12.4061 2.58211C12.1474 2.4671 11.8521 2.4671 11.5935 2.58211C11.2969 2.71396 11.0696 3.10655 10.6151 3.89171Z"/></svg>흔한 실수</p><p class="p">전자들끼리 서로 부딪혀서 그런 거라고 생각하는 거예요. 그래서 한 알씩 쐈어요. 앞의 전자가 도착한 뒤에 다음 전자를 보내도 무늬가 쌓여요.</p></div><p class="h3">슬릿 하나만 열어도 무늬가 있어요 — 회절</p><p class="p">이 학습지의 그림은 슬릿 폭을 무시한 <strong>이상화 모형</strong> 이에요. 실제 슬릿 하나는 가운데가 넓고 밝은 띠(중앙 최대) 하나와, 그 양옆으로 훨씬 약한 띠(측면 최대)를 만들어요. 이걸 회절이라고 불러요. 슬릿 둘을 열면 촘촘한 간섭 띠가 이 넓은 회절 봉투 안에 들어가요. 그래서 간섭의 진짜 정의는 &#39;각각 열어서 더한 것&#39; 과 &#39;둘 다 연 것&#39; 이 다르다는 데 있어요.</p><div class="boundary"><p class="boundary__holds">언제 성립하냐면 — 슬릿 폭이 슬릿 사이 거리보다 훨씬 좁아서 폭을 무시할 수 있을 때예요. 그러면 두 점 경로만 그린 이 모형으로 충분해요</p><p class="boundary__breaks">이럴 땐 성립하지 않아요 — 슬릿 폭을 무시할 수 없을 만큼 넓으면 회절 봉투가 끼어들어, 두 무더기 그림과 실제 사진이 눈에 띄게 달라져요</p></div><figure class="fig" id="fig-onesplit" data-figure="onesplit" data-readout="qualitative"><svg class="fig__svg" viewBox="0 0 600 340" role="img" aria-labelledby="fig-onesplit-t" aria-describedby="fig-onesplit-d"><title id="fig-onesplit-t">슬릿 하나만 열면 — 회절</title><desc id="fig-onesplit-d">단일슬릿의 분포. 넓은 중앙 최대와 양옆의 약한 측면 최대. 옆에는 슬릿 둘을 열었을 때의 촘촘한 간섭무늬.</desc><text class="fig-label" x="158.00" y="32.00" text-anchor="middle">슬릿 하나 (회절)</text><rect class="fig-panel" x="24.00" y="52.00" width="268.00" height="264.00"/><path class="fig-area" d="M24.00 316.00L24.00 315.99L28.47 315.98L32.93 315.97L37.40 315.94L41.87 315.87L46.33 315.73L50.80 315.41L55.27 314.69L59.73 313.16L64.20 310.22L68.67 305.26L73.13 298.04L77.60 289.10L82.07 279.86L86.53 272.06L91.00 266.68L95.47 263.24L99.93 259.88L104.40 254.35L108.87 244.97L113.33 231.19L117.80 213.42L122.27 192.62L126.73 169.93L131.20 146.60L135.67 123.85L140.13 102.95L144.60 85.13L149.07 71.49L153.53 62.92L158.00 60.00L162.47 62.92L166.93 71.49L171.40 85.13L175.87 102.95L180.33 123.85L184.80 146.60L189.27 169.93L193.73 192.62L198.20 213.42L202.67 231.19L207.13 244.97L211.60 254.35L216.07 259.88L220.53 263.24L225.00 266.68L229.47 272.06L233.93 279.86L238.40 289.10L242.87 298.04L247.33 305.26L251.80 310.22L256.27 313.16L260.73 314.69L265.20 315.41L269.67 315.73L274.13 315.87L278.60 315.94L283.07 315.97L287.53 315.98L292.00 315.99L292.00 316.00Z"/><text class="fig-label" x="442.00" y="32.00" text-anchor="middle">슬릿 둘 (간섭)</text><rect class="fig-panel" x="308.00" y="52.00" width="268.00" height="264.00"/><path class="fig-area" d="M308.00 316.00L308.00 296.65L312.47 295.27L316.93 298.34L321.40 305.08L325.87 312.49L330.33 316.00L334.80 311.32L339.27 296.62L343.73 274.22L348.20 250.68L352.67 234.77L357.13 233.82L361.60 249.87L366.07 277.41L370.53 304.27L375.00 316.00L379.47 302.07L383.93 261.54L388.40 205.16L392.87 152.37L397.33 123.86L401.80 132.47L406.27 176.56L410.73 239.16L415.20 293.95L419.67 316.00L424.13 292.65L428.60 229.81L433.07 150.36L437.53 85.11L442.00 60.00L446.47 85.11L450.93 150.36L455.40 229.81L459.87 292.65L464.33 316.00L468.80 293.95L473.27 239.16L477.73 176.56L482.20 132.47L486.67 123.86L491.13 152.37L495.60 205.16L500.07 261.54L504.53 302.07L509.00 316.00L513.47 304.27L517.93 277.41L522.40 249.87L526.87 233.82L531.33 234.77L535.80 250.68L540.27 274.22L544.73 296.62L549.20 311.32L553.67 316.00L558.13 312.49L562.60 305.08L567.07 298.34L571.53 295.27L576.00 296.65L576.00 316.00Z"/></svg><figcaption class="fig__cap">슬릿 하나만 열면 — 회절</figcaption><p class="fig__limits">이 그림이 생략한 것 — 모양의 차이만 보여주는 이상화 모형이에요. 실제 회절 무늬에서 띠의 개수와 밝기 비율은 슬릿 폭·파장·화면 거리에 따라 달라져요.</p></figure><div class="act act--decide" data-response-id="act-6" data-response-kind="choice"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>골라 보세요</p><p class="act__prompt">그림의 두 칸을 보세요. 밝은 띠 하나의 폭은 어느 쪽이 넓을까요?</p><div class="act__options" role="radiogroup"><label class="act__opt"><input type="radio" name="act-6" value="슬릿 하나 쪽 — 넓은 띠 하나가 가운데"><span class="act__key">①</span><span>슬릿 하나 쪽 — 넓은 띠 하나가 가운데</span></label><label class="act__opt"><input type="radio" name="act-6" value="슬릿 둘 쪽 — 촘촘한 띠 여러 개"><span class="act__key">②</span><span>슬릿 둘 쪽 — 촘촘한 띠 여러 개</span></label><label class="act__opt"><input type="radio" name="act-6" value="둘이 똑같음"><span class="act__key">③</span><span>둘이 똑같음</span></label></div><p class="act__fb" data-feedback-slot hidden></p><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>고르면 열려요</summary><div class="act__reveal-body">슬릿 하나 쪽이에요. 슬릿 둘을 열면 그 넓은 띠 안에 촘촘한 띠가 여러 개 들어가요. 촘촘한 띠의 간격은 슬릿 사이 거리가, 넓은 봉투의 폭은 슬릿 하나의 폭이 정해요. 두 그림이 다르다는 것 자체가 간섭의 증거예요.</div></details></div><div class="callout callout--caution"><p class="callout__label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11.9998 8.99999V13M11.9998 17H12.0098M10.6151 3.89171L2.39019 18.0983C1.93398 18.8863 1.70588 19.2803 1.73959 19.6037C1.769 19.8857 1.91677 20.142 2.14613 20.3088C2.40908 20.5 2.86435 20.5 3.77487 20.5H20.2246C21.1352 20.5 21.5904 20.5 21.8534 20.3088C22.0827 20.142 22.2305 19.8857 22.2599 19.6037C22.2936 19.2803 22.0655 18.8863 21.6093 18.0983L13.3844 3.89171C12.9299 3.10654 12.7026 2.71396 12.4061 2.58211C12.1474 2.4671 11.8521 2.4671 11.5935 2.58211C11.2969 2.71396 11.0696 3.10655 10.6151 3.89171Z"/></svg>흔한 실수</p><p class="p">그림의 &#39;두 무더기&#39; 를 실제 사진으로 기대하는 거예요. 실제 단일슬릿 사진은 넓게 퍼진 무늬예요. 가운데 봉우리 하나만 그려진 그림은 슬릿 폭을 뺀 이상화 모형일 뿐이에요.</p></div><p class="h3">두 경로가 구별되기 시작하면 결맞음이 줄어요</p><p class="p">어느 슬릿을 지났는지 알아내는 장치를 붙이면, 그 장치와 둘레 환경의 상태가 두 경로와 짝을 이뤄요. 두 상태가 서로 <strong>구별 가능해질수록 두 경로 사이의 결맞음이 줄어들고</strong> 줄무늬도 함께 흐려져요. 사람이 그 기록을 읽는 것은 필요하지 않아요. 화면의 세기를 식으로 적으면 <code>I = I₁ + I₂ + 2|γ|√(I₁I₂)cos φ</code> 예요. 위 슬라이더가 움직이는 것은 막연한 &#39;정보량&#39; 이 아니라 가운데 항에 붙은 |γ| 하나예요. |γ| 가 1 에 가까우면 줄무늬가 또렷하고, 0 에 가까워지면 가운데 항이 줄어 두 봉우리에 가까운 모양이 돼요. 입문 단계에서는 &#39;가운데 항이 줄어든다&#39; 로 읽으면 충분해요. 여기서 조심할 게 하나 있어요. &#39;경로 정보가 40% 면 간섭이 60% 남는다&#39; 같은 보편 법칙은 없어요. 이 슬라이더는 수치 법칙이 아니라 정성 모형이라, 화면에도 낮음·중간·높음으로만 나와요. 이상적인 두 경로 실험에서 알려진 관계는 <code>D² + V² ≤ 1</code> 처럼 더 정교한 부등식이에요. D 는 두 경로를 구별할 수 있는 정도, V 는 줄무늬가 또렷한 정도를 뜻해요.</p><div class="boundary"><p class="boundary__holds">언제 성립하냐면 — 두 경로만 오가고 각 경로의 세기가 그대로 유지될 때예요. 그러면 가운데 항의 |γ| 만 움직인다고 보고 읽어도 돼요</p><p class="boundary__breaks">이럴 땐 성립하지 않아요 — &#39;경로 정보 40% 면 간섭 60%&#39; 처럼 수치 법칙으로 읽으면 깨져요. 이상적인 조건에서도 관계는 D² + V² ≤ 1 처럼 더 정교해요</p></div><figure class="fig" id="fig-whichpath" data-figure="whichpath" data-readout="qualitative" data-interactive="distribution"><svg class="fig__svg" viewBox="0 0 600 340" role="img" aria-labelledby="fig-whichpath-t" aria-describedby="fig-whichpath-d"><title id="fig-whichpath-t">두 경로의 결맞음을 낮춰 보세요 — 줄무늬가 흐려져요</title><desc id="fig-whichpath-d">세 개의 그래프. 결맞음이 높으면 뚜렷한 간섭무늬, 중간이면 약한 간섭무늬, 낮으면 두 봉우리에 가까운 모양.</desc><text class="fig-label" x="110.67" y="32.00" text-anchor="middle">결맞음 높음</text><rect class="fig-panel" x="24.00" y="52.00" width="173.33" height="264.00"/><path class="fig-area" d="M24.00 316.00L24.00 296.65L26.89 295.27L29.78 298.34L32.67 305.08L35.56 312.49L38.44 316.00L41.33 311.32L44.22 296.62L47.11 274.22L50.00 250.68L52.89 234.77L55.78 233.82L58.67 249.87L61.56 277.41L64.44 304.27L67.33 316.00L70.22 302.07L73.11 261.54L76.00 205.16L78.89 152.37L81.78 123.86L84.67 132.47L87.56 176.56L90.44 239.16L93.33 293.95L96.22 316.00L99.11 292.65L102.00 229.81L104.89 150.36L107.78 85.11L110.67 60.00L113.56 85.11L116.44 150.36L119.33 229.81L122.22 292.65L125.11 316.00L128.00 293.95L130.89 239.16L133.78 176.56L136.67 132.47L139.56 123.86L142.44 152.37L145.33 205.16L148.22 261.54L151.11 302.07L154.00 316.00L156.89 304.27L159.78 277.41L162.67 249.87L165.56 233.82L168.44 234.77L171.33 250.68L174.22 274.22L177.11 296.62L180.00 311.32L182.89 316.00L185.78 312.49L188.67 305.08L191.56 298.34L194.44 295.27L197.33 296.65L197.33 316.00Z"/><text class="fig-label" x="300.00" y="32.00" text-anchor="middle">결맞음 중간</text><rect class="fig-panel" x="213.33" y="52.00" width="173.33" height="264.00"/><path class="fig-area" d="M213.33 316.00L213.33 302.84L216.22 301.20L219.11 301.00L222.00 301.96L224.89 302.96L227.78 302.37L230.67 298.63L233.56 291.07L236.44 280.53L239.33 269.37L242.22 260.76L245.11 257.34L248.00 259.86L250.89 266.36L253.78 272.48L256.67 273.05L259.56 264.31L262.44 245.96L265.33 221.91L268.22 199.21L271.11 185.35L274.00 185.00L276.89 197.63L279.78 217.16L282.67 234.18L285.56 239.75L288.44 229.35L291.33 205.14L294.22 175.38L297.11 151.19L300.00 141.92L302.89 151.19L305.78 175.38L308.67 205.14L311.56 229.35L314.44 239.75L317.33 234.18L320.22 217.16L323.11 197.63L326.00 185.00L328.89 185.35L331.78 199.21L334.67 221.91L337.56 245.96L340.44 264.31L343.33 273.05L346.22 272.48L349.11 266.36L352.00 259.86L354.89 257.34L357.78 260.76L360.67 269.37L363.56 280.53L366.44 291.07L369.33 298.63L372.22 302.37L375.11 302.96L378.00 301.96L380.89 301.00L383.78 301.20L386.67 302.84L386.67 316.00Z"/><text class="fig-label" x="489.33" y="32.00" text-anchor="middle">결맞음 낮음</text><rect class="fig-panel" x="402.67" y="52.00" width="173.33" height="264.00"/><path class="fig-area" d="M402.67 316.00L402.67 314.92L405.56 313.30L408.44 310.20L411.33 305.34L414.22 299.24L417.11 293.27L420.00 288.94L422.89 286.62L425.78 285.03L428.67 281.81L431.56 274.83L434.44 263.02L437.33 246.39L440.22 225.61L443.11 201.77L446.00 176.23L448.89 150.66L451.78 126.99L454.67 107.19L457.56 93.06L460.44 85.91L463.33 86.41L466.22 94.36L469.11 108.77L472.00 127.96L474.89 149.75L477.78 171.77L480.67 191.69L483.56 207.49L486.44 217.62L489.33 221.11L492.22 217.62L495.11 207.49L498.00 191.69L500.89 171.77L503.78 149.75L506.67 127.96L509.56 108.77L512.44 94.36L515.33 86.41L518.22 85.91L521.11 93.06L524.00 107.19L526.89 126.99L529.78 150.66L532.67 176.23L535.56 201.77L538.44 225.61L541.33 246.39L544.22 263.02L547.11 274.83L550.00 281.81L552.89 285.03L555.78 286.62L558.67 288.94L561.56 293.27L564.44 299.24L567.33 305.34L570.22 310.20L573.11 313.30L576.00 314.92L576.00 316.00Z"/></svg><div class="fig__ctl"><label for="v-whichpath">두 경로의 결맞음 |γ| — 정성 모형</label><input type="range" id="v-whichpath" class="fig__slider" min="0" max="1" step="0.01" value="0" data-for="whichpath"><output class="fig__readout" data-for="whichpath">간섭 <b>낮음</b></output><p class="fig__ctl-note">이건 정성 모형이에요. '경로 정보 40%면 간섭 60%' 같은 보편 법칙은 없어요.</p></div><figcaption class="fig__cap">두 경로의 결맞음을 낮춰 보세요 — 줄무늬가 흐려져요</figcaption><p class="fig__limits">이 그림이 생략한 것 — 슬릿 폭을 뺀 이상화 모형이고, 슬라이더는 정성 모형이에요. 세기 식의 가운데 항에 붙은 |γ| 를 줄이면 모양이 어떻게 가는지만 보여줘요. 여기서 읽히는 값은 수치 법칙이 아니에요.</p></figure><div class="act act--predict" data-response-id="act-7" data-response-kind="choice"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>먼저 예측해 보세요</p><p class="act__prompt">탐지기를 붙이되 그 기록을 아무도 보지 않고 곧바로 지우면 줄무늬는 어떻게 될까요?</p><div class="act__options" role="radiogroup"><label class="act__opt"><input type="radio" name="act-7" value="그대로 남아요 — 아무도 안 봤으니까요"><span class="act__key">①</span><span>그대로 남아요 — 아무도 안 봤으니까요</span></label><label class="act__opt"><input type="radio" name="act-7" value="흐려져요 — 두 경로가 구별 가능해졌으니까요"><span class="act__key">②</span><span>흐려져요 — 두 경로가 구별 가능해졌으니까요</span></label><label class="act__opt"><input type="radio" name="act-7" value="지우는 순간 무늬가 되살아나요"><span class="act__key">③</span><span>지우는 순간 무늬가 되살아나요</span></label></div><p class="act__fb" data-feedback-slot hidden></p><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>고르면 열려요</summary><div class="act__reveal-body">흐려져요. 사람이 읽었는지는 변수가 아니에요. 장치와 둘레 환경의 상태가 두 경로에 따라 구별 가능해진 순간부터 결맞음이 줄어요. 세 번째 선택지의 &#39;양자 지우개&#39; 는 컴퓨터 로그 파일을 지우는 것과 같지 않아요. 적절한 양자측정 조건에서 경로 구별 가능성을 지우고 조건부 간섭을 되살리는 훨씬 조심스러운 실험이라, 이 학습지 범위 밖이에요.</div></details></div><div class="callout callout--caution"><p class="callout__label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11.9998 8.99999V13M11.9998 17H12.0098M10.6151 3.89171L2.39019 18.0983C1.93398 18.8863 1.70588 19.2803 1.73959 19.6037C1.769 19.8857 1.91677 20.142 2.14613 20.3088C2.40908 20.5 2.86435 20.5 3.77487 20.5H20.2246C21.1352 20.5 21.5904 20.5 21.8534 20.3088C22.0827 20.142 22.2305 19.8857 22.2599 19.6037C22.2936 19.2803 22.0655 18.8863 21.6093 18.0983L13.3844 3.89171C12.9299 3.10654 12.7026 2.71396 12.4061 2.58211C12.1474 2.4671 11.8521 2.4671 11.5935 2.58211C11.2969 2.71396 11.0696 3.10655 10.6151 3.89171Z"/></svg>흔한 실수</p><p class="p">&#39;사람의 의식이 물질에 영향을 준다&#39; 로 받아들이는 거예요. 자동 기록 장치만 붙여도 줄무늬는 흐려져요. 기준은 두 경로가 구별 가능해졌는지이지, 누가 보고 있는지가 아니에요.</p></div><p class="h3">한 줄의 식이 신비를 걷어내요</p><p class="p">&#39;결맞음이 줄면 줄무늬가 흐려진다&#39; 는 문장만 외우면 신비롭게 들려요. 식 하나면 훨씬 물리적이 돼요. 각 경로에 확률진폭 ψ₁, ψ₂ 가 있다고 해요. 두 경로가 구별되지 않을 때는 <code>P ∝ |ψ₁ + ψ₂|²</code> 이라 두 항이 섞이는 교차항이 생기고, 그게 줄무늬예요. 경로가 구별되면 <code>P ∝ |ψ₁|² + |ψ₂|²</code> 쪽으로 가서 교차항이 사라져요. <strong>제곱하기 전에 더하느냐, 제곱한 뒤 더하느냐</strong> — 이 차이가 줄무늬예요. 장치가 두 경로를 구별 가능하게 만드느냐에 따라 검출 확률분포가 달라지는 거예요. 슬라이더의 가운데는 교차항이 덜 남은 상태예요. 얼마나 남는지를 정해 주는 수치 법칙을 여기서 외울 필요는 없어요. 그리고 이 자리에서 비교하는 값은 정규화가 끝난 확률이 아니라 상대 세기예요.</p><div class="boundary"><p class="boundary__holds">언제 성립하냐면 — 두 경로의 확률진폭을 그냥 더할 수 있을 때, 곧 어느 경로를 지났는지가 구별되지 않을 때예요</p><p class="boundary__breaks">이럴 땐 성립하지 않아요 — 장치와 둘레 환경이 두 경로를 구별 가능하게 만들면 교차항이 살아남지 못해서 이 식만으로는 부족해요</p></div><div class="example" data-example-kind="calc"><p class="example__caption">더하는 순서만 다른 두 계산</p><ol class="ex-calc"><li>구별 불가 → |ψ₁ + ψ₂|² = |ψ₁|² + |ψ₂|² + (교차항)</li><li>구별 가능 → |ψ₁|² + |ψ₂|² ← 교차항 없음</li><li>교차항이 있으면 줄무늬, 없으면 두 분포의 합</li><li>여기 나오는 수는 모두 정규화 전 상대 세기</li></ol></div><div class="act act--compute" data-response-id="act-8" data-response-kind="written"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>직접 계산해 보세요</p><p class="act__prompt">ψ₁ = ψ₂ = 1 인 점에서 |ψ₁+ψ₂|² 과 |ψ₁|²+|ψ₂|² 을 계산해 보세요. 그다음 ψ₁ = 1, ψ₂ = −1 인 점에서도 같은 두 값을 구해 보세요.</p><div class="answer" data-answer-for="act-8"><textarea class="answer__text" data-answer-text rows="3" placeholder="여기에 타이핑해도 되고, 아래 칸에 펜으로 써도 돼요"></textarea><div class="ink-space" data-ink-space="md" data-ink-anchor="act-8"></div></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>적고 나서 열기</summary><div class="act__reveal-body">첫 점: |1+1|² = 4, 1²+1² = 2. 둘째 점: |1−1|² = 0, 1²+1² = 2. 여기서 4와 2는 정규화 전 상대 세기를 비교하는 숫자예요. 확률이 400%라는 뜻은 아니에요. 제곱 전에 더하면 4 와 0 으로 갈려요(밝은 띠와 어두운 띠). 제곱 뒤에 더하면 두 점 다 2 예요. 이 차이가 바로 교차항이에요.</div></details></div><div class="callout callout--caution"><p class="callout__label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11.9998 8.99999V13M11.9998 17H12.0098M10.6151 3.89171L2.39019 18.0983C1.93398 18.8863 1.70588 19.2803 1.73959 19.6037C1.769 19.8857 1.91677 20.142 2.14613 20.3088C2.40908 20.5 2.86435 20.5 3.77487 20.5H20.2246C21.1352 20.5 21.5904 20.5 21.8534 20.3088C22.0827 20.142 22.2305 19.8857 22.2599 19.6037C22.2936 19.2803 22.0655 18.8863 21.6093 18.0983L13.3844 3.89171C12.9299 3.10654 12.7026 2.71396 12.4061 2.58211C12.1474 2.4671 11.8521 2.4671 11.5935 2.58211C11.2969 2.71396 11.0696 3.10655 10.6151 3.89171Z"/></svg>흔한 실수</p><p class="p">&#39;그래서 진짜로는 뭔데?&#39; 라고 끝까지 묻는 거예요. 이 학습지에서 확인된 건 검출 분포와 그것을 맞히는 계산 방식이에요. 그 계산이 현실에서 무엇을 뜻하는지는 해석의 문제라 여기서 다루지 않아요.</p></div><p class="h3"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 20H5.2C4.07989 20 3.51984 20 3.09202 19.782C2.71569 19.5903 2.40973 19.2843 2.21799 18.908C2 18.4802 2 17.9201 2 16.8V7.2C2 6.07989 2 5.51984 2.21799 5.09202C2.40973 4.71569 2.71569 4.40973 3.09202 4.21799C3.51984 4 4.07989 4 5.2 4H5.6C7.84021 4 8.96031 4 9.81596 4.43597C10.5686 4.81947 11.1805 5.43139 11.564 6.18404C12 7.03968 12 8.15979 12 10.4M12 20V10.4M12 20H18.8C19.9201 20 20.4802 20 20.908 19.782C21.2843 19.5903 21.5903 19.2843 21.782 18.908C22 18.4802 22 17.9201 22 16.8V7.2C22 6.07989 22 5.51984 21.782 5.09202C21.5903 4.71569 21.2843 4.40973 20.908 4.21799C20.4802 4 19.9201 4 18.8 4H18.4C16.1598 4 15.0397 4 14.184 4.43597C13.4314 4.81947 12.8195 5.43139 12.436 6.18404C12 7.03968 12 8.15979 12 10.4"/></svg>먼저 풀고 갈 말들</p><dl class="glossary"><dt>슬릿(slit)</dt><dd>가늘고 긴 틈이에요. 여기서는 판에 나란히 뚫은 두 개의 좁은 구멍을 말해요.</dd><dt>간섭무늬</dt><dd>두 물결이 겹쳐서 생기는 밝고 어두운 줄무늬예요. 겹쳐서 세지는 곳이 밝고, 상쇄되는 곳이 어두워요.</dd><dt>고전적 입자 모델</dt><dd>전자를 아주 작은 모래알처럼 생각하는 모델이에요. 한 번에 한 곳에만 있고, 구멍 하나로만 지나가요. 이 실험은 이 모델 하나로는 결과를 다 설명할 수 없다는 걸 보여줘요.</dd><dt>경로 정보(which-path)</dt><dd>&#39;어느 슬릿을 지났는가&#39; 를 다른 곳의 상태에서 알아낼 수 있는 정도예요. 여기서 &#39;관측&#39; 은 그 정도를 키우는 물리적 상호작용을 말해요. 사람이 기록을 읽는 것과는 별개예요.</dd><dt>결맞음(coherence)</dt><dd>두 경로가 아직 서로 간섭할 수 있는 정도예요. 세기 식에서 가운데 항 앞에 붙는 |γ| 로 나타내고 0 에서 1 사이 값을 가져요. 클수록 줄무늬가 또렷해요.</dd><dt>중첩(superposition)</dt><dd>계산에서 두 경로에 해당하는 확률진폭을 함께 담은 상태를 말해요. &#39;실제로 둘 다 지나갔다&#39; 는 해석은 별개의 문제이고, 여기서는 계산 방식으로만 받아들여요.</dd></dl><details class="context"><summary class="context__summary"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M22.7 13.5L20.7005 11.5L18.7 13.5M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C15.3019 3 18.1885 4.77814 19.7545 7.42909M12 7V12L15 14"/></svg>이게 어디서 왔는지 (짧은 맥락)</summary><div class="context__body"><p class="p">이 실험은 한 번에 완성된 게 아니에요. 빛으로 먼저, 전자로 나중에, 전자 한 알씩 쌓이는 모습은 훨씬 뒤에 확인됐어요.</p><ul class="timeline"><li><span class="timeline__when">1801년</span><p class="timeline__what">토머스 영이 빛으로 이중슬릿 간섭무늬를 보여줬어요. 빛이 물결처럼 행동한다는 강력한 증거였어요.</p></li><li><span class="timeline__when">1927년</span><p class="timeline__what">데이비슨과 저머가 니켈 결정에 전자를 쏘아, 전자도 물결처럼 회절한다는 것을 확인했어요.</p></li><li><span class="timeline__when">1989년</span><p class="timeline__what">도노무라 팀이 전자를 한 알씩 보내면서 간섭무늬가 점점 쌓이는 과정을 영상으로 기록했어요.</p></li></ul></div></details><aside class="par"><span class="par__badge"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 15L6.92474 18.1137C6.49579 18.548 6.28131 18.7652 6.09695 18.7805C5.93701 18.7938 5.78042 18.7295 5.67596 18.6076C5.55556 18.4672 5.55556 18.162 5.55556 17.5515V15.9916C5.55556 15.444 5.10707 15.0477 4.5652 14.9683V14.9683C3.25374 14.7762 2.22378 13.7463 2.03168 12.4348C2 12.2186 2 11.9605 2 11.4444V6.8C2 5.11984 2 4.27976 2.32698 3.63803C2.6146 3.07354 3.07354 2.6146 3.63803 2.32698C4.27976 2 5.11984 2 6.8 2H14.2C15.8802 2 16.7202 2 17.362 2.32698C17.9265 2.6146 18.3854 3.07354 18.673 3.63803C19 4.27976 19 5.11984 19 6.8V11M19 22L16.8236 20.4869C16.5177 20.2742 16.3647 20.1678 16.1982 20.0924C16.0504 20.0255 15.8951 19.9768 15.7356 19.9474C15.5558 19.9143 15.3695 19.9143 14.9969 19.9143H13.2C12.0799 19.9143 11.5198 19.9143 11.092 19.6963C10.7157 19.5046 10.4097 19.1986 10.218 18.8223C10 18.3944 10 17.8344 10 16.7143V14.2C10 13.0799 10 12.5198 10.218 12.092C10.4097 11.7157 10.7157 11.4097 11.092 11.218C11.5198 11 12.0799 11 13.2 11H18.8C19.9201 11 20.4802 11 20.908 11.218C21.2843 11.4097 21.5903 11.7157 21.782 12.092C22 12.5198 22 13.0799 22 14.2V16.9143C22 17.8462 22 18.3121 21.8478 18.6797C21.6448 19.1697 21.2554 19.5591 20.7654 19.762C20.3978 19.9143 19.9319 19.9143 19 19.9143V22Z"/></svg></span><div><span class="par__name">파르</span><p class="par__note">&#39;관측하면 달라진다&#39; 를 &#39;사람이 봐서 바뀐다&#39; 로 읽으면 미신처럼 들려요. 여기서 관측은 장치와 둘레 환경이 두 경로를 구별 가능하게 만드는 상호작용이에요. 자동 기록 장치만 붙여도, 그 기록을 아무도 읽지 않아도 줄무늬는 흐려져요.</p></div></aside></div></section><section class="sec sec--core" id="sec-5" data-section="practice"><header class="sec__head"><p class="sec__label"><svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7.5 12L10.5 15L16.5 9M7.8 21H16.2C17.8802 21 18.7202 21 19.362 20.673C19.9265 20.3854 20.3854 19.9265 20.673 19.362C21 18.7202 21 17.8802 21 16.2V7.8C21 6.11984 21 5.27976 20.673 4.63803C20.3854 4.07354 19.9265 3.6146 19.362 3.32698C18.7202 3 17.8802 3 16.2 3H7.8C6.11984 3 5.27976 3 4.63803 3.32698C4.07354 3.6146 3.6146 4.07354 3.32698 4.63803C3 5.27976 3 6.11984 3 7.8V16.2C3 17.8802 3 18.7202 3.32698 19.362C3.6146 19.9265 4.07354 20.3854 4.63803 20.673C5.27976 21 6.11984 21 7.8 21Z"/></svg><span class="sec__num">05</span></p><h2 class="sec__title">연습</h2><p class="sec__lead">새 상황에서 써 봐요</p></header><div class="sec__body"><ol class="quiz"><li class="quiz__item" data-quiz-id="q1" data-response-id="quiz-9" data-response-kind="written"><p class="quiz__head"><span class="quiz__evidence">설명하기</span></p><p class="quiz__q">전자를 한 알씩 쏘았는데 간섭무늬가 쌓였어요. 고전적인 입자 모델(작은 모래알)로는 이 결과를 왜 설명할 수 없을까요?</p><div class="answer" data-answer-for="quiz-9"><textarea class="answer__text" data-answer-text rows="3" placeholder="여기에 타이핑해도 되고, 아래 칸에 펜으로 써도 돼요"></textarea><div class="ink-space" data-ink-space="sm" data-ink-anchor="quiz-9"></div></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label><details class="quiz__a"><summary><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>적고 나서 열기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span>모래알은 한 번에 한 구멍만 지나므로 두 무더기만 생기고, 겹쳐서 상쇄되는 무늬를 만들 수 없기 때문이에요.</p><p>핵심은 &#39;입자냐 아니냐&#39; 가 아니라 &#39;작은 공이라는 그림으로는 부족하다&#39; 예요. 한 알씩 쏘아도 무늬가 쌓이니 전자들끼리 부딪혔다는 설명도 막혀요.</p><div class="quiz__mis"><p class="quiz__a-label">이렇게 답했다면</p><ul><li><strong>전자는 입자가 아니라 파동이에요</strong> — 화면에는 점 하나씩 찍혀요(입자처럼). 무늬는 그 점들이 쌓인 분포예요. 고전적 입자 모델 하나로도, 고전적 파동 모델 하나로도 전부를 설명할 수 없는 양자계예요.</li></ul></div></div></details></li><li class="quiz__item" data-quiz-id="q2" data-response-id="quiz-10" data-response-kind="choice" data-answer="1"><p class="quiz__head"><span class="quiz__evidence">그래프 판단</span></p><p class="quiz__q">결맞음 슬라이더를 가운데쯤에 두었어요. 세 칸 그림 중 화면 모양은 어느 쪽에 가장 가까울까요?</p><div class="quiz__choices" role="radiogroup"><label class="act__opt" data-feedback="결맞음이 조금이라도 줄면 가운데 항도 그만큼 줄어요. 그대로 남지는 않아요."><input type="radio" name="quiz-10" value="뚜렷한 줄무늬"><span class="act__key">①</span><span>뚜렷한 줄무늬</span></label><label class="act__opt"><input type="radio" name="quiz-10" value="약해진 줄무늬"><span class="act__key">②</span><span>약해진 줄무늬</span></label><label class="act__opt" data-feedback="장치가 있으면 곧바로 두 봉우리가 된다고 보는 이분법이에요. 구별 가능성이 커질수록 모양이 이어지듯 변해요."><input type="radio" name="quiz-10" value="두 봉우리"><span class="act__key">③</span><span>두 봉우리</span></label><label class="act__opt"><input type="radio" name="quiz-10" value="아무것도 안 남아요"><span class="act__key">④</span><span>아무것도 안 남아요</span></label></div><p class="act__fb" data-feedback-slot hidden></p><button type="button" class="quiz__submit" data-submit>제출</button><details class="quiz__a"><summary><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>제출하면 열려요</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span>약해진 줄무늬</p><p>결맞음과 줄무늬는 스위치가 아니라 이어진 관계예요. 가운데 항이 덜 남으면 밝고 어두운 차이가 줄어들 뿐, 무늬가 통째로 없어지지는 않아요. 다만 이 그림은 정성 모형이라 &#39;가운데니까 몇 퍼센트&#39; 로 읽을 수는 없어요.</p></div></details></li><li class="quiz__item" data-quiz-id="q3" data-response-id="quiz-11" data-response-kind="written"><p class="quiz__head"><span class="quiz__evidence">원인 진단</span></p><p class="quiz__q">&#39;이 실험은 사람의 의식이 결과를 정한다는 증거&#39; 라는 글을 봤어요. 어떤 실험 하나로 이 주장을 걸러낼 수 있을까요?</p><div class="answer" data-answer-for="quiz-11"><textarea class="answer__text" data-answer-text rows="3" placeholder="여기에 타이핑해도 되고, 아래 칸에 펜으로 써도 돼요"></textarea><div class="ink-space" data-ink-space="sm" data-ink-anchor="quiz-11"></div></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label><details class="quiz__a"><summary><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>적고 나서 열기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span>자동 기록 장치만 붙이고 사람은 아무도 그 기록을 보지 않는 실험이에요. 그래도 줄무늬가 흐려지니, 원인 후보에서 사람의 마음이 빠져요.</p><p>&#39;관측&#39; 을 사람의 시선으로 오해하면 이런 주장이 그럴듯해 보여요. 사람을 실험에서 완전히 빼도 결과가 같다면, 원인은 장치와 둘레 환경이 두 경로를 구별 가능하게 만든 쪽에 있어요.</p><div class="quiz__mis"><p class="quiz__a-label">이렇게 답했다면</p><ul><li><strong>걸러낼 수 없어요, 실제로 의식이 영향을 줘요</strong> — 사람이 하나도 없는 실험에서도 같은 결과가 나와요. 마음은 이 실험의 변수가 아니에요.</li></ul></div></div></details></li><li class="quiz__item" data-quiz-id="q4" data-response-id="quiz-12" data-response-kind="written"><p class="quiz__head"><span class="quiz__evidence">예외 찾기</span></p><p class="quiz__q">슬릿 하나를 막으면 화면에 무엇이 남을까요? 그리고 그것이 &#39;슬릿 둘&#39; 의 결과와 어떻게 다른가요?</p><div class="answer" data-answer-for="quiz-12"><textarea class="answer__text" data-answer-text rows="3" placeholder="여기에 타이핑해도 되고, 아래 칸에 펜으로 써도 돼요"></textarea><div class="ink-space" data-ink-space="sm" data-ink-anchor="quiz-12"></div></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label><details class="quiz__a"><summary><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>적고 나서 열기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span>넓은 중앙 최대와 양옆의 약한 측면 최대가 남아요(회절). 슬릿 둘을 열면 촘촘한 줄무늬가 그 회절 봉투 안에 들어가고, 두 결과를 그냥 더한 것과는 달라요.</p><p>이 학습지의 그림은 슬릿 폭을 무시한 이상화 모형이라 단순하게 그렸어요. 실제로는 슬릿 하나로도 넓게 퍼진 무늬가 생겨요. 간섭의 정의는 &#39;각각 열어 더한 것&#39; 과 &#39;둘 다 연 것&#39; 이 다르다는 데 있어요.</p><div class="quiz__mis"><p class="quiz__a-label">이렇게 답했다면</p><ul><li><strong>좁은 봉우리 하나만 생겨요</strong> — 실제 단일슬릿은 회절로 넓은 무늬와 약한 측면 무늬를 만들어요. 그림이 단순한 것은 슬릿 폭을 뺐기 때문이에요.</li></ul></div></div></details></li><li class="quiz__item" data-quiz-id="q5" data-response-id="quiz-13" data-response-kind="written"><p class="quiz__head"><span class="quiz__evidence">계산</span></p><p class="quiz__q">I₁ = I₂ = 1 이고 |γ| = 0.5 라고 해요. I = I₁ + I₂ + 2|γ|√(I₁I₂)cos φ 에서 가장 밝은 곳과 가장 어두운 곳의 세기를 구해 보세요.</p><div class="answer" data-answer-for="quiz-13"><textarea class="answer__text" data-answer-text rows="3" placeholder="여기에 타이핑해도 되고, 아래 칸에 펜으로 써도 돼요"></textarea><div class="ink-space" data-ink-space="sm" data-ink-anchor="quiz-13"></div></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label><details class="quiz__a"><summary><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>적고 나서 열기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span>가장 밝은 곳은 3, 가장 어두운 곳은 1 이에요. cos φ 에 1 과 −1 을 넣으면 2 ± 1 이 나와요.</p><p>|γ| 가 1 이었다면 4 와 0 으로 갈렸을 값이 3 과 1 로 좁아져요. 앞의 두 항은 그대로이고 가운데 항만 줄어드니 밝고 어두운 차이가 작아지는 거예요. 이 수들도 정규화 전 상대 세기라 확률 값이 아니에요.</p><div class="quiz__mis"><p class="quiz__a-label">이렇게 답했다면</p><ul><li><strong>가장 어두운 곳은 0 이에요</strong> — |γ| 가 1 일 때만 완전히 상쇄돼요. 0.5 면 가운데 항이 절반만 있어서 1 까지만 내려가요.</li></ul></div></div></details></li><li class="quiz__item" data-quiz-id="" data-response-id="quiz-14" data-response-kind="written"><p class="quiz__head"><span class="quiz__evidence">설명하기</span></p><p class="quiz__q">누군가 &#39;전자는 두 구멍을 실제로 동시에 지나간다&#39; 고 말해요. 이 말의 어디까지가 계산이고 어디부터가 해석인지 구분해서 써 보세요.</p><div class="answer" data-answer-for="quiz-14"><textarea class="answer__text" data-answer-text rows="3" placeholder="여기에 타이핑해도 되고, 아래 칸에 펜으로 써도 돼요"></textarea><div class="ink-space" data-ink-space="md" data-ink-anchor="quiz-14"></div></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label><details class="quiz__a"><summary><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>적고 나서 열기</summary><div class="quiz__a-body"><p><span class="quiz__a-label">정답</span>계산에서는 두 경로의 확률진폭을 함께 담은 상태를 쓴다는 것까지가 확인된 부분이에요. &#39;실제로 동시에 지나갔다&#39; 는 그 상태를 현실로 어떻게 읽을지에 대한 해석이에요.</p><p>이 실험에서 확인된 것은 결과 패턴과 그것을 맞히는 계산 방식이에요. 그 계산이 현실에서 무엇을 뜻하는지는 물리학자들 사이에서도 해석이 갈려요. 둘을 섞어 말하면 확인된 것보다 더 많이 아는 척하게 돼요.</p><div class="quiz__mis"><p class="quiz__a-label">이렇게 답했다면</p><ul><li><strong>동시에 지나가는 것이 실험으로 증명됐어요</strong> — 증명된 건 패턴이에요. &#39;동시에 지나간다&#39; 는 그 패턴을 설명하는 여러 해석 중 하나예요.</li></ul></div></div></details></li></ol><p class="h3">더 해보기 (선택)</p><div class="cards"><div class="card"><p class="card__title">세 패턴을 안 보고 그리기</p><p class="card__why">그림을 가리고 세 경우(고전 입자 / 파동 / 전자 한 알씩)의 분포를 종이에 그려 보세요. 그다음 결맞음이 높을 때, 중간일 때, 낮을 때를 이어서 그려 보세요. 그림을 열어 비교하고 다른 곳을 표시하세요.</p><p class="card__hint">예상 15분</p></div><div class="card"><p class="card__title">오해를 바로잡는 세 문장</p><p class="card__why">&#39;관측하면 달라진다&#39; 를 신비주의로 오해한 사람에게 설명한다고 생각하고, 세 문장으로 적어 보세요. &#39;사람&#39;, &#39;의식&#39;, &#39;시선&#39; 이라는 단어를 쓰지 않고요. 쉬운 말로 안 써지면 아직 안 잡힌 거예요.</p><p class="card__hint">예상 15분</p></div><div class="card"><p class="card__title">(선택 탐구) 물결로 직접 보기</p><p class="card__why">대야에 물을 얕게 받고 틈 두 개를 만들어 관찰해 보세요. 다만 파원의 규칙성, 틈 크기, 수심, 반사가 다 맞아야 무늬가 보여서 잘 안 될 때가 많아요. 안 보여도 개념을 못 잡은 게 아니라 조건이 안 맞은 거예요.</p><p class="card__hint">예상 10분</p></div></div></div></section><section class="sec sec--core" id="sec-6" data-section="exit_ticket"><header class="sec__head"><p class="sec__label"><svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 15C4 15 5 14 8 14C11 14 13 16 16 16C19 16 20 15 20 15V3C20 3 19 4 16 4C13 4 11 2 8 2C5 2 4 3 4 3L4 22"/></svg><span class="sec__num">06</span></p><h2 class="sec__title">나가기 전에</h2><p class="sec__lead">처음 예측으로 돌아가요</p></header><div class="sec__body"><div class="reflect" data-response-id="reflect-15" data-response-kind="written"><p class="reflect__prompt"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M13 5.99985L6.50182 7.29948C6.13883 7.37208 5.95733 7.40838 5.80952 7.49665C5.67886 7.57469 5.56772 7.68152 5.4846 7.80901C5.39057 7.95321 5.34714 8.13314 5.26028 8.49299L2 21.9998M2 21.9998L15.5069 18.7396C15.8667 18.6527 16.0466 18.6093 16.1908 18.5153C16.3183 18.4321 16.4252 18.321 16.5032 18.1903C16.5915 18.0425 16.6278 17.861 16.7004 17.498L18 10.9998M2 21.9998L9.586 14.4138M20.8686 7.86848L16.1314 3.13122C15.7354 2.7352 15.5373 2.53719 15.309 2.46301C15.1082 2.39775 14.8918 2.39775 14.691 2.46301C14.4627 2.53719 14.2646 2.7352 13.8686 3.13122L13.1314 3.86848C12.7354 4.2645 12.5373 4.4625 12.4632 4.69083C12.3979 4.89168 12.3979 5.10802 12.4632 5.30887C12.5373 5.53719 12.7354 5.7352 13.1314 6.13122L17.8686 10.8685C18.2646 11.2645 18.4627 11.4625 18.691 11.5367C18.8918 11.6019 19.1082 11.6019 19.309 11.5367C19.5373 11.4625 19.7354 11.2645 20.1314 10.8685L20.8686 10.1312C21.2646 9.7352 21.4627 9.53719 21.5368 9.30887C21.6021 9.10802 21.6021 8.89168 21.5368 8.69083C21.4627 8.4625 21.2646 8.2645 20.8686 7.86848ZM11 10.9998C12.1046 10.9998 13 11.8953 13 12.9998C13 14.1044 12.1046 14.9998 11 14.9998C9.89543 14.9998 9 14.1044 9 12.9998C9 11.8953 9.89543 10.9998 11 10.9998Z"/></svg>맨 처음 예측에서 무엇을 골랐나요? 지금 생각과 어디서 갈렸는지, 같았다면 지금은 왜 그런지를 두 줄로 적어 보세요.</p><div class="answer" data-answer-for="reflect-15"><textarea class="answer__text" data-answer-text rows="3" placeholder="여기에 타이핑해도 되고, 아래 칸에 펜으로 써도 돼요"></textarea><div class="ink-space" data-ink-space="md" data-ink-anchor="reflect-15"></div></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label></div><div class="reflect" data-response-id="reflect-16" data-response-kind="written"><p class="reflect__prompt"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M13 5.99985L6.50182 7.29948C6.13883 7.37208 5.95733 7.40838 5.80952 7.49665C5.67886 7.57469 5.56772 7.68152 5.4846 7.80901C5.39057 7.95321 5.34714 8.13314 5.26028 8.49299L2 21.9998M2 21.9998L15.5069 18.7396C15.8667 18.6527 16.0466 18.6093 16.1908 18.5153C16.3183 18.4321 16.4252 18.321 16.5032 18.1903C16.5915 18.0425 16.6278 17.861 16.7004 17.498L18 10.9998M2 21.9998L9.586 14.4138M20.8686 7.86848L16.1314 3.13122C15.7354 2.7352 15.5373 2.53719 15.309 2.46301C15.1082 2.39775 14.8918 2.39775 14.691 2.46301C14.4627 2.53719 14.2646 2.7352 13.8686 3.13122L13.1314 3.86848C12.7354 4.2645 12.5373 4.4625 12.4632 4.69083C12.3979 4.89168 12.3979 5.10802 12.4632 5.30887C12.5373 5.53719 12.7354 5.7352 13.1314 6.13122L17.8686 10.8685C18.2646 11.2645 18.4627 11.4625 18.691 11.5367C18.8918 11.6019 19.1082 11.6019 19.309 11.5367C19.5373 11.4625 19.7354 11.2645 20.1314 10.8685L20.8686 10.1312C21.2646 9.7352 21.4627 9.53719 21.5368 9.30887C21.6021 9.10802 21.6021 8.89168 21.5368 8.69083C21.4627 8.4625 21.2646 8.2645 20.8686 7.86848ZM11 10.9998C12.1046 10.9998 13 11.8953 13 12.9998C13 14.1044 12.1046 14.9998 11 14.9998C9.89543 14.9998 9 14.1044 9 12.9998C9 11.8953 9.89543 10.9998 11 10.9998Z"/></svg>&#39;결맞음&#39; 과 &#39;교차항&#39; 두 단어를 넣어, 이 실험에서 줄무늬가 흐려지는 이유를 한 문장으로 써 보세요.</p><div class="answer" data-answer-for="reflect-16"><textarea class="answer__text" data-answer-text rows="3" placeholder="여기에 타이핑해도 되고, 아래 칸에 펜으로 써도 돼요"></textarea><div class="ink-space" data-ink-space="sm" data-ink-anchor="reflect-16"></div></div><label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label></div><div class="act act--decide" data-response-id="exit-17" data-response-kind="choice"><p class="act__label"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>골라 보세요</p><p class="act__prompt">다음 중 틀린 문장을 고르세요.</p><div class="act__options" role="radiogroup"><label class="act__opt"><input type="radio" name="exit-17" value="전자를 한 알씩 쏘아도 시간이 지나면 간섭무늬가 쌓여요"><span class="act__key">①</span><span>전자를 한 알씩 쏘아도 시간이 지나면 간섭무늬가 쌓여요</span></label><label class="act__opt"><input type="radio" name="exit-17" value="결맞음이 조금만 줄면 줄무늬도 조금만 흐려져요"><span class="act__key">②</span><span>결맞음이 조금만 줄면 줄무늬도 조금만 흐려져요</span></label><label class="act__opt"><input type="radio" name="exit-17" value="탐지기의 기록을 아무도 읽지 않으면 무늬는 그대로 남아요"><span class="act__key">③</span><span>탐지기의 기록을 아무도 읽지 않으면 무늬는 그대로 남아요</span></label><label class="act__opt"><input type="radio" name="exit-17" value="슬릿 하나만 열어도 화면에는 넓게 퍼진 회절 무늬가 생겨요"><span class="act__key">④</span><span>슬릿 하나만 열어도 화면에는 넓게 퍼진 회절 무늬가 생겨요</span></label></div><p class="act__fb" data-feedback-slot hidden></p><details class="act__reveal"><summary><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"/></svg>고르면 열려요</summary><div class="act__reveal-body">틀린 문장은 세 번째예요. 어느 경로와 결합된 장치·환경 상태가 서로 구별 가능해지면 두 경로 사이의 결맞음이 줄어들어요. 사람이 그 기록을 읽는 것은 필요하지 않아요. 나머지 셋은 관찰과 개념 단계에서 본 그대로예요.</div></details></div><p class="h3">스스로 점검</p><ul class="checklist"><li>세 패턴(두 봉우리 / 줄무늬 / 약한 줄무늬)을 보지 않고 종이에 그려 보았다</li><li>ψ₁ = ψ₂ = 1 인 점에서 두 식의 상대 세기(4 와 2)를 직접 계산해 보았다</li><li>&#39;사람&#39; 이라는 단어 없이 줄무늬가 흐려지는 이유를 두 문장으로 써 보았다</li><li>확인된 것(분포와 계산)과 해석을 한 문장으로 나누어 써 보았다</li></ul><p class="h3">내일 해볼 것</p><p class="p">내일 과학 기사나 영상에서 &#39;관측&#39; 이라는 말을 만나면, 그 자리에 &#39;두 경로를 구별 가능하게 만드는 상호작용&#39; 을 넣어 다시 읽어 보세요. 뜻이 통하는지 한 줄로 적어 두세요.</p><div class="cards"><div class="card"><p class="card__title">파동의 기본</p><p class="card__why">간섭무늬는 파동이 겹치는 이야기예요. 마루와 골이 뭔지 흐릿하면 어떤 곳이 왜 어두워지는지가 안 잡혀요. 이게 막히면 먼저 보세요.</p><p class="card__hint">이게 막히면 먼저</p></div><div class="card"><p class="card__title">슈뢰딩거의 고양이</p><p class="card__why">여기서 본 중첩을 사람 크기의 세계로 끌어올리면 어떻게 되는지를 묻는 이야기예요. 이 실험을 알고 보면 훨씬 잘 읽혀요.</p><p class="card__hint">같은 난이도</p></div><div class="card"><p class="card__title">불확정성 원리</p><p class="card__why">왜 위치와 속도를 동시에 정확히 알 수 없는지를 다뤄요. &#39;측정이 공짜가 아니다&#39; 라는 같은 맥락이에요.</p><p class="card__hint">한 단계 더 깊게</p></div><div class="card"><p class="card__title">양자 지우개 실험</p><p class="card__why">경로 구별 가능성을 지우면 조건부로 간섭이 되살아나는 실험이에요. 여기서 남겨 둔 세 번째 선택지가 무엇이었는지 여기서 풀려요.</p><p class="card__hint">한 단계 더 깊게</p></div></div></div></section>
+<details class="guards"><summary class="guards__summary">이 학습지가 막으려 한 오해 5가지</summary><ol class="guards__list"><li class="guards__item"><p class="guards__mis">전자를 한 알씩 쏘면 구멍 모양대로 두 무더기가 쌓인다고 생각해요</p><p class="guards__how"><span class="guards__where">예측</span>예측 선택지에 &#39;두 무더기&#39; 를 넣고 고르게 한 뒤, 관찰의 세 번째 칸과 직접 비교하게 해요</p></li><li class="guards__item"><p class="guards__mis">탐지기를 붙이면 줄무늬가 곧바로 사라지고 두 봉우리가 된다고 생각해요</p><p class="guards__how"><span class="guards__where">개념</span>결맞음 슬라이더로 중간 상태를 직접 움직이게 하고, 약해진 줄무늬 칸을 본문에서 짚어요</p></li><li class="guards__item"><p class="guards__mis">경로 정보가 늘면 간섭이 그만큼 줄어든다는 수치 법칙이 있다고 생각해요</p><p class="guards__how"><span class="guards__where">개념</span>슬라이더가 정성 모형임을 본문에 밝히고, 알려진 관계는 D² + V² ≤ 1 처럼 더 정교하다고 한 줄로 적어요</p></li><li class="guards__item"><p class="guards__mis">슬릿 하나만 열면 좁은 봉우리 하나만 생긴다고 생각해요</p><p class="guards__how"><span class="guards__where">개념</span>회절 블록에서 중앙 최대와 측면 최대를 그림으로 비교하게 하고, 이 그림이 이상화 모형임을 밝혀요</p></li><li class="guards__item"><p class="guards__mis">탐지기의 기록을 사람이 읽어야 결과가 바뀐다고 생각해요</p><p class="guards__how"><span class="guards__where">나가기 전에</span>틀린 문장 고르기에 &#39;기록을 아무도 읽지 않으면 무늬는 그대로 남아요&#39; 를 넣고, reveal 에서 읽는 것이 필요하지 않다고 바로잡아요</p></li></ol></details>
+<footer class="sheet__footer"><span>이중슬릿 실험(Double-slit experiment)</span><span>ONPAR</span></footer>
+<canvas class="ink-layer" id="ink-layer" aria-hidden="true"></canvas>
+</article>
+</div>
+<script>(function () {
+'use strict';
+try {
+// 필기 엔진의 순수 로직. DOM 을 건드리지 않는다.
+//
+// DOM 글루(ink-runtime.js)와 분리한 이유는 이 부분이 틀리면 사용자 필기가 어긋나거나
+// 사라지는데, 그런 버그는 브라우저에서 눈으로 잡기 어렵기 때문이다. 여기는 전부 테스트한다.
+//
+// 좌표 규약(v2): 스트로크마다 둘 중 하나다.
+//
+//   anchor: "quiz-3"  → points 는 그 요소 기준 정규화 좌표(0~1). 요소 밖으로 삐져나간 획도
+//                       담아야 하므로 0~1 을 벗어나는 값을 허용한다.
+//   anchor: null      → 예전(v1)처럼 문서 좌표(CSS px, --ds-sheet-width 기준).
+//
+// 앵커를 도입한 이유: v1 은 "필기가 안 어긋나는 것"을 위해 "콘텐츠가 반응형이 되는 것"을
+// 포기한 설계였다. 820px 고정 문서를 390px 폰에서 0.48배로 축소하면 18px 본문이 8.6px 가 된다.
+// 콘텐츠가 주체이고 필기가 따라가야 한다. 요소 기준 좌표면 레이아웃이 바뀌어도
+// "그 문장 위에 그은 밑줄" 이 계속 그 문장 위에 남는다.
+// docs/plan/06-annotation.md §2 (v2 로 갱신 필요)
+
+const FORMAT_VERSION = 2
+
+/** 문서 좌표 저장 정밀도. 소수점 1자리면 시각적 차이가 없으면서 용량이 크게 준다. */
+const COORD_PRECISION = 1
+
+/**
+ * 정규화 좌표 저장 정밀도. 문서 좌표와 단위가 다르므로 자릿수도 다르다.
+ * 4자리면 820px 요소에서 0.08px, 390px 요소에서 0.04px — 눈에 보이지 않는다.
+ * 1자리로 두면 82px 격자로 뭉개져 필기가 아니라 점묘가 된다.
+ */
+const ANCHOR_COORD_PRECISION = 4
+
+/** 점 간 최소 거리(문서 px). 이보다 촘촘한 점은 버린다. */
+const MIN_POINT_DISTANCE = 0.7
+
+/** 앵커 좌표에서의 최소 거리(요소 폭 대비 비율). 390px 요소에서 약 0.8px. */
+const MIN_ANCHOR_POINT_DISTANCE = 0.002
+
+const TOOLS = ['pen', 'highlighter']
+
+/**
+ * setTool 이 받아들이는 모드. 스트로크를 **만드는** 도구(TOOLS)와 다르다.
+ *   eraser 는 획을 지우지 새로 그리지 않고, none 은 캔버스가 포인터를 놓아 본문 스크롤을 살린다.
+ * 이 둘을 TOOLS 에 넣으면 createStroke 가 지우개로 획을 만들어 버린다.
+ */
+const TOOL_MODES = [...TOOLS, 'eraser', 'none']
+
+const roundTo = (n, p) => Math.round(n * 10 ** p) / 10 ** p
+const round = (n) => roundTo(n, COORD_PRECISION)
+
+/** 정규화 좌표 반올림. 두 좌표계가 섞이므로 반올림 함수도 둘이다. */
+function roundAnchorCoord(n) {
+  return roundTo(n, ANCHOR_COORD_PRECISION)
+}
+
+// ── 좌표 변환 ────────────────────────────────────────────────────────────
+
+/**
+ * 포인터의 화면 좌표 → 문서 좌표.
+ *
+ * 캔버스가 문서 흐름 안에 있으므로 rect 는 스크롤이 이미 반영된 값이다.
+ * 그래서 scrollTop 을 따로 더하지 않는다 — 더하면 두 번 반영되어 어긋난다.
+ * (Flutter 오버레이 방식을 버린 이유가 정확히 이 계산을 손으로 해야 해서다.)
+ */
+function toDocCoords(clientX, clientY, rect, scale) {
+  const s = scale || 1
+  return { x: (clientX - rect.left) / s, y: (clientY - rect.top) / s }
+}
+
+/** 문서 폭을 화면 폭에 맞추는 배율. 확대는 하지 않고 축소만 한다. */
+function fitScale(viewportWidth, sheetWidth, maxScale = 1) {
+  if (!viewportWidth || !sheetWidth) return 1
+  return Math.min(viewportWidth / sheetWidth, maxScale)
+}
+
+/**
+ * 화면 좌표 → 앵커 요소 기준 정규화 좌표.
+ *
+ * rect 는 앵커 요소의 사각형(getBoundingClientRect 든, 캔버스 기준으로 옮긴 것이든
+ * left/top/width/height 만 있으면 된다). 폭·높이로 나누므로 배율(transform: scale)이
+ * 걸려 있어도 결과가 같다 — 이게 반응형에서 필기가 안 어긋나는 이유다.
+ *
+ * 0~1 로 자르지 않는다. 밑줄이 문장 끝을 살짝 넘어가는 건 정상이고, 자르면 획이 뭉개진다.
+ */
+function toAnchorCoords(clientX, clientY, anchorRect) {
+  const w = anchorRect.width || 1
+  const h = anchorRect.height || 1
+  return {
+    x: roundAnchorCoord((clientX - anchorRect.left) / w),
+    y: roundAnchorCoord((clientY - anchorRect.top) / h),
+  }
+}
+
+/** 정규화 좌표 → 화면(또는 캔버스) 좌표. toAnchorCoords 의 역함수. */
+function fromAnchorCoords(nx, ny, anchorRect) {
+  return {
+    x: anchorRect.left + nx * (anchorRect.width || 1),
+    y: anchorRect.top + ny * (anchorRect.height || 1),
+  }
+}
+
+/**
+ * 앵커 스트로크를 그릴 수 있는 좌표계로 편다.
+ * anchorRect 가 없으면(요소가 사라졌으면) null — 버리는 게 아니라 "이번엔 그리지 않는다".
+ */
+function projectStroke(stroke, anchorRect) {
+  if (!stroke.anchor) return stroke
+  if (!anchorRect) return null
+  const points = []
+  for (let i = 0; i < stroke.points.length; i += 3) {
+    const { x, y } = fromAnchorCoords(stroke.points[i], stroke.points[i + 1], anchorRect)
+    points.push(x, y, stroke.points[i + 2])
+  }
+  return { ...stroke, points }
+}
+
+/** 앵커별 스트로크 수. 서술형 응답의 inkStrokes 가 이걸 읽는다. */
+function countByAnchor(strokes) {
+  const out = {}
+  for (const s of strokes) {
+    if (!s.anchor) continue
+    out[s.anchor] = (out[s.anchor] || 0) + 1
+  }
+  return out
+}
+
+// ── 스트로크 ─────────────────────────────────────────────────────────────
+
+/**
+ * 스트로크 하나. points 는 [x, y, pressure] 를 3개씩 평탄화한 배열이다.
+ * 객체 배열({x,y,p})보다 JSON 크기가 60% 가까이 작다. 필기가 쌓이면 이 차이가 커진다.
+ */
+function createStroke(tool, color, width, id, createdAt, anchor = null) {
+  if (!TOOLS.includes(tool)) throw new Error(`알 수 없는 도구: ${tool}`)
+  return { id, tool, color, width, createdAt, anchor: anchor || null, points: [] }
+}
+
+/**
+ * 점을 추가한다. 너무 촘촘하면 버리고 false 를 돌려준다.
+ * 첫 점은 언제나 추가한다(탭 한 번도 점으로 남아야 한다).
+ *
+ * 반올림 자릿수와 최소 거리는 스트로크의 좌표계를 따른다 — 앵커 스트로크에 문서 좌표용
+ * 0.7px 을 쓰면 정규화 공간에서 0.7 은 요소의 70% 라 획이 두 점으로 줄어든다.
+ */
+function appendPoint(stroke, x, y, pressure, minDistance) {
+  const anchored = !!stroke.anchor
+  const r = anchored ? roundAnchorCoord : round
+  const min = minDistance != null
+    ? minDistance
+    : (anchored ? MIN_ANCHOR_POINT_DISTANCE : MIN_POINT_DISTANCE)
+  const p = clampPressure(pressure)
+  const n = stroke.points.length
+  if (n === 0) {
+    stroke.points.push(r(x), r(y), p)
+    return true
+  }
+  const lastX = stroke.points[n - 3]
+  const lastY = stroke.points[n - 2]
+  if (Math.hypot(x - lastX, y - lastY) < min) return false
+  stroke.points.push(r(x), r(y), p)
+  return true
+}
+
+/** 필압이 없는 입력(마우스/손가락)은 1로 온다. 0 은 '정보 없음'이므로 0.5 로 본다. */
+function clampPressure(pressure) {
+  if (typeof pressure !== 'number' || !Number.isFinite(pressure)) return 0.5
+  if (pressure <= 0) return 0.5
+  return Math.round(Math.min(pressure, 1) * 100) / 100
+}
+
+/** 필압 → 선 굵기. 0 압력에서도 선이 사라지지 않게 하한을 둔다. */
+function strokeWidthAt(baseWidth, pressure) {
+  return baseWidth * (0.35 + 0.65 * clampPressure(pressure))
+}
+
+function pointCount(stroke) {
+  return stroke.points.length / 3
+}
+
+function pointAt(stroke, i) {
+  const o = i * 3
+  return { x: stroke.points[o], y: stroke.points[o + 1], pressure: stroke.points[o + 2] }
+}
+
+/** 스트로크의 경계 상자. 타일링과 지우개 1차 필터에 쓴다. */
+function strokeBounds(stroke) {
+  const n = pointCount(stroke)
+  if (n === 0) return null
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  for (let i = 0; i < n; i++) {
+    const o = i * 3
+    const x = stroke.points[o], y = stroke.points[o + 1]
+    if (x < minX) minX = x
+    if (x > maxX) maxX = x
+    if (y < minY) minY = y
+    if (y > maxY) maxY = y
+  }
+  const pad = stroke.width
+  return { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad }
+}
+
+// ── 스무딩 ───────────────────────────────────────────────────────────────
+
+/**
+ * Catmull-Rom 스플라인을 3차 베지에 제어점으로 바꾼다.
+ * 점을 직선으로 이으면 빠르게 그은 획이 각져 보인다. 사람 눈에 바로 띈다.
+ */
+function catmullRomToBezier(points) {
+  const n = points.length
+  if (n < 2) return []
+  const segs = []
+  for (let i = 0; i < n - 1; i++) {
+    const p0 = points[i - 1] || points[i]
+    const p1 = points[i]
+    const p2 = points[i + 1]
+    const p3 = points[i + 2] || p2
+    segs.push({
+      cp1x: p1.x + (p2.x - p0.x) / 6,
+      cp1y: p1.y + (p2.y - p0.y) / 6,
+      cp2x: p2.x - (p3.x - p1.x) / 6,
+      cp2y: p2.y - (p3.y - p1.y) / 6,
+      x: p2.x,
+      y: p2.y,
+    })
+  }
+  return segs
+}
+
+function strokePoints(stroke) {
+  const out = []
+  for (let i = 0; i < pointCount(stroke); i++) out.push(pointAt(stroke, i))
+  return out
+}
+
+// ── 지우개 (획 단위) ──────────────────────────────────────────────────────
+
+/** 점과 선분 사이 거리. 지우개 히트 테스트의 핵심. */
+function distanceToSegment(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay
+  const lenSq = dx * dx + dy * dy
+  if (lenSq === 0) return Math.hypot(px - ax, py - ay)
+  let t = ((px - ax) * dx + (py - ay) * dy) / lenSq
+  t = Math.max(0, Math.min(1, t))
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+}
+
+/**
+ * 지우개가 이 스트로크에 닿았는가.
+ * 픽셀 지우개가 아니라 획 단위로 지운다 — 벡터 모델과 충돌하지 않고, 되돌리기가 정확해진다.
+ */
+function strokeHitTest(stroke, x, y, radius) {
+  const b = strokeBounds(stroke)
+  if (!b) return false
+  if (x < b.minX - radius || x > b.maxX + radius || y < b.minY - radius || y > b.maxY + radius) {
+    return false                       // 경계 상자로 먼저 걸러낸다
+  }
+  const n = pointCount(stroke)
+  const threshold = radius + stroke.width / 2
+  if (n === 1) {
+    const p = pointAt(stroke, 0)
+    return Math.hypot(x - p.x, y - p.y) <= threshold
+  }
+  for (let i = 0; i < n - 1; i++) {
+    const a = pointAt(stroke, i), c = pointAt(stroke, i + 1)
+    if (distanceToSegment(x, y, a.x, a.y, c.x, c.y) <= threshold) return true
+  }
+  return false
+}
+
+// ── 타일링 ───────────────────────────────────────────────────────────────
+
+const TILE_HEIGHT = 2000
+
+/**
+ * 문서가 길면 캔버스 하나로는 GPU 메모리를 압박한다. 세로로 잘라 뷰포트 근처만 그린다.
+ * 스트로크가 타일 경계를 걸치면 양쪽 타일에 모두 속한다.
+ */
+function strokeTileRange(stroke, tileHeight = TILE_HEIGHT) {
+  const b = strokeBounds(stroke)
+  if (!b) return null
+  return {
+    first: Math.max(0, Math.floor(b.minY / tileHeight)),
+    last: Math.max(0, Math.floor(b.maxY / tileHeight)),
+  }
+}
+
+function visibleTiles(scrollTop, viewportHeight, tileHeight = TILE_HEIGHT, overscan = 1) {
+  const first = Math.max(0, Math.floor(scrollTop / tileHeight) - overscan)
+  const last = Math.floor((scrollTop + viewportHeight) / tileHeight) + overscan
+  const tiles = []
+  for (let t = first; t <= last; t++) tiles.push(t)
+  return tiles
+}
+
+// ── 직렬화 ───────────────────────────────────────────────────────────────
+
+function serialize(strokes, meta) {
+  return {
+    format_version: FORMAT_VERSION,
+    sheet_width: meta.sheetWidth,
+    doc_height: meta.docHeight,
+    deleted: meta.deleted ? [...meta.deleted].sort() : [],
+    strokes: strokes.map((s) => ({
+      id: s.id,
+      tool: s.tool,
+      color: s.color,
+      width: s.width,
+      created_at: s.createdAt,
+      anchor: s.anchor || null,
+      points: s.points,
+    })),
+  }
+}
+
+/**
+ * 옛 포맷을 현재 포맷으로 올린다. 원본은 건드리지 않는다.
+ *
+ * v1 → v2: 스트로크에 anchor: null 을 채운다. v1 좌표는 전부 문서 좌표였고
+ * anchor: null 이 정확히 그 뜻이므로 좌표는 손대지 않는다. 손대면 옛 필기가 움직인다.
+ */
+function migrateStrokes(doc) {
+  if (!doc || typeof doc !== 'object') return doc
+  const v = doc.format_version
+  if (v === FORMAT_VERSION) return doc
+  if (v === 1) {
+    return {
+      ...doc,
+      format_version: FORMAT_VERSION,
+      strokes: (doc.strokes || []).map((s) => ({ ...s, anchor: s.anchor ?? null })),
+    }
+  }
+  // 미래 포맷을 억지로 읽으면 필기가 깨진 채로 저장될 수 있다. 읽지 않는 쪽이 안전하다.
+  throw new Error(`지원하지 않는 필기 포맷 버전: ${v} (지원: ${FORMAT_VERSION} 이하)`)
+}
+
+function deserialize(data) {
+  if (!data || typeof data !== 'object') return { strokes: [], deleted: new Set(), meta: null }
+  const doc = migrateStrokes(data)
+  const strokes = (doc.strokes || []).map((s) => ({
+    id: s.id,
+    tool: s.tool,
+    color: s.color,
+    width: s.width,
+    createdAt: s.created_at,
+    anchor: s.anchor || null,
+    points: s.points || [],
+  }))
+  return {
+    strokes,
+    deleted: new Set(doc.deleted || []),
+    meta: { sheetWidth: doc.sheet_width, docHeight: doc.doc_height },
+  }
+}
+
+// ── 병합 (기기 두 대에서 같은 학습지에 필기했을 때) ────────────────────────
+
+/**
+ * 스트로크는 append-only 이고 각자 고유 id 를 가지므로 합집합을 취하면 대부분 자연스럽게 합쳐진다.
+ * 같은 획을 두 기기에서 똑같이 그리는 일은 없기 때문이다.
+ * 지우개는 삭제된 id 목록(tombstone)으로 표현해서 병합 가능하게 만든다.
+ *
+ * 정렬은 (createdAt, id) 로 한다. 두 기기가 같은 순서에 도달해야 겹친 획의 위아래가 같아진다.
+ */
+function mergeAnnotations(local, remote) {
+  const byId = new Map()
+  for (const s of local.strokes) byId.set(s.id, s)
+  for (const s of remote.strokes) if (!byId.has(s.id)) byId.set(s.id, s)
+
+  const deleted = new Set([...(local.deleted || []), ...(remote.deleted || [])])
+  for (const id of deleted) byId.delete(id)
+
+  const strokes = [...byId.values()].sort((a, b) =>
+    a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+
+  return { strokes, deleted }
+}
+
+// ── 되돌리기 ─────────────────────────────────────────────────────────────
+
+/**
+ * 되돌리기 스택. 스트로크 추가와 삭제를 대칭으로 다룬다.
+ * 새 동작이 들어오면 redo 스택을 비운다(분기 히스토리는 사용자를 헷갈리게 한다).
+ */
+class UndoStack {
+  constructor(limit = 50) {
+    this.limit = limit
+    this.undoable = []
+    this.redoable = []
+  }
+  push(action) {
+    this.undoable.push(action)
+    if (this.undoable.length > this.limit) this.undoable.shift()
+    this.redoable.length = 0
+  }
+  get canUndo() { return this.undoable.length > 0 }
+  get canRedo() { return this.redoable.length > 0 }
+  undo() {
+    const a = this.undoable.pop()
+    if (a) this.redoable.push(a)
+    return a || null
+  }
+  redo() {
+    const a = this.redoable.pop()
+    if (a) this.undoable.push(a)
+    return a || null
+  }
+  clear() { this.undoable.length = 0; this.redoable.length = 0 }
+}
+
+/** 되돌리기 동작을 필기 상태에 적용한다. undo/redo 가 서로 정확히 반대여야 한다. */
+function applyUndo(state, action) {
+  if (action.type === 'add') {
+    state.strokes = state.strokes.filter((s) => s.id !== action.stroke.id)
+  } else if (action.type === 'erase') {
+    for (const s of action.strokes) {
+      state.deleted.delete(s.id)
+      state.strokes.push(s)
+    }
+    state.strokes.sort((a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1))
+  }
+  return state
+}
+
+function applyRedo(state, action) {
+  if (action.type === 'add') {
+    state.strokes.push(action.stroke)
+    state.strokes.sort((a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1))
+  } else if (action.type === 'erase') {
+    const ids = new Set(action.strokes.map((s) => s.id))
+    state.strokes = state.strokes.filter((s) => !ids.has(s.id))
+    for (const id of ids) state.deleted.add(id)
+  }
+  return state
+}
+
+/** 정렬 가능한 고유 id. 시간 접두사 덕에 병합 정렬이 안정적이다. */
+function newStrokeId(now, random) {
+  const t = (now || Date.now()).toString(36).padStart(9, '0')
+  const r = Math.floor((random != null ? random : Math.random()) * 0xfffff).toString(36).padStart(4, '0')
+  return `s_${t}_${r}`
+}
+
+const core = { FORMAT_VERSION, COORD_PRECISION, ANCHOR_COORD_PRECISION, MIN_POINT_DISTANCE, MIN_ANCHOR_POINT_DISTANCE, TOOLS, TOOL_MODES, roundTo, round, roundAnchorCoord, toDocCoords, fitScale, toAnchorCoords, fromAnchorCoords, projectStroke, countByAnchor, createStroke, appendPoint, clampPressure, strokeWidthAt, pointCount, pointAt, strokeBounds, catmullRomToBezier, strokePoints, distanceToSegment, strokeHitTest, TILE_HEIGHT, strokeTileRange, visibleTiles, serialize, migrateStrokes, deserialize, mergeAnnotations, UndoStack, applyUndo, applyRedo, newStrokeId };
+// 필기 런타임의 DOM 계층. 캔버스·포인터 이벤트·Flutter 브리지만 담당한다.
+// 판단이 필요한 로직은 전부 ink-core.js 에 있고 거기서 테스트된다.
+//
+// 학습지 HTML 안에서 돌아간다. 본문과 캔버스가 같은 스크롤 컨테이너에 있으므로
+// 스크롤 동기화 문제가 애초에 생기지 않는다. docs/plan/06-annotation.md §1
+//
+// v2: 획은 가능하면 [data-ink-anchor] 요소에 묶인다(요소 기준 정규화 좌표).
+// 콘텐츠가 주체다 — 레이아웃이 바뀌면 필기가 따라간다. 앵커 밖(여백)에 그은 획만 문서 좌표다.
+
+
+const DPR_CAP = 3   // 초고해상도에서 캔버스 메모리가 터지지 않게 상한을 둔다
+
+const cssEscape = (s) =>
+  (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(s) : String(s).replace(/["\\]/g, '\\$&')
+
+function createInkLayer(opts) {
+  const canvas = opts.canvas
+  const sheet = opts.sheet
+  const ctx = canvas.getContext('2d')
+  const bridge = opts.bridge || (() => {})
+
+  const state = { strokes: [], deleted: new Set() }
+  const undo = new core.UndoStack(50)
+
+  let tool = { kind: 'pen', color: '#111111', width: 2.4 }
+  let scale = 1
+  let drawing = null
+  let drawingAnchorRect = null   // 획을 긋는 동안 앵커 요소의 화면 사각형(레이아웃 재측정 방지)
+  let activePointerId = null
+  let allowFinger = false
+  let enabled = false
+  let rafPending = false
+
+  // ── 앵커 ───────────────────────────────────────────────────────────────
+  const anchorEl = (id) =>
+    id ? document.querySelector(`[data-ink-anchor="${cssEscape(id)}"]`) : null
+
+  /**
+   * 앵커 요소의 사각형을 캔버스 로컬 좌표(그리기 좌표계)로 옮긴다.
+   * getBoundingClientRect 는 transform: scale 이 반영된 값이라 배율로 나눠야 한다.
+   * 한 프레임 안에서 같은 앵커를 여러 번 묻게 되므로 캐시를 만들어 쓴다(레이아웃 스래싱 방지).
+   */
+  function rectResolver() {
+    const c = canvas.getBoundingClientRect()
+    const memo = new Map()
+    return (id) => {
+      if (!id) return null
+      if (memo.has(id)) return memo.get(id)
+      const el = anchorEl(id)
+      let r = null
+      if (el) {
+        const b = el.getBoundingClientRect()
+        r = {
+          left: (b.left - c.left) / scale, top: (b.top - c.top) / scale,
+          width: b.width / scale, height: b.height / scale,
+        }
+      }
+      memo.set(id, r)     // 요소가 사라졌으면 null 을 기억한다 — 획은 남기되 그리지 않는다
+      return r
+    }
+  }
+
+  /** 포인터 아래에서 가장 가까운 필기 앵커. 없으면 null(= 문서 좌표로 저장). */
+  function anchorAt(clientX, clientY) {
+    if (typeof document.elementsFromPoint !== 'function') return null
+    const hits = document.elementsFromPoint(clientX, clientY) || []
+    for (const el of hits) {
+      const id = el && el.dataset ? el.dataset.inkAnchor : null
+      if (id) return id
+    }
+    return null
+  }
+
+  // ── 캔버스 크기 ────────────────────────────────────────────────────────
+  function resize() {
+    const dpr = Math.min(globalThis.devicePixelRatio || 1, DPR_CAP)
+    const w = sheet.offsetWidth
+    const h = sheet.offsetHeight
+    canvas.width = Math.round(w * dpr)
+    canvas.height = Math.round(h * dpr)
+    canvas.style.width = w + 'px'
+    canvas.style.height = h + 'px'
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    redraw()
+  }
+
+  // ── 그리기 ─────────────────────────────────────────────────────────────
+  function drawStroke(s) {
+    const pts = core.strokePoints(s)
+    if (pts.length === 0) return
+
+    ctx.save()
+    ctx.strokeStyle = s.color
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    if (s.tool === 'highlighter') {
+      // 형광펜은 밑의 글자가 비쳐야 한다
+      ctx.globalAlpha = 0.35
+      ctx.globalCompositeOperation = 'multiply'
+      ctx.lineWidth = s.width * 6
+    }
+
+    if (pts.length === 1) {
+      ctx.fillStyle = s.color
+      ctx.beginPath()
+      ctx.arc(pts[0].x, pts[0].y, core.strokeWidthAt(s.width, pts[0].pressure) / 2, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.restore()
+      return
+    }
+
+    const segs = core.catmullRomToBezier(pts)
+    if (s.tool === 'highlighter') {
+      // 형광펜은 굵기가 일정해야 얼룩지지 않는다 — 한 번에 긋는다
+      ctx.beginPath()
+      ctx.moveTo(pts[0].x, pts[0].y)
+      for (const g of segs) ctx.bezierCurveTo(g.cp1x, g.cp1y, g.cp2x, g.cp2y, g.x, g.y)
+      ctx.stroke()
+    } else {
+      // 펜은 필압에 따라 굵기가 변하므로 구간마다 따로 긋는다
+      for (let i = 0; i < segs.length; i++) {
+        const g = segs[i]
+        ctx.beginPath()
+        ctx.lineWidth = core.strokeWidthAt(s.width, pts[i + 1].pressure)
+        ctx.moveTo(pts[i].x, pts[i].y)
+        ctx.bezierCurveTo(g.cp1x, g.cp1y, g.cp2x, g.cp2y, g.x, g.y)
+        ctx.stroke()
+      }
+    }
+    ctx.restore()
+  }
+
+  function redraw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    const rectOf = rectResolver()
+    for (const s of state.strokes) {
+      // 앵커가 사라진 획(콘텐츠가 바뀐 경우)은 이번 프레임에 그리지 않을 뿐, 데이터는 그대로 둔다.
+      const p = core.projectStroke(s, rectOf(s.anchor))
+      if (p) drawStroke(p)
+    }
+    if (drawing) {
+      const live = drawing.anchor
+        ? core.projectStroke(drawing, rectOf(drawing.anchor))
+        : drawing
+      if (live) drawStroke(live)
+    }
+  }
+
+  function scheduleRedraw() {
+    if (rafPending) return
+    rafPending = true
+    globalThis.requestAnimationFrame(() => { rafPending = false; redraw() })
+  }
+
+  // ── 포인터 ─────────────────────────────────────────────────────────────
+  function accepts(e) {
+    if (!enabled) return false
+    if (e.pointerType === 'pen') return true          // Apple Pencil
+    if (e.pointerType === 'mouse') return true
+    return allowFinger                                 // 손가락은 설정에서 켤 때만 (팜 리젝션)
+  }
+
+  const toDoc = (e) => core.toDocCoords(e.clientX, e.clientY, canvas.getBoundingClientRect(), scale)
+
+  /** 진행 중인 획의 좌표계로 포인터를 옮긴다. 앵커가 있으면 정규화 좌표, 없으면 문서 좌표. */
+  function toStrokeCoords(e) {
+    if (drawing && drawing.anchor && drawingAnchorRect) {
+      return core.toAnchorCoords(e.clientX, e.clientY, drawingAnchorRect)
+    }
+    return toDoc(e)
+  }
+
+  function onDown(e) {
+    if (!accepts(e) || activePointerId !== null) return
+    activePointerId = e.pointerId
+    canvas.setPointerCapture(e.pointerId)
+
+    if (tool.kind === 'eraser') {
+      const { x, y } = toDoc(e)
+      eraseAt(x, y)
+      return
+    }
+    // 획을 시작한 자리 아래에 필기 앵커가 있으면 그 요소에 묶는다.
+    // 한 획이 두 좌표계를 오갈 수는 없으므로 앵커는 시작점에서 한 번만 정한다.
+    const anchor = anchorAt(e.clientX, e.clientY)
+    const el = anchorEl(anchor)
+    drawingAnchorRect = el ? el.getBoundingClientRect() : null
+    drawing = core.createStroke(
+      tool.kind, tool.color, tool.width,
+      core.newStrokeId(Date.now()), Date.now(),
+      drawingAnchorRect ? anchor : null,
+    )
+    const { x, y } = toStrokeCoords(e)
+    core.appendPoint(drawing, x, y, e.pressure)
+    scheduleRedraw()
+  }
+
+  function onMove(e) {
+    if (e.pointerId !== activePointerId) return
+    // ProMotion 120Hz 샘플을 놓치면 빠르게 그은 획이 각져 보인다.
+    const events = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : [e]
+    let changed = false
+    const rectOf = tool.kind === 'eraser' ? rectResolver() : null
+    for (const p of events) {
+      if (tool.kind === 'eraser') {
+        const { x, y } = toDoc(p)
+        changed = eraseAt(x, y, rectOf) || changed
+      } else if (drawing) {
+        const { x, y } = toStrokeCoords(p)
+        changed = core.appendPoint(drawing, x, y, p.pressure) || changed
+      }
+    }
+    if (changed) scheduleRedraw()
+  }
+
+  function onUp(e) {
+    if (e.pointerId !== activePointerId) return
+    activePointerId = null
+    try { canvas.releasePointerCapture(e.pointerId) } catch { /* 이미 해제됨 */ }
+
+    if (drawing) {
+      if (core.pointCount(drawing) > 0) {
+        state.strokes.push(drawing)
+        undo.push({ type: 'add', stroke: drawing })
+        notifyChanged()
+      }
+      drawing = null
+      drawingAnchorRect = null
+      scheduleRedraw()
+    }
+    flushErase()
+  }
+
+  // ── 지우개 ─────────────────────────────────────────────────────────────
+  // 히트 테스트는 캔버스 로컬 좌표에서 한다. 앵커 획은 그 좌표계로 펴서 비교한다 —
+  // 정규화 좌표와 문서 좌표를 그냥 비교하면 지우개가 엉뚱한 획을 지운다.
+  let erasedInGesture = []
+  function eraseAt(x, y, rectOf) {
+    const radius = 12
+    const resolve = rectOf || rectResolver()
+    const hit = state.strokes.filter((s) => {
+      const p = core.projectStroke(s, resolve(s.anchor))
+      return p ? core.strokeHitTest(p, x, y, radius) : false   // 안 보이는 획은 못 지운다
+    })
+    if (hit.length === 0) return false
+    const ids = new Set(hit.map((s) => s.id))
+    state.strokes = state.strokes.filter((s) => !ids.has(s.id))
+    for (const id of ids) state.deleted.add(id)
+    erasedInGesture.push(...hit)
+    return true
+  }
+  function flushErase() {
+    if (erasedInGesture.length === 0) return
+    // 한 번의 지우개 제스처는 하나의 되돌리기 단위여야 한다
+    undo.push({ type: 'erase', strokes: erasedInGesture })
+    erasedInGesture = []
+    notifyChanged()
+    scheduleRedraw()
+  }
+
+  // ── 브리지 알림 ────────────────────────────────────────────────────────
+  function notifyChanged() {
+    const byAnchor = core.countByAnchor(state.strokes)
+    bridge('strokesChanged', {
+      count: state.strokes.length,
+      byAnchor,
+      canUndo: undo.canUndo,
+      canRedo: undo.canRedo,
+    })
+    // 학습 런타임(worksheet-interact)이 같은 번들의 다른 스코프에 있다. DOM 이벤트로 알린다.
+    // 필기도 "답을 적었다"는 증거이므로 서술형 응답의 inkStrokes 가 이 값을 읽는다.
+    try {
+      document.dispatchEvent(new CustomEvent('onpar:ink', {
+        detail: { count: state.strokes.length, byAnchor },
+      }))
+    } catch { /* CustomEvent 가 없는 아주 오래된 엔진 */ }
+  }
+
+  // ── 공개 API (Flutter 가 부른다) ────────────────────────────────────────
+  const api = {
+    setTool(next) {
+      // 문자열로 부르는 실수가 잦다. 상태를 망가뜨린 뒤 스트로크를 만들 때 터지면
+      // 원인을 찾기 어렵다 — 여기서 바로 막고, 도구는 이전 값을 유지한다.
+      const kind = typeof next === 'string' ? next : next && next.tool
+      // 받아들이는 것은 TOOL_MODES 다. TOOLS(획을 만드는 도구)로 검사하면
+      // 지우개가 거부된다 — 아래 onDown/onMove 는 이미 eraser 를 처리하고 있다.
+      if (!core.TOOL_MODES.includes(kind)) {
+        throw new Error(`알 수 없는 도구: ${kind} (${core.TOOL_MODES.join(', ')})`)
+      }
+      const opts = typeof next === 'string' ? {} : next
+      tool = { kind, color: opts.color || tool.color, width: opts.width || tool.width }
+      // 필기 모드일 때만 캔버스가 포인터를 먹는다. 아니면 본문 스크롤·선택이 막힌다.
+      enabled = kind !== 'none'
+      canvas.style.pointerEvents = enabled ? 'auto' : 'none'
+    },
+    setFingerDrawing(on) { allowFinger = !!on },
+    setZoom(next) {
+      scale = next || 1
+      sheet.parentElement.style.transform = `scale(${scale})`
+      resize()
+    },
+    undo() {
+      const a = undo.undo()
+      if (!a) return
+      core.applyUndo(state, a)
+      notifyChanged(); scheduleRedraw()
+    },
+    redo() {
+      const a = undo.redo()
+      if (!a) return
+      core.applyRedo(state, a)
+      notifyChanged(); scheduleRedraw()
+    },
+    clearAll() {
+      if (state.strokes.length === 0) return
+      undo.push({ type: 'erase', strokes: [...state.strokes] })
+      for (const s of state.strokes) state.deleted.add(s.id)
+      state.strokes = []
+      notifyChanged(); scheduleRedraw()
+    },
+    loadStrokes(data) {
+      const parsed = core.deserialize(data)
+      state.strokes = parsed.strokes
+      state.deleted = parsed.deleted
+      undo.clear()
+      notifyChanged(); scheduleRedraw()
+    },
+    /** 저장용 스냅샷. Flutter 가 디바운스해서 가져간다. */
+    exportStrokes() {
+      return core.serialize(state.strokes, {
+        sheetWidth: sheet.offsetWidth,
+        docHeight: sheet.offsetHeight,
+        deleted: state.deleted,
+      })
+    },
+    /** 앵커별 스트로크 수. 서술형 응답이 "필기로 답했다"를 판단하는 근거. */
+    strokeCountByAnchor() { return core.countByAnchor(state.strokes) },
+    strokeCountFor(anchorId) { return core.countByAnchor(state.strokes)[anchorId] || 0 },
+    /** 레이아웃이 바뀐 뒤 앵커 좌표를 다시 펴서 그린다. */
+    refresh() { scheduleRedraw() },
+    scrollToQuiz(quizId) {
+      const el = document.querySelector(`[data-quiz-id="${cssEscape(quizId)}"]`)
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return !!el
+    },
+  }
+
+  canvas.addEventListener('pointerdown', onDown)
+  canvas.addEventListener('pointermove', onMove)
+  canvas.addEventListener('pointerup', onUp)
+  canvas.addEventListener('pointercancel', onUp)
+  globalThis.addEventListener('resize', resize)
+
+  // 앵커 좌표는 요소의 현재 크기에 매달려 있다. 레이아웃이 바뀌면 다시 그려야 제자리에 남는다.
+  // (textarea 가 늘어나거나, 폰트가 늦게 로드되거나, 화면을 돌렸을 때)
+  if (typeof ResizeObserver === 'function') {
+    const ro = new ResizeObserver(() => resize())
+    ro.observe(sheet)
+    for (const el of document.querySelectorAll('[data-ink-anchor]')) ro.observe(el)
+  }
+
+  api.setTool({ tool: 'none' })
+  resize()
+  return api
+}
+
+// 학습지 HTML 안에서 자동 기동한다.
+// 어디서 터지든 문서는 읽을 수 있어야 한다 — 필기가 안 되는 학습지는 불편하지만,
+// 본문이 안 보이는 학습지는 쓸모가 없다.
+if (typeof document !== 'undefined') {
+  const boot = () => {
+    try {
+      const canvas = document.getElementById('ink-layer')
+      const sheet = document.querySelector('.sheet')
+      if (!canvas || !sheet) return
+      globalThis.ONPAR_INK = createInkLayer({
+        canvas,
+        sheet,
+        bridge: (type, payload) => {
+          // Flutter(flutter_inappwebview)가 핸들러를 심어두면 그쪽으로, 없으면 조용히 무시한다.
+          const h = globalThis.flutter_inappwebview
+          if (h && typeof h.callHandler === 'function') h.callHandler('ink', { type, payload })
+        },
+      })
+    } catch (e) {
+      try { document.documentElement.dataset.onparRuntime = 'failed' } catch { /* 무시 */ }
+      try { console.error('[onpar] 필기 런타임 기동 실패', e) } catch { /* 무시 */ }
+    }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot)
+  else boot()
+}
+
+} catch (e) {
+try { document.documentElement.dataset.onparRuntime = 'failed'; } catch (_) {}
+try { console.error('[onpar] 런타임 기동 실패', e); } catch (_) {}
+}
+})();
+(function () {
+'use strict';
+try {
+// 학습 상호작용 런타임. 활동·문제의 선택, 제출, 오답별 피드백, 서술형 답, 슬라이더 도형.
+//
+// 외부 평가 1: "'썼다'는 아는데 무엇을 썼는지는 모른다."
+//   - 서술형은 attempted=true 만 남았다. 깊은 학습과 아무 말이나 쓰는 행위가 데이터상 같았다.
+//   - 선택형은 RESPONSES[id] = ... 로 덮어써서, 첫 오답을 고르고 정답으로 고치면
+//     처음 오개념이 사라졌다. 학습분석에서 중요한 건 first → feedback → retry → final 이다.
+//
+// 그래서 응답은 "덮어쓰기"가 아니라 "이력"이다. firstChoice 는 절대 덮어쓰지 않는다.
+//
+//   선택형 { id, kind:'choice', questionId, firstChoice, finalChoice,
+//            attempts:[{choice,text,correct,at,msSincePrompt}],
+//            correct, feedbackSeen, changedMind, firstCorrect }
+//   서술형 { id, kind:'written', questionId, text, chars, inkStrokes,
+//            revisionHistory:[{chars,at}], submittedAt, msSincePrompt }
+//
+// 외부 평가 3: 필기만 강제하지 않는다. 타이핑(textarea)과 필기(ink-space)를 함께 지원하고,
+// 셋 중 하나라도 시도가 있으면 답이 열린다. JS 가 죽어도 본문·문제·선택지·해설은 읽힌다.
+
+const RESPONSES = {}
+const LOAD_AT = Date.now()
+const TEXT_DEBOUNCE_MS = 400
+const MAX_REVISIONS = 100        // 이력이 무한정 늘면 저장이 아니라 로그가 된다
+
+/** 학습지 id. localStorage 키가 학습지마다 갈라져야 다른 학습지의 답이 섞이지 않는다. */
+function worksheetId() {
+  const el = document.querySelector('[data-worksheet-id]')
+  return (el && el.dataset.worksheetId) || 'unknown'
+}
+
+function markRuntimeFailed(e) {
+  try { document.documentElement.dataset.onparRuntime = 'failed' } catch { /* 무시 */ }
+  try { console.error('[onpar] 학습 런타임 오류', e) } catch { /* 무시 */ }
+}
+
+// ── 저장 (새로고침에 답이 사라지면 학습자가 화낸다) ──────────────────────
+const storeKey = (id) => `onpar:${worksheetId()}:${id}`
+
+function loadText(id) {
+  try {
+    const v = globalThis.localStorage ? globalThis.localStorage.getItem(storeKey(id)) : null
+    return typeof v === 'string' ? v : null
+  } catch { return null }        // 사파리 프라이빗 모드 등에서 접근 자체가 throw 한다
+}
+
+function saveText(id, text) {
+  try {
+    if (!globalThis.localStorage) return
+    if (text) globalThis.localStorage.setItem(storeKey(id), text)
+    else globalThis.localStorage.removeItem(storeKey(id))
+  } catch { /* 저장 못 해도 학습은 계속돼야 한다 */ }
+}
+
+// ── 응답 이력 ───────────────────────────────────────────────────────────
+/** 요소가 처음 화면에 보인 시각. 없으면 페이지 로드 시각. 체류시간의 기준점이다. */
+const promptSeenAt = new Map()
+const markSeen = (id) => { if (id && !promptSeenAt.has(id)) promptSeenAt.set(id, Date.now()) }
+const msSincePrompt = (id) => Date.now() - (promptSeenAt.has(id) ? promptSeenAt.get(id) : LOAD_AT)
+
+function record(root) {
+  const id = root.dataset.responseId
+  let rec = RESPONSES[id]
+  if (rec) return rec
+  const questionId = root.dataset.quizId || null
+  rec = root.dataset.responseKind === 'choice'
+    ? {
+        id, kind: 'choice', questionId,
+        firstChoice: null, finalChoice: null, attempts: [],
+        correct: null, feedbackSeen: false, changedMind: false, firstCorrect: null,
+      }
+    : {
+        id, kind: 'written', questionId,
+        text: '', chars: 0, inkStrokes: 0, revisionHistory: [],
+        submittedAt: null, msSincePrompt: null,
+      }
+  RESPONSES[id] = rec
+  return rec
+}
+
+const snapshot = (rec) => JSON.parse(JSON.stringify(rec))
+
+/** Flutter 로 나가는 payload 는 저장 스키마와 같은 모양이다. 두 벌을 유지하면 반드시 어긋난다. */
+function bridge(type, payload) {
+  try {
+    const h = globalThis.flutter_inappwebview
+    if (h && typeof h.callHandler === 'function') h.callHandler('learn', { type, payload })
+  } catch { /* 브리지가 없으면 조용히 무시한다 (브라우저에서 그냥 열었을 때) */ }
+}
+
+// ── 활동 / 선택형 문제 ─────────────────────────────────────────────────
+function wireChoice(root) {
+  const id = root.dataset.responseId
+  const rec = record(root)
+  const reveal = root.querySelector('details.act__reveal, details.quiz__a')
+  const submit = root.querySelector('[data-submit]')
+  const feedback = root.querySelector('[data-feedback-slot]')
+  const radios = [...root.querySelectorAll('input[type="radio"]')]
+  if (!reveal) return
+
+  // 고르기 전에는 답을 못 연다. 열려고 하면 안내만.
+  reveal.addEventListener('toggle', () => {
+    if (reveal.open && !root.dataset.answered) {
+      reveal.open = false
+      root.classList.add('is-nudge')
+      setTimeout(() => root.classList.remove('is-nudge'), 900)
+    }
+  })
+
+  function answer(choiceIdx, choiceText) {
+    root.dataset.answered = '1'
+    const correct = root.dataset.answer != null ? String(choiceIdx) === root.dataset.answer : null
+
+    // 고른 오답에 맞는 피드백만 보여준다. 전부 나열하면 진단이 아니다.
+    if (feedback) {
+      const label = radios[choiceIdx] ? radios[choiceIdx].closest('label') : null
+      const fb = label ? label.dataset.feedback : null
+      feedback.textContent = correct === true ? '' : (fb || '')
+      feedback.hidden = !feedback.textContent
+      if (!feedback.hidden) rec.feedbackSeen = true   // 실제로 표시됐을 때만 true
+    }
+    radios.forEach((r, i) => {
+      const l = r.closest('label'); if (!l) return
+      l.classList.toggle('is-picked', i === choiceIdx)
+      // 답이 열리는 순간이므로 정답 칸도 같이 보여준다. 어디가 맞았는지 모르면 피드백이 반쪽이다.
+      if (correct !== null) l.classList.toggle('is-correct', String(i) === root.dataset.answer)
+      if (correct !== null) l.classList.toggle('is-wrong', i === choiceIdx && correct === false)
+    })
+    root.classList.add('is-answered')
+    if (correct === true) root.classList.add('is-right')
+    reveal.open = true
+
+    // ── 이력. 여기가 이 파일의 핵심이다 ──
+    rec.attempts.push({
+      choice: choiceIdx, text: choiceText, correct,
+      at: Date.now(), msSincePrompt: msSincePrompt(id),
+    })
+    if (rec.firstChoice === null) {
+      // 첫 응답은 절대 덮어쓰지 않는다. 첫 오답이 그 학생의 오개념이고,
+      // 그걸 지우면 남는 건 "결국 맞혔다" 뿐이다.
+      rec.firstChoice = choiceIdx
+      rec.firstCorrect = correct === null ? null : correct === true
+    }
+    rec.finalChoice = choiceIdx
+    rec.correct = correct
+    rec.changedMind = rec.firstChoice !== choiceIdx
+    bridge('choice', snapshot(rec))
+  }
+
+  if (submit) {
+    submit.addEventListener('click', () => {
+      const i = radios.findIndex((r) => r.checked)
+      if (i === -1) { root.classList.add('is-nudge'); setTimeout(() => root.classList.remove('is-nudge'), 900); return }
+      answer(i, radios[i].value)
+    })
+  } else {
+    radios.forEach((r, i) => r.addEventListener('change', () => answer(i, r.value)))
+  }
+}
+
+// ── 서술형: 타이핑과 필기를 나란히 지원한다 ─────────────────────────────
+//
+// 렌더러 계약:
+//   <div class="answer" data-answer-for="{responseId}">
+//     <textarea class="answer__text" data-answer-text rows="3"></textarea>
+//     <div class="ink-space" data-ink-space="sm" data-ink-anchor="{responseId}"></div>
+//   </div>
+//   <label class="act__attempt"><input type="checkbox" data-attempted> 내 답을 적었어요</label>
+//
+// 셋(체크박스·글자·필기) 중 하나라도 있으면 시도로 본다. 손으로만 쓰라고 강요하지 않는다.
+function wireWritten(root) {
+  const id = root.dataset.responseId
+  const rec = record(root)
+  const reveal = root.querySelector('details.act__reveal, details.quiz__a')
+  const attempted = root.querySelector('input[type="checkbox"][data-attempted]')
+  const box = root.querySelector('[data-answer-for="' + cssAttr(id) + '"]') || root
+  const textarea = box.querySelector('[data-answer-text]') || root.querySelector('[data-answer-text]')
+  const inkEl = root.querySelector('[data-ink-anchor]')
+  const anchorId = inkEl ? inkEl.dataset.inkAnchor : null
+
+  const hasEvidence = () =>
+    (attempted ? attempted.checked : false) ||
+    rec.chars > 0 || rec.inkStrokes > 0
+
+  function markSubmitted() {
+    if (rec.submittedAt != null) return
+    rec.submittedAt = Date.now()
+    rec.msSincePrompt = msSincePrompt(id)
+  }
+
+  /** 시도가 생기면 체크박스를 대신 켜 준다. 끄는 건 사용자 몫이다(직접 풀 수 있어야 한다). */
+  function reflectAttempt(push) {
+    if (!hasEvidence()) return
+    markSubmitted()
+    if (attempted && !attempted.checked) attempted.checked = true
+    root.dataset.answered = '1'
+    root.classList.add('is-answered')
+    if (push) bridge('written', snapshot(rec))
+  }
+
+  // 답은 시도가 있어야 열린다 — 체크박스만 보지 않는다.
+  if (reveal) reveal.addEventListener('toggle', () => {
+    if (reveal.open && !hasEvidence()) {
+      reveal.open = false
+      root.classList.add('is-nudge')
+      setTimeout(() => root.classList.remove('is-nudge'), 900)
+    }
+  })
+
+  if (attempted) attempted.addEventListener('change', () => {
+    if (attempted.checked) { markSubmitted(); root.dataset.answered = '1'; root.classList.add('is-answered'); bridge('written', snapshot(rec)) }
+  })
+
+  if (textarea) {
+    // 새로고침 복원. 답이 사라지는 학습지는 두 번 쓰이지 않는다.
+    const saved = loadText(id)
+    if (saved) {
+      textarea.value = saved
+      rec.text = saved
+      rec.chars = saved.trim().length
+      // 언제 썼는지는 모른다. 모르는 값을 지어내지 않는다(submittedAt 은 이 세션 기준).
+      reflectAttempt(false)
+    }
+
+    let timer = null
+    const commit = () => {
+      const value = textarea.value
+      const chars = value.trim().length
+      const changed = value !== rec.text
+      rec.text = value
+      rec.chars = chars
+      if (changed) {
+        rec.revisionHistory.push({ chars, at: Date.now() })
+        // 첫 판은 남기고 그 다음 것부터 버린다 — "처음 얼마나 썼는가"가 이력의 시작점이다.
+        if (rec.revisionHistory.length > MAX_REVISIONS) rec.revisionHistory.splice(1, 1)
+      }
+      saveText(id, value)
+      if (chars > 0) reflectAttempt(false)
+      bridge('written', snapshot(rec))
+    }
+    textarea.addEventListener('input', () => {
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(commit, TEXT_DEBOUNCE_MS)
+    })
+    // 화면을 떠나면 디바운스를 기다리지 않는다.
+    textarea.addEventListener('blur', () => { if (timer) { clearTimeout(timer); timer = null; commit() } })
+  }
+
+  if (anchorId) {
+    // 필기 런타임이 획 수를 알려준다. 필기도 "답을 적었다"는 증거다.
+    document.addEventListener('onpar:ink', (e) => {
+      const by = e && e.detail ? e.detail.byAnchor : null
+      const n = by && by[anchorId] ? by[anchorId] : 0
+      if (n === rec.inkStrokes) return
+      rec.inkStrokes = n
+      if (n > 0) reflectAttempt(true)
+    })
+  }
+}
+
+/** 속성 선택자에 넣을 값. id 는 우리가 만들지만 셀렉터 주입은 원천 차단한다. */
+function cssAttr(v) {
+  return String(v).replace(/["\\]/g, '\\$&')
+}
+
+// ── 슬라이더 도형 ───────────────────────────────────────────────────────
+const FN = { 'x^2': (x) => x * x, 'x^3': (x) => x * x * x, 'sin': Math.sin, 'exp': Math.exp, 'linear': (x) => 0.8 * x + 1, 'abs': Math.abs }
+const f2 = (n) => (Math.round(n * 100) / 100).toFixed(2)
+
+/** 할선의 두 번째 점을 h 만큼 옮긴다. h 는 음수도 된다 — 왼쪽 접근을 반드시 보게 한다. */
+function wirePlot(fig) {
+  const svg = fig.querySelector('svg')
+  const fn = FN[fig.dataset.fn]; if (!fn || !svg) return
+  const a = +fig.dataset.a, x0 = +fig.dataset.x0, x1 = +fig.dataset.x1
+  const pad = +fig.dataset.pad, yMin = +fig.dataset.ymin, yMax = +fig.dataset.ymax
+  const W = 600, H = 340
+  const sx = (x) => pad + ((x - x0) / (x1 - x0)) * (W - pad * 2)
+  const sy = (y) => H - pad - ((y - yMin) / (yMax - yMin || 1)) * (H - pad * 2)
+  const line = svg.querySelector('.fig-secant')
+  const pts = svg.querySelectorAll('.fig-pt--secant')
+  const slider = fig.querySelector('.fig__slider')
+  const out = fig.querySelector('.fig__readout')
+  if (!line || pts.length < 2 || !slider) return
+  line.classList.add('fig-secant--live')
+
+  function update() {
+    let h = +slider.value
+    if (Math.abs(h) < 0.01) h = h < 0 ? -0.01 : 0.01   // h=0 은 정의되지 않는다. 대입하는 게 아니다.
+    const b = a + h
+    const ya = fn(a), yb = fn(b), m = (yb - ya) / h
+    const ext = (x1 - x0) * 0.15
+    const xa = Math.min(a, b) - ext, xb = Math.max(a, b) + ext
+    line.setAttribute('x1', f2(sx(xa))); line.setAttribute('y1', f2(sy(ya + m * (xa - a))))
+    line.setAttribute('x2', f2(sx(xb))); line.setAttribute('y2', f2(sy(ya + m * (xb - a))))
+    pts[1].setAttribute('cx', f2(sx(b))); pts[1].setAttribute('cy', f2(sy(yb)))
+    if (out) out.innerHTML = `h = ${h >= 0 ? '+' : ''}${f2(h)} → 할선 기울기 <b>${f2(m)}</b>` +
+      (Math.abs(h) <= 0.05 ? ' <span>(양쪽 다 가까워지는지 보세요)</span>' : '')
+    bridge('slider', { id: fig.dataset.figure, h, slope: m })
+  }
+  slider.addEventListener('input', update)
+  update()
+  // JS 가 붙었다는 표시. 안 붙었으면 슬라이더는 아무것도 안 하므로 CSS 가 숨긴다.
+  fig.dataset.wired = '1'
+}
+
+/** 마지막 패널을 경로정보 v 로 다시 그린다. 스위치가 아니라 연속이라는 걸 손으로 느끼게. */
+function wireDistribution(fig) {
+  const svg = fig.querySelector('svg')
+  const panels = svg ? [...svg.querySelectorAll('.fig-panel')] : []
+  const areas = svg ? [...svg.querySelectorAll('.fig-area')] : []
+  const slider = fig.querySelector('.fig__slider'), out = fig.querySelector('.fig__readout')
+  if (!panels.length || !areas.length || !slider) return
+  const rect = panels[panels.length - 1], area = areas[areas.length - 1]
+  const x = +rect.getAttribute('x'), top = +rect.getAttribute('y')
+  const pw = +rect.getAttribute('width'), ph = +rect.getAttribute('height')
+  const g = (t, c, w) => Math.exp(-((t - c) ** 2) / (2 * w * w))
+
+  // 슬라이더가 움직이는 것은 간섭항의 결맞음 |γ| 다.
+  //   I = I₁ + I₂ + 2|γ|√(I₁I₂)cos φ  —  가운데 항만 줄어든다.
+  //
+  // 여기에 퍼센트를 찍으면 안 된다. 예전 눈금은 "간섭 가시도 = (1 − v) × 100%" 였는데
+  // 그런 보편 법칙은 없다. 표준 상보성이 주는 것은 D² + V² ≤ 1 같은 부등식이고,
+  // 그마저 이 그림에서 계산되는 값이 아니다. 본문에 '대략적 모형' 이라 적어도
+  // 63% 가 움직이면 사람은 그 수를 법칙으로 기억한다. 그래서 낮음/중간/높음 만 낸다.
+  const BANDS = ['낮음', '중간', '높음']
+  const band = (v) => BANDS[v < 1 / 3 ? 0 : v < 2 / 3 ? 1 : 2]
+
+  function update() {
+    const gamma = +slider.value                   // 1 = 결맞음 최대(간섭 뚜렷), 0 = 경로가 구별됨
+    const N = 60, pts = []
+    for (let k = 0; k <= N; k++) {
+      const t = k / N
+      const env = g(t, 0.5, 0.22)
+      const fringes = 0.5 + 0.5 * gamma * Math.cos((t - 0.5) * 2 * Math.PI * 6)
+      const humps = 0.9 * (g(t, 0.34, 0.09) + g(t, 0.66, 0.09))
+      const y = gamma * env * fringes + (1 - gamma) * humps
+      pts.push(`${f2(x + t * pw)} ${f2(top + ph - y * (ph - 8))}`)
+    }
+    area.setAttribute('d', `M${f2(x)} ${f2(top + ph)}L${pts.join('L')}L${f2(x + pw)} ${f2(top + ph)}Z`)
+    if (out) out.innerHTML = `간섭 <b>${band(gamma)}</b>`
+    bridge('slider', { id: fig.dataset.figure, coherence: gamma, band: band(gamma) })
+  }
+  slider.addEventListener('input', update)
+  update()
+  fig.dataset.wired = '1'
+}
+
+// ── 기동 ───────────────────────────────────────────────────────────────
+/** 요소가 처음 보인 시각을 잡는다. IntersectionObserver 가 없으면 페이지 로드 시각으로 본다. */
+function observePrompts(roots) {
+  if (typeof IntersectionObserver !== 'function') return
+  const io = new IntersectionObserver((entries) => {
+    for (const en of entries) {
+      if (!en.isIntersecting) continue
+      markSeen(en.target.dataset.responseId)
+      io.unobserve(en.target)
+    }
+  }, { threshold: 0.25 })
+  for (const el of roots) io.observe(el)
+}
+
+/** 하나가 터져도 나머지는 붙어야 한다. 문제 하나 때문에 학습지 전체가 죽지 않게. */
+function each(selector, fn) {
+  for (const el of document.querySelectorAll(selector)) {
+    try { fn(el) } catch (e) { markRuntimeFailed(e) }
+  }
+}
+
+function boot() {
+  try {
+    const choices = [...document.querySelectorAll('[data-response-id][data-response-kind="choice"]')]
+    const written = [...document.querySelectorAll('[data-response-id][data-response-kind="written"]')]
+    observePrompts([...choices, ...written])
+    each('[data-response-id][data-response-kind="choice"]', wireChoice)
+    each('[data-response-id][data-response-kind="written"]', wireWritten)
+    each('figure[data-interactive="plot"]', wirePlot)
+    each('figure[data-interactive="distribution"]', wireDistribution)
+
+    globalThis.ONPAR_RESPONSES = RESPONSES
+    globalThis.ONPAR_LEARN = {
+      /** id → 응답 이력 (그대로). */
+      export: () => ({ ...RESPONSES }),
+      /** 저장·전송용 배열. DB 의 responses 행과 1:1 이다. */
+      exportResponses: () => Object.keys(RESPONSES).map((k) => snapshot(RESPONSES[k])),
+      answeredCount: () => Object.keys(RESPONSES).filter((k) => {
+        const r = RESPONSES[k]
+        return r.kind === 'choice' ? r.attempts.length > 0 : (r.chars > 0 || r.inkStrokes > 0 || r.submittedAt != null)
+      }).length,
+    }
+    if (document.documentElement.dataset.onparRuntime !== 'failed') {
+      document.documentElement.dataset.onparRuntime = 'ready'
+    }
+  } catch (e) {
+    markRuntimeFailed(e)
+  }
+}
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot)
+  else boot()
+}
+
+} catch (e) {
+try { document.documentElement.dataset.onparRuntime = 'failed'; } catch (_) {}
+try { console.error('[onpar] 런타임 기동 실패', e); } catch (_) {}
+}
+})();</script>
+</body>
+</html>
