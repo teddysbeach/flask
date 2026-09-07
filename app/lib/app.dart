@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onpar_design_system/onpar_design_system.dart';
 
@@ -22,6 +23,15 @@ class OnparApp extends ConsumerWidget {
       title: 'ONPAR',
       debugShowCheckedModeBanner: false,
       routerConfig: router,
+      // 우리 문구는 전부 한국어인데 Material 위젯만 영어였다 —
+      // 글을 길게 눌렀을 때 뜨는 "Cut / Copy / Paste" 가 대표적이다.
+      locale: const Locale('ko'),
+      supportedLocales: const [Locale('ko'), Locale('en')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       theme: dsThemeData(Brightness.light),
       darkTheme: dsThemeData(Brightness.dark),
       themeMode: mode,

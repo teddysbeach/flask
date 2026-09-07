@@ -86,3 +86,59 @@ begin
   assert s is not null, '상태가 사라졌다';
   raise notice '── 제목 수정 권한 테스트 전부 통과 ──';
 end $$;
+
+-- ── 하루 상한 ────────────────────────────────────────────────────────────
+-- 무료 2장은 계정을 새로 만들면 또 2장이다. 기기 지문은 못 믿으니 하루에 만드는
+-- 장수에 상한을 둔다 — 남용의 비용은 결국 생성 요청이라 거기에 거는 것이 맞다.
+do $$
+declare u uuid; n int;
+begin
+  insert into auth.users (id, email) values (gen_random_uuid(), 'limit@onpar.test') returning id into u;
+
+  assert public.daily_generation_count(u) = 0, '새 계정인데 0이 아니다';
+
+  insert into public.worksheets (user_id, topic, status) values (u, 'a', 'ready');
+  insert into public.worksheets (user_id, topic, status) values (u, 'b', 'generating');
+  assert public.daily_generation_count(u) = 2, format('2여야 하는데 %s', public.daily_generation_count(u));
+
+  -- 실패한 것은 안 센다. 우리 잘못으로 실패한 생성이 사용자의 상한을 깎으면 안 된다.
+  insert into public.worksheets (user_id, topic, status) values (u, 'c', 'failed');
+  assert public.daily_generation_count(u) = 2, '실패한 생성이 상한에 셈되고 있다';
+
+  -- 어제 만든 것도 안 센다. 상한은 하루짜리다.
+  insert into public.worksheets (user_id, topic, status, created_at)
+  values (u, 'd', 'ready', now() - interval '25 hours');
+  assert public.daily_generation_count(u) = 2, '24시간이 지난 것이 아직 셈되고 있다';
+
+  -- 남의 것은 안 센다.
+  insert into public.worksheets (user_id, topic, status)
+  select id, 'e', 'ready' from auth.users where email = 'del@onpar.test' limit 1;
+  assert public.daily_generation_count(u) = 2, '남의 학습지가 셈되고 있다';
+
+  raise notice '── 하루 상한 테스트 전부 통과 ──';
+end $$;
+
+-- ── 고아 파일 ────────────────────────────────────────────────────────────
+do $$
+declare u uuid; n int;
+begin
+  select id into u from auth.users where email = 'del@onpar.test';
+
+  -- 행 없이 파일만 있는 상태 = 생성이 중간에 끊긴 흔적.
+  insert into storage.objects (bucket_id, name, owner, metadata)
+  values ('worksheets', u || '/orphan.html', u, '{"size": 1234}'::jsonb);
+
+  select count(*) into n from public.storage_orphans where path like '%orphan.html';
+  assert n = 1, '주인 없는 파일을 못 찾는다';
+
+  -- 행이 가리키는 파일은 고아가 아니다.
+  insert into public.worksheets (user_id, topic, status, html_path)
+  values (u, 'f', 'ready', u || '/kept.html');
+  insert into storage.objects (bucket_id, name, owner, metadata)
+  values ('worksheets', u || '/kept.html', u, '{"size": 10}'::jsonb);
+
+  select count(*) into n from public.storage_orphans where path like '%kept.html';
+  assert n = 0, '멀쩡한 파일을 고아로 세고 있다';
+
+  raise notice '── 고아 파일 테스트 전부 통과 ──';
+end $$;

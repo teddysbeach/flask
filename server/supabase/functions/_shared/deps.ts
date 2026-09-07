@@ -82,6 +82,11 @@ export function makeDeps(admin: any, llm: LlmClient): Deps {
         if (error) throw error
         return data === true
       },
+      async dailyGenerationCount(userId) {
+        const { data, error } = await admin.rpc('daily_generation_count', { p_user: userId })
+        if (error) throw error
+        return typeof data === 'number' ? data : 0
+      },
       async refundQuota(userId) {
         const { error } = await admin.rpc('refund_quota', { p_user: userId })
         if (error) throw error

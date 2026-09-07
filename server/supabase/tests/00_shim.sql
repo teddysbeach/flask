@@ -36,10 +36,13 @@ create table if not exists storage.buckets (
   file_size_limit bigint, allowed_mime_types text[]
 );
 create table if not exists storage.objects (
-  id        uuid primary key default gen_random_uuid(),
-  bucket_id text references storage.buckets(id),
-  name      text not null,
-  owner     uuid
+  id         uuid primary key default gen_random_uuid(),
+  bucket_id  text references storage.buckets(id),
+  name       text not null,
+  owner      uuid,
+  -- 실제 Supabase 에 있는 컬럼. 고아 파일 뷰가 "언제 생긴 몇 바이트짜리인지" 를 보여 준다.
+  created_at timestamptz not null default now(),
+  metadata   jsonb
 );
 alter table storage.objects enable row level security;
 

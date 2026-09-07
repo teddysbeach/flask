@@ -41,6 +41,8 @@ export interface Deps {
   llm: LlmClient
   db: {
     consumeQuota(userId: string): Promise<boolean>
+    /** 지난 24시간에 만든 학습지 수(실패 제외). 하루 상한을 재는 데 쓴다. */
+    dailyGenerationCount(userId: string): Promise<number>
     refundQuota(userId: string): Promise<void>
     createWorksheet(row: { id: string; userId: string; topic: string; level: string }): Promise<void>
     /**

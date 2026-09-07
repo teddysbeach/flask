@@ -9,6 +9,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Material 위젯의 한국어. 없으면 텍스트 선택 메뉴가 "Cut / Copy / Paste" 로 뜨고
+  # 날짜·시간 위젯이 영어로 읽힌다 — 한국어 앱에서 눈에 띄는 마감이다.
+  flutter_localizations:
+    sdk: flutter
   onpar_design_system:
     path: ../packages/design_system
 

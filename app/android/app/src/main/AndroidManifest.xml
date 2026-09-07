@@ -44,14 +44,20 @@
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
 
+    <!-- 재부팅 뒤 복습 알림을 다시 건다.
+         이걸 빼 두었을 때의 시나리오: 폰을 껐다 켠다 → 예약해 둔 알림이 전부 사라진다 →
+         복습 알림이 안 온다 → 앱을 열 이유가 없다 → 서버에서 큐를 복원할 기회도 없다.
+         "앱을 열면 복원된다" 는 앱을 여는 사람에게만 참이고, 알림은 **안 여는 사람**을
+         위한 장치다. flutter_local_notifications 가 아래 리시버로 다시 걸어 준다. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+
     <!-- ── 일부러 넣지 않은 권한 ──────────────────────────────────────────
          READ_MEDIA_IMAGES / READ_EXTERNAL_STORAGE
              image_picker 는 시스템 포토 피커를 쓴다. 사용자가 고른 사진 한 장만
              넘어오므로 저장소 권한이 필요 없다. 선언하면 "사진 및 동영상 전체 접근" 이
              데이터 세이프티에 붙는데, 우리는 앨범을 읽지 않는다.
-         RECEIVE_BOOT_COMPLETED
-             재부팅 뒤 알림을 다시 걸어 주는 권한. 복습 스케줄의 소스 오브 트루스는
-             서버라서 앱을 열면 큐가 복원된다. 부팅 브로드캐스트를 받을 이유가 없다.
+         (RECEIVE_BOOT_COMPLETED 는 위에서 선언한다. 예전에는 "앱을 열면 큐가 복원된다"는
+          이유로 뺐는데, 그건 순환 논리였다 — 앱을 열게 만드는 장치가 바로 그 알림이다.)
          ACCESS_*_LOCATION / RECORD_AUDIO / READ_CONTACTS / READ_PHONE_STATE
              쓰는 기능이 없다. docs/plan/16-app-checklist.md 에서 "없음" 으로 못 박았다.
          WAKE_LOCK / VIBRATE
@@ -122,6 +128,19 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- 재부팅·앱 업데이트 뒤에 예약을 복원한다(flutter_local_notifications).
+             권한만 선언하고 리시버를 빼면 브로드캐스트를 받을 곳이 없어 아무 일도 안 일어난다. -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
     </application>
 
     <!-- Required to query activities that can process text, see:

@@ -5,6 +5,9 @@
 // docs/plan/01-architecture.md §3
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
+
+/** 하루에 만들 수 있는 학습지 상한. 쿼터(장수)와 별개로 도는 남용 방지선이다. */
+const DAILY_LIMIT = 30
 import { json, errorResponse, CORS, validateTopic, validateLevel, normalizeTopicForMatch } from '../_shared/http.ts'
 import { acceptGeneration, runGeneration, toErrorCode, isRetryable, MAX_ATTEMPTS, backoffMs, newCostBudget } from '../_shared/pipeline.ts'
 import { createLlmClient } from '../_shared/claude.ts'
@@ -60,6 +63,20 @@ Deno.serve(async (req: Request) => {
         worksheet_id: hit.id, title: hit.title, created_at: hit.created_at,
       })
     }
+  }
+
+  // 하루 상한.
+  //
+  // 무료 2장은 계정을 새로 만들면 또 2장이라, 지금까지 상한이 없었다. 기기 지문은
+  // 못 믿고 만들어서도 안 되므로 **하루에 만드는 장수**에 상한을 둔다 — 남용의 비용은
+  // 결국 생성 요청(모델에 내는 돈)이라 거기에 거는 것이 맞다.
+  // 정상 사용은 닿지 않는다. 하루 30장을 만드는 사람은 학습을 하는 것이 아니다.
+  const madeToday = await admin.rpc('daily_generation_count', { p_user: user.id })
+  if ((madeToday.data ?? 0) >= DAILY_LIMIT) {
+    return errorResponse('daily_limit_reached', 429, {
+      detail: `하루에 만들 수 있는 학습지는 ${DAILY_LIMIT}장이에요. 내일 다시 시도해 주세요.`,
+      limit: DAILY_LIMIT,
+    })
   }
 
   // 사용자당 진행 중인 생성은 하나만
