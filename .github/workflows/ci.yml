@@ -129,8 +129,53 @@ jobs:
         run: flutter analyze --fatal-infos --fatal-warnings
         working-directory: app
 
+      - name: test (design_system)
+        run: flutter test --reporter expanded
+        working-directory: packages/design_system
+
       - name: test (app)
         run: flutter test --reporter expanded
+        working-directory: app
+
+      # 안드로이드 SDK 는 ubuntu 러너에 이미 있다. Gradle·R8·desugaring 이 실제로 도는지는
+      # 여기서만 알 수 있다 — 분석과 테스트는 네이티브 빌드를 한 줄도 건드리지 않는다.
+      # 릴리스 경로(minify)를 굽는 이유는 R8 이 flutter_local_notifications 의 Gson 모델을
+      # 지워 버리는 사고가 흔하기 때문이다. debug 만 굽고 넘어가면 그걸 스토어에서 처음 만난다.
+      # 키스토어가 없으면 gradle 이 debug 키로 서명한다(build.gradle.kts). CI 는 그 경로를 쓴다 —
+      # 릴리스 키를 CI 에 넣는 순간 이 저장소가 배포 권한을 갖게 된다.
+      - name: build apk (release · R8 포함)
+        run: flutter build apk --release --dart-define=SUPABASE_URL= --dart-define=SUPABASE_ANON_KEY=
+        working-directory: app
+
+  # ── 3. iOS 빌드 ───────────────────────────────────────────────────────────
+  # macOS 러너는 느리고 비싸서 따로 뗐다. Podfile 의 iOS 13 하한과 permission_handler
+  # 매크로 설정이 실제로 컴파일되는지는 이 잡에서만 확인된다.
+  ios:
+    name: ios (pod install + build)
+    runs-on: macos-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Flutter ${{ env.FLUTTER_VERSION }}
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: pub get (packages/design_system)
+        run: flutter pub get
+        working-directory: packages/design_system
+
+      - name: pub get (app)
+        run: flutter pub get
+        working-directory: app
+
+      # 서명 없이 굽는다. 인증서를 CI 에 넣으면 그 순간 이 저장소가 배포 권한을 갖게 된다.
+      - name: build ios (서명 없이)
+        run: flutter build ios --release --no-codesign --dart-define=SUPABASE_URL= --dart-define=SUPABASE_ANON_KEY=
         working-directory: app
 
   # ── 3. 생성물 드리프트 ────────────────────────────────────────────────────

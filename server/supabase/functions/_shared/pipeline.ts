@@ -50,6 +50,8 @@ export interface Deps {
      */
     saveContent(worksheetId: string, content: WorksheetContent, meta: {
       quizItemIds: string[]; htmlPath: string; planModel: string; draftModel: string
+      /** 이 학습지를 만든 프롬프트·스키마의 지문. 품질 회귀를 프롬프트와 잇는 유일한 끈이다. */
+      promptVersion: string
       qualityScore: number; revisions: number
       /**
        * 출고 블로커. 모델이 다시 써도 못 고치는 것(등록된 사진 자산이 없다 등)이라
@@ -254,6 +256,7 @@ export async function runGeneration(
     const saved = await deps.db.saveContent(worksheetId, content, {
       quizItemIds, htmlPath,
       planModel: planResult.model, draftModel: draftResult.model,
+      promptVersion: deps.llm.version,
       qualityScore: verdict.score, revisions,
       ...(releaseBlocked.length ? { releaseBlocked } : {}),
     })

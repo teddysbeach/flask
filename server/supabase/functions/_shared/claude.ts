@@ -7,6 +7,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk@0.70.0'
 import { extractResult, PLAN_MODEL_DEFAULT, DRAFT_MODEL_DEFAULT, CRITIC_MODEL_DEFAULT } from './claude-parse.ts'
 import { CRITIC_SYSTEM_PROMPT, CRITIC_OUTPUT_SCHEMA, buildCriticPrompt } from './critic.ts'
 import type { LlmClient } from './claude-parse.ts'
+import { fingerprint } from './fingerprint.ts'
 
 export interface ClaudeConfig {
   planModel?: string
@@ -40,6 +41,11 @@ export function createLlmClient(cfg: ClaudeConfig): LlmClient {
   }
 
   return {
+    version: fingerprint([
+      planModel, draftModel, criticModel,
+      cfg.planSystemPrompt, cfg.draftSystemPrompt,
+      JSON.stringify(cfg.outlineSchema), JSON.stringify(cfg.worksheetSchema),
+    ]),
     plan: (topic, level, opts) => call(
       planModel, cfg.planSystemPrompt, cfg.outlineSchema,
       `주제: ${topic}\n난이도: ${level}`,

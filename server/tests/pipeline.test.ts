@@ -43,6 +43,7 @@ function makeDeps(over: any = {}) {
 
   const deps: any = {
     llm: {
+      version: 'testfp01',
       plan: async () => over.planThrows ? Promise.reject(over.planThrows)
         : { json: over.outline ?? OUTLINE, model: 'claude-opus-5', usage, stopReason: 'end_turn' },
       draft: async () => over.draftThrows ? Promise.reject(over.draftThrows)
@@ -250,6 +251,13 @@ await test('재작성 상한을 넘겨도 반려면 draft_quality_rejected 로 �
 
 await test('품질 반려는 잡 단위로 재시도하지 않는다 (루프 안에서 이미 다 써봤다)', () => {
   assert.equal(pipe.isRetryable('draft_quality_rejected'), false)
+})
+
+await test('만든 프롬프트의 지문을 학습지에 남긴다', async () => {
+  const { deps, log } = makeDeps()
+  await pipe.runGeneration(deps, INPUT, 'ws1')
+  assert.equal(log.contents[0].meta.promptVersion, 'testfp01',
+    '프롬프트 지문이 저장되지 않으면 점수가 떨어져도 어느 프롬프트 때문인지 되짚을 수 없다')
 })
 
 console.log('\n▸ 비용 벽 · 늦게 끝난 생성')

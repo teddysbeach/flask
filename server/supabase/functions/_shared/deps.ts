@@ -106,6 +106,7 @@ export function makeDeps(admin: any, llm: LlmClient): Deps {
             html_path: meta.htmlPath,
             plan_model: meta.planModel,
             draft_model: meta.draftModel,
+            prompt_version: meta.promptVersion,
             quality_score: meta.qualityScore,
             revisions: meta.revisions,
             ready_at: new Date().toISOString(),

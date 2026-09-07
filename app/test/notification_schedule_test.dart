@@ -37,6 +37,65 @@ void main() {
   tz.TZDateTime at(int year, int month, int day, [int hour = 9]) =>
       tz.TZDateTime(seoul, year, month, day, hour);
 
+  group('예약이 마르는 자리 — 돌아오라는 한 번의 신호', () {
+    test('슬롯이 모자라면 마지막 예약 다음 날 한 번 부른다', () {
+      // 로컬 알림은 앱을 열어야 다시 걸린다. 이게 없으면 슬롯이 마른 뒤 앱은 조용해지고,
+      // 사용자는 우리가 포기했다고 느낀다.
+      final items = [for (var i = 1; i <= 10; i++) item('s$i', at(2026, 3, i))];
+      final plan = planReviewNotifications(
+        upcoming: items,
+        location: seoul,
+        now: DateTime.utc(2026, 2, 20),
+        reviewHour: 21,
+        slots: 3,
+      );
+
+      // 총 개수는 슬롯 수를 넘지 않는다. 마지막 한 자리를 "돌아오라" 가 쓴다 —
+      // OS 대기열을 넘긴 알림은 조용히 버려지고 우리는 그걸 알 방법이 없다.
+      expect(plan.length, 3);
+      expect(plan.where((p) => p.kind == NotificationKind.review).length, 2);
+      final nudge = plan.last;
+      expect(nudge.kind, NotificationKind.returning);
+      expect(nudge.at.day, plan[1].at.day + 1, reason: '예약이 마르는 다음 날이어야 한다');
+      expect(nudge.at.hour, 21);
+    });
+
+    test('전부 예약했으면 부르지 않는다 — 조용해질 일이 없다', () {
+      final items = [for (var i = 1; i <= 3; i++) item('s$i', at(2026, 3, i))];
+      final plan = planReviewNotifications(
+        upcoming: items,
+        location: seoul,
+        now: DateTime.utc(2026, 2, 20),
+        reviewHour: 21,
+        slots: 10,
+      );
+      expect(plan.every((p) => p.kind == NotificationKind.review), isTrue);
+    });
+
+    test('걸 것이 하나도 없으면 부르지 않는다', () {
+      final plan = planReviewNotifications(
+        upcoming: const [],
+        location: seoul,
+        now: DateTime.utc(2026, 2, 20),
+        reviewHour: 21,
+        slots: 0,
+      );
+      expect(plan, isEmpty);
+    });
+
+    test('눌러서 열면 복습 큐로 간다 — 특정 학습지를 가리키지 않는다', () {
+      final items = [for (var i = 1; i <= 5; i++) item('s$i', at(2026, 3, i))];
+      final plan = planReviewNotifications(
+        upcoming: items, location: seoul, now: DateTime.utc(2026, 2, 20),
+        reviewHour: 21, slots: 2,
+      );
+      final nudge = plan.last;
+      expect(routeFromPayload(nudge.payload), '/review/session');
+      // id 가 복습 id 공간 안이어야 기존 정리 규칙(범위 취소)이 이 알림도 치운다.
+      expect(isReviewNotificationId(nudge.id), isTrue);
+    });
+  });
+
   group('notificationBody — 서버 notificationBody 와 같은 규칙', () {
     test('100자 이하면 그대로 둔다', () {
       const q = '이벤트 스토어에 저장되는 것은 상태인가, 변화인가?';

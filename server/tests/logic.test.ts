@@ -13,6 +13,7 @@ import { validateTopic, validateLevel } from '../supabase/functions/_shared/http
 import { voiceLint } from '../supabase/functions/_shared/voice-lint.ts'
 import { pedagogyLint } from '../supabase/functions/_shared/pedagogy-lint.ts'
 import { WORKSHEET_SCHEMA, OUTLINE_SCHEMA, PLAN_SYSTEM_PROMPT, DRAFT_SYSTEM_PROMPT } from '../supabase/functions/_shared/prompts.ts'
+import { fingerprint } from '../supabase/functions/_shared/fingerprint.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 let passed = 0
@@ -446,6 +447,26 @@ test('잘못된 grade 는 거부한다', () => {
   const row = mkRow('a', 0)
   assert.throws(() => planAnswer(row, [row], 5, ANSWER_NOW, SEOUL, 21))
   assert.throws(() => planAnswer(row, [row], -1, ANSWER_NOW, SEOUL, 21))
+})
+
+console.log('\n▸ 프롬프트 지문')
+
+test('같은 프롬프트면 같은 지문, 한 글자만 달라도 다른 지문', () => {
+  const a = fingerprint(['시스템 프롬프트', '{"schema":1}'])
+  assert.equal(a, fingerprint(['시스템 프롬프트', '{"schema":1}']))
+  assert.notEqual(a, fingerprint(['시스템 프롬프트.', '{"schema":1}']))
+  assert.notEqual(a, fingerprint(['시스템 프롬프트', '{"schema":2}']))
+})
+
+test('조각 경계를 옮긴 것도 다른 지문이다', () => {
+  // 이게 같아지면 프롬프트 한 조각의 끝이 다음 조각 앞으로 간 변경을 놓친다.
+  assert.notEqual(fingerprint(['ab', 'c']), fingerprint(['a', 'bc']))
+})
+
+test('지문은 짧고 고정 길이다 — 사람이 눈으로 비교하는 값이다', () => {
+  for (const parts of [[''], ['x'], ['긴 프롬프트'.repeat(500)]]) {
+    assert.match(fingerprint(parts), /^[0-9a-f]{8}$/)
+  }
 })
 
 console.log('\n▸ 분야별 픽스처 (자가점검)')

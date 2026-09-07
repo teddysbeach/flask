@@ -14,6 +14,7 @@
 | 1 | 서버 테스트 전부 통과 | `bash server/tests/run.sh` | ✅ |
 | 2 | 앱 정적 분석 무경고 | `flutter analyze` | ✅ |
 | 3 | 앱 테스트 전부 통과 | `flutter test` | ✅ |
+| 3-b | 네이티브가 실제로 빌드된다 | CI 의 `app`(release APK · R8) · `ios`(pod install + build) 잡 | ⏳ CI 첫 실행에서 확인 |
 | 4 | 12개 카테고리 픽스처가 검사 루프를 통과 | `node --experimental-strip-types server/tests/selfcheck.ts` | ✅ 12/12 |
 | 5 | **실물 자극이 필요한 카테고리에 자산이 있다** | `pedagogyLint.releaseBlockers` 가 빔 | ❌ 색보정 사진 미확보 |
 | 6 | 실기기 Apple Pencil 필압이 WKWebView 안에서 살아있다 | iPad 실기기 수기 확인 | ❌ 미검증 |
@@ -166,9 +167,9 @@
 
 | 사고 | 징후 | 첫 조치 | 사용자 |
 |---|---|---|---|
-| 생성 실패율 급증 | `worksheets.status='failed'` 비율 > 10% | 모델 상태 확인 → 검사 루프 재시도 상한 임시 하향 | **장수 즉시 환급**(이미 코드에 있음) + 안내 |
+| 생성 실패율 급증 | `select * from daily_generation_health` 의 `fail_pct` > 10 | `select * from failure_breakdown` 로 사유부터 가른다 → 모델 상태 확인 | **장수 즉시 환급**(이미 코드에 있음) + 안내 |
 | 결제 검증 실패 | `verify-purchase` 5xx | Apple/Play 상태 확인. 영수증은 사라지지 않는다 | 앱 재실행 시 자동 재검증. 중복 지급은 `already_processed` 로 막힌다 |
-| 장수 오차 신고 | 문의 접수 | `purchases` ↔ `quota_ledger` 대사 | 확인되면 수동 지급 |
+| 장수 오차 신고 | 문의 접수 | `select * from quota_reconciliation where user_id = …` 로 대사 | `select grant_quota_manual(user, 3, '문의 #12', 'ops:이름')` — 지급과 기록이 한 트랜잭션이다 |
 | API 키 유출 의심 | 비정상 사용량 | **키 회전 먼저, 조사는 그다음** | 영향 없음(키는 앱에 없다) |
 | **생성이 매달림** | `select * from stalled_generations` 에 행이 보임 | `select reap_all_stale_generations()` — 실패로 닫고 장수를 되돌린다 | 다음 생성 요청 때 자동으로 풀린다. 장수는 이미 환불됨 |
 | 알림 폭주 | 같은 항목 반복 발송 | 스케줄 테이블 확인 → 발송 중지 | 설정에서 알림 끄기 안내 |
@@ -186,7 +187,9 @@
 
 **필기 유실은 환불로 갚아지지 않는다.** 그래서 저장은 **파일 먼저, DB 나중**이고(반대로 하면 "저장됨" 이라고 적힌 행만 남는다),
 다른 기기와 부딪히면 지우지 않고 **합친다**(획 id 합집합). 합치지 못하면 물어보지, 조용히 버리지 않는다.
-다만 **앱이 죽은 뒤의 오프라인 필기는 아직 못 지킨다** — 로컬 스풀이 없다. 이건 알고 있는 구멍이고, 다음 릴리스의 첫 항목이다.
+그리고 못 올린 필기는 **기기에 적어 둔다.** 앱이 죽어도, 지하철에서 나가지 못해도 남아 있다가
+연결되면 스스로 올라간다. 화면은 그 상태를 숨기지 않는다 — "이 기기에 보관해 뒀다" 고 말해 줘야
+사용자가 앱을 지워도 되는지 판단할 수 있다.
 
 ---
 
@@ -216,4 +219,19 @@
   실제보다 싸게 기록됐다 — 원가로 가격을 정하는 제품에서 그건 눈을 가린 것이었다
 - 검사 루프 재시도는 최대 2회. 무한 루프는 원가를 무한대로 만든다.
 - 계정당 일일 생성 상한: **아직 없다.** 장수 결제라 구조적으로는 막히지만, 버그로 장수가 늘어나는 경우를 막는 두 번째 벽이 비어 있다.
-- 하루 총 생성량이 평소의 5배를 넘으면 알림: **아직 없다.**
+- 하루 총 생성량이 평소의 5배를 넘으면 알림: **아직 없다.** (`daily_generation_health` 로 눈으로는 볼 수 있다)
+
+### 운영이 볼 것 (전부 서비스 롤 전용)
+
+| 뷰 · 함수 | 답하는 질문 |
+|---|---|
+| `daily_generation_health` | 오늘 얼마나 실패했고 얼마를 썼나 |
+| `failure_breakdown` | 무엇 때문에 실패했나 |
+| `quality_by_prompt` | 프롬프트를 바꾼 뒤 점수가 떨어졌나 |
+| `quota_reconciliation` | 설명되지 않는 장수가 있는 계정은 누구인가 |
+| `stalled_generations` | 매달려 있는 생성이 있나 |
+| `grant_quota_manual(user, n, memo, by)` | 손으로 지급하고 장부에 남긴다 |
+| `reap_all_stale_generations()` | 매달린 것을 한 번에 정리한다 |
+
+**손으로 `profiles.quota_total` 을 올리지 않는다.** 장부가 없는 장수는 대사에서 영원히 미설명으로 남고,
+"누가 왜 줬는지" 도 사라진다. `grant_quota_manual` 이 둘을 한 트랜잭션으로 묶는 이유다.

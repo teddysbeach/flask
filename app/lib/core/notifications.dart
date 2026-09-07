@@ -107,6 +107,22 @@ tz.TZDateTime _atLocalHour(tz.TZDateTime base, int daysAhead, int hour) =>
 
 String _dayKey(tz.TZDateTime d) => '${d.year}-${d.month}-${d.day}';
 
+/// 알림의 종류.
+enum NotificationKind {
+  /// 복습 문제 하나.
+  review,
+
+  /// **돌아오라는 한 번의 신호.** 슬롯이 모자라 예약을 다 못 걸었을 때만 건다.
+  ///
+  /// 로컬 알림은 앱을 열어야 다시 걸린다. 슬롯 48개에 하루 3개면 약 16일치이고,
+  /// 그 뒤로 앱을 안 열면 복습 제품이 조용히 죽는다 — 사용자는 우리가 포기했다고 느낀다.
+  /// 원격 푸시가 없는 지금, 예약이 마르기 직전에 한 번 부르는 것이 할 수 있는 최선이다.
+  returning,
+}
+
+/// 예약이 마른 뒤 부르는 알림의 고정 식별자. 복습 id 공간 안이라 기존 정리 규칙이 그대로 적용된다.
+const String kReturnNudgeScheduleId = '__return__';
+
 /// 실제로 걸 알림 하나. 순수 계산의 결과물이라 테스트에서 그대로 들여다볼 수 있다.
 class PlannedNotification {
   const PlannedNotification({
@@ -117,7 +133,10 @@ class PlannedNotification {
     required this.title,
     required this.body,
     required this.at,
+    this.kind = NotificationKind.review,
   });
+
+  final NotificationKind kind;
 
   final int id;
   final String scheduleId;
@@ -130,7 +149,7 @@ class PlannedNotification {
   final tz.TZDateTime at;
 
   String get payload => jsonEncode({
-        'type': 'review',
+        'type': kind.name,
         'schedule_id': scheduleId,
         'worksheet_id': worksheetId,
         'quiz_item_id': quizItemId,
@@ -179,8 +198,15 @@ List<PlannedNotification> planReviewNotifications({
 
   placed.sort((a, b) => a.at.compareTo(b.at));
 
+  // 슬롯이 모자라 못 거는 것이 생기면, 마지막 한 자리는 "돌아오라" 에 내준다.
+  // 슬롯 수는 OS 가 들고 있어 주는 대기열의 크기라서, 총합이 이 수를 넘으면 안 된다 —
+  // 넘긴 알림은 조용히 버려지고 우리는 그걸 알 방법이 없다.
+  final limit = slots < 0 ? 0 : slots;
+  final needNudge = placed.length > limit && limit >= 2;
+  final reviewSlots = needNudge ? limit - 1 : limit;
+
   final out = <PlannedNotification>[];
-  for (final p in placed.take(slots < 0 ? 0 : slots)) {
+  for (final p in placed.take(reviewSlots)) {
     final title = (p.item.worksheetTitle ?? '').trim();
     out.add(PlannedNotification(
       id: reviewNotificationId(p.item.scheduleId),
@@ -192,6 +218,21 @@ List<PlannedNotification> planReviewNotifications({
       at: p.at,
     ));
   }
+  // 예약이 마르는 다음 날 한 번 부른다. 이게 없으면 16일 뒤부터 앱은 아무 말도 하지 않는다.
+  if (needNudge && out.isNotEmpty) {
+    out.add(PlannedNotification(
+      kind: NotificationKind.returning,
+      id: reviewNotificationId(kReturnNudgeScheduleId),
+      scheduleId: kReturnNudgeScheduleId,
+      // 특정 학습지를 가리키지 않는다 — 눌러서 열면 복습 큐로 간다(routeFromPayload).
+      worksheetId: '',
+      quizItemId: '',
+      title: '🧠 복습이 밀려 있어요',
+      body: '앱을 열면 다음 복습을 이어서 알려드릴게요.',
+      at: _atLocalHour(out.last.at, 1, hour),
+    ));
+  }
+
   return out;
 }
 

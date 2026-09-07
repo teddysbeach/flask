@@ -41,6 +41,9 @@ dependencies:
   # Apple 로그인 nonce 해시. 직접 구현하지 않는다.
   crypto: ^3.0.6
 
+  # 오프라인 보관함. 학습지 본문과 아직 못 올린 필기를 기기에 둔다.
+  path_provider: ^2.1.5
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -8,14 +8,16 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/app_error.dart';
+import 'offline_store.dart';
 import '../core/env.dart';
 import 'supabase.dart';
 
 /// 로그인·가입·탈퇴. 토큰은 supabase_flutter 가 보안 저장소에 넣고 자동 갱신한다.
 class AuthRepository {
-  AuthRepository(this._client);
+  AuthRepository(this._client, this._offline);
 
   final SupabaseClient _client;
+  final OfflineStore _offline;
 
   GoTrueClient get _auth => _client.auth;
 
@@ -150,6 +152,11 @@ class AuthRepository {
       await _auth.signOut();
     } catch (e, st) {
       throw mapSupabaseError(e, st);
+    } finally {
+      // 기기에 둔 학습지 본문과 못 올린 필기를 비운다.
+      // 같은 기기를 다음 사람이 쓸 수 있고, 로그아웃한 계정의 학습지가 거기 남아 있으면 안 된다.
+      // 로그아웃 자체가 실패해도 비운다 — 남겨 두는 쪽이 언제나 더 나쁘다.
+      await _offline.clearAll();
     }
   }
 
@@ -161,7 +168,9 @@ class AuthRepository {
         'reason': reason,
         if (detail != null && detail.isNotEmpty) 'detail': detail,
       }).withTimeout(kTransferTimeout);
-      await _auth.signOut();
+      // 우리 signOut 을 부른다(_auth 가 아니라) — 기기에 둔 학습지와 필기까지 함께 비운다.
+      // 계정을 지웠는데 그 사람의 학습지가 이 기기에 남아 있으면 "지웠다" 가 거짓말이 된다.
+      await signOut();
     } catch (e, st) {
       throw mapSupabaseError(e, st);
     }
@@ -187,4 +196,5 @@ class AuthRepository {
 }
 
 final authRepositoryProvider =
-    Provider<AuthRepository>((ref) => AuthRepository(ref.watch(supabaseProvider)));
+    Provider<AuthRepository>(
+      (ref) => AuthRepository(ref.watch(supabaseProvider), ref.watch(offlineStoreProvider)));

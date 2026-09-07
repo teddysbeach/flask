@@ -21,6 +21,7 @@ class StoragePaths {
   const StoragePaths._();
 
   static const annotationsBucket = 'annotations';
+  static const worksheetsBucket = 'worksheets';
   static const avatarsBucket = 'avatars';
 
   /// 경로 한 조각으로 쓸 수 있는 문자. uuid 와 확장자를 담기에 충분하고
@@ -203,6 +204,20 @@ class StorageRepository {
               cacheControl: '0',
             ),
           ).withTimeout(kTransferTimeout);
+    } catch (e, st) {
+      throw mapSupabaseError(e, st);
+    }
+  }
+
+  /// 학습지 본문. 서명 URL 로 웹뷰가 직접 받는 대신 우리가 받아서 기기에 둔다 —
+  /// 그래야 오프라인에서도 열리고, 서명 URL 만료를 신경 쓸 필요도 없어진다.
+  Future<String> getWorksheetHtml(String path) async {
+    try {
+      final bytes = await _client.storage
+          .from(StoragePaths.worksheetsBucket)
+          .download(path)
+          .withTimeout(kTransferTimeout);
+      return utf8.decode(bytes);
     } catch (e, st) {
       throw mapSupabaseError(e, st);
     }

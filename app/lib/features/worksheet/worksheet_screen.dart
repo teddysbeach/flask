@@ -13,6 +13,7 @@ import '../../core/connectivity.dart';
 import '../../core/logger.dart';
 import '../../core/request_guard.dart';
 import '../../core/routes.dart';
+import '../../data/offline_store.dart';
 import '../../data/storage_repository.dart';
 import '../../data/supabase.dart';
 import '../../data/worksheet_repository.dart';
@@ -26,14 +27,21 @@ import 'worksheet_response_mapping.dart';
 class WorksheetViewData {
   const WorksheetViewData({
     required this.sheet,
-    required this.url,
+    required this.html,
     required this.rev,
     required this.strokesPath,
     required this.formatVersion,
+    this.fromCache = false,
   });
 
   final WorksheetSummary sheet;
-  final String url;
+
+  /// 학습지 본문 그 자체. URL 이 아니라 문자열인 이유는 두 가지다 —
+  /// 외부 요청이 0회인 자족 문서라 통째로 넘겨도 되고, 그래야 오프라인에서도 열린다.
+  final String html;
+
+  /// 기기에 보관해 둔 것을 열었는가. 서버를 못 불렀다는 뜻이라 화면이 그렇게 말해 준다.
+  final bool fromCache;
 
   /// 필기 낙관적 잠금의 기준. 0 이면 아직 저장된 필기가 없다.
   final int rev;
@@ -56,14 +64,34 @@ final worksheetViewProvider =
     );
   }
 
-  final url = await repo.signedHtmlUrl(path);
-  final meta = await repo.annotationMeta(id);
+  // 본문은 기기에 있으면 그걸 쓴다. 학습지 HTML 은 한 번 만들어지고 바뀌지 않으므로
+  // 다시 확인할 이유가 없다 — 확인하러 가는 순간 오프라인에서 못 열게 된다.
+  final store = ref.watch(offlineStoreProvider);
+  var fromCache = false;
+  var html = await store.readSheet(id);
+  if (html == null) {
+    html = await ref.watch(storageRepositoryProvider).getWorksheetHtml(path);
+    await store.writeSheet(id, html);
+  }
+
+  // 필기 메타는 서버에 물어야 한다. 못 물으면 rev 0 으로 두지 않는다 —
+  // 0 으로 두면 남의 기기가 저장해 둔 필기를 이 기기가 덮어쓴다.
+  ({String? path, int rev, int formatVersion}) meta;
+  try {
+    meta = await repo.annotationMeta(id);
+  } on AppError catch (e) {
+    if (!e.retryable) rethrow;
+    fromCache = true;
+    meta = (path: null, rev: -1, formatVersion: 2);   // rev -1 = 모른다. 저장을 잠근다.
+  }
+
   return WorksheetViewData(
     sheet: sheet,
-    url: url,
+    html: html,
     rev: meta.rev,
     strokesPath: meta.path,
     formatVersion: meta.formatVersion,
+    fromCache: fromCache,
   );
 });
 
@@ -119,6 +147,10 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
 
   /// 서버에서 받은 필기를 화면에 넣는 중. 이때 오는 strokesChanged 는 사용자가 그린 게 아니다.
   bool _applyingRemoteInk = false;
+
+  /// 아직 못 올려 기기에 보관 중인 필기가 있는가. 화면이 그렇게 말해 준다 —
+  /// "저장됨" 도 "사라짐" 도 아닌 상태를 사용자가 알아야 앱을 지울지 말지 정할 수 있다.
+  bool _spooled = false;
 
   /// 저장이 겹치지 않게. 두 저장이 같은 rev 로 나가면 하나는 반드시 충돌한다.
   Future<void>? _inFlightSave;
@@ -281,13 +313,59 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
         await _onAnnotationConflict(localJson: json);
         return;
       }
-      AppLogger.error('필기 저장 실패', error: e, stack: st);
-      _notify(e.message);
+      await _spool(json, e, st);
     } catch (e, st) {
       _inkDirty = true;
-      final err = AppError.from(e, st);
-      AppLogger.error('필기 저장 실패', error: err, stack: st);
+      await _spool(json, AppError.from(e, st), st);
+    }
+  }
+
+  /// 못 올린 필기를 기기에 적는다.
+  ///
+  /// 여기가 없으면 지하철에서 40분 필기하고 앱이 죽는 순간 그게 전부 사라진다.
+  /// 메모리에만 들고 있는 것은 "다음에 다시 올린다" 가 아니라 "앱이 살아 있는 동안만" 이다.
+  Future<void> _spool(String json, AppError err, StackTrace st) async {
+    AppLogger.error('필기 저장 실패 — 기기에 보관한다', error: err, stack: st);
+    try {
+      await ref.read(offlineStoreProvider)
+          .writeInkSpool(widget.worksheetId, json: json, rev: _rev);
+      if (mounted) {
+        setState(() => _spooled = true);
+      }
+    } catch (e2, st2) {
+      // 기기에도 못 적었다. 이때는 숨기지 않고 그대로 말한다.
+      AppLogger.error('필기를 기기에도 못 적었다', error: e2, stack: st2);
       _notify(err.message);
+    }
+  }
+
+  /// 기기에 남아 있는 필기를 올린다. 학습지를 열 때와 연결이 돌아왔을 때 부른다.
+  Future<void> _flushSpool() async {
+    final store = ref.read(offlineStoreProvider);
+    final spool = await store.readInkSpool(widget.worksheetId);
+    if (spool == null) return;
+
+    try {
+      if (spool.rev < 0) {
+        // 그릴 때 서버 판을 몰랐다(오프라인으로 열었다). 덮어쓰지 않고 합치는 길로 간다.
+        await _onAnnotationConflict(localJson: spool.json);
+      } else {
+        await _commitInk(json: spool.json, rev: spool.rev);
+      }
+      await store.clearInkSpool(widget.worksheetId);
+      if (mounted) {
+        setState(() => _spooled = false);
+        _notify('기기에 있던 필기를 올렸어요.');
+      }
+    } on AppError catch (e, st) {
+      if (e.code == 'annotation_conflict') {
+        await _onAnnotationConflict(localJson: spool.json);
+        return;
+      }
+      // 아직도 못 올린다. 보관물은 그대로 둔다 — 지우는 순간 그 필기는 사라진다.
+      AppLogger.error('보관한 필기를 아직 못 올렸다', error: e, stack: st);
+    } catch (e, st) {
+      AppLogger.error('보관한 필기를 아직 못 올렸다', error: e, stack: st);
     }
   }
 
@@ -317,6 +395,9 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
           rev: rev,
         );
     _rev = next;
+    // 올라갔으니 기기에 둔 것은 지운다. 남겨 두면 다음에 열 때 옛 필기를 다시 올린다.
+    await ref.read(offlineStoreProvider).clearInkSpool(widget.worksheetId);
+    if (mounted && _spooled) setState(() => _spooled = false);
     AppLogger.debug(
       '필기 저장 rev=$next, ${payload.rawBytes}B → ${payload.gzipBytes}B '
       '(${(payload.ratio * 100).round()}%)',
@@ -327,10 +408,29 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
   /// 그 전에는 window.ONPAR_INK 가 아직 없다.
   Future<void> _restoreInk(WorksheetViewData data) async {
     final path = data.strokesPath;
-    // 첫 방문이면 저장된 필기가 없다. 오류가 아니다.
-    if (path == null || path.isEmpty) return;
+    // 서버에 저장된 필기가 없어도(첫 방문, 또는 오프라인이라 메타를 못 읽음)
+    // 기기에 못 올린 필기는 있을 수 있다. 그건 반드시 살려야 한다.
+    if (path == null || path.isEmpty) {
+      final spool = await ref.read(offlineStoreProvider).readInkSpool(widget.worksheetId);
+      if (spool == null) return;
+      await _applyStrokes(spool.json);
+      if (mounted) setState(() => _spooled = true);
+      unawaited(_flushSpool());
+      return;
+    }
 
     try {
+      // 기기에 못 올린 필기가 있으면 그게 가장 최신이다. 서버 것보다 먼저 화면에 올린다 —
+      // 반대로 하면 사용자가 어제 지하철에서 쓴 것이 눈앞에서 사라진다.
+      final spool = await ref.read(offlineStoreProvider).readInkSpool(widget.worksheetId);
+      if (spool != null) {
+        await _applyStrokes(spool.json);
+        _rev = data.rev;
+        if (mounted) setState(() => _spooled = true);
+        unawaited(_flushSpool());
+        return;
+      }
+
       final gzipped = await ref.read(storageRepositoryProvider).getAnnotations(path);
       if (gzipped == null) {
         // 메타는 있는데 파일이 없다. 새로 쓰면 되는 상태이므로 오류로 덮지 않는다.
@@ -387,8 +487,9 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
           path == null ? null : await ref.read(storageRepositoryProvider).getAnnotations(path);
       remoteJson = gzipped == null ? null : InkCodec.decode(gzipped);
     } catch (e, st) {
-      AppLogger.error('최신 필기 조회 실패', error: AppError.from(e, st), stack: st);
-      _notify('최신 필기를 불러오지 못했어요. 연결을 확인하고 배너의 “불러오기” 를 눌러 주세요.');
+      // 여기서 그냥 돌아가면 사용자가 방금 쓴 획이 메모리에만 남는다. 기기에 적어 둔다.
+      await _spool(localJson, AppError.from(e, st), st);
+      _notify('지금은 서버를 못 불러서 이 기기에 보관했어요. 연결되면 자동으로 올려요.');
       return;
     }
 
@@ -406,8 +507,10 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
     try {
       await _commitInk(json: merged, rev: remoteRev);
     } catch (e, st) {
-      AppLogger.error('합친 필기 저장 실패', error: AppError.from(e, st), stack: st);
-      _notify('합친 필기를 저장하지 못했어요. 잠시 뒤에 다시 시도할게요.');
+      // 합치기까지는 됐는데 못 올렸다. 합친 결과를 기기에 적는다 —
+      // 여기서 로컬 것만 남기면 다른 기기의 필기를 잃는다.
+      await _spool(merged, AppError.from(e, st), st);
+      _notify('합친 필기를 아직 못 올렸어요. 이 기기에 보관했다가 다시 올릴게요.');
       _inkDirty = true;
       return;
     }
@@ -546,6 +649,9 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
           child: Column(
             children: [
               if (offline) const OfflineBanner(),
+              // "저장됨" 도 "사라짐" 도 아닌 상태가 있다. 그걸 말하지 않으면 사용자는
+              // 앱을 지워도 되는지 알 수 없고, 지우면 그 필기는 정말 사라진다.
+              if (_spooled) const _SpooledBanner(),
               if (_inkSaveBlocked != null)
                 _InkBlockedBanner(
                   message: _inkSaveBlocked!,
@@ -638,7 +744,9 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
     return Stack(
       children: [
         InAppWebView(
-          initialUrlRequest: URLRequest(url: WebUri(data.url)),
+          // 문서를 통째로 넘긴다. 외부 요청이 0회라 baseUrl 이 필요 없고,
+          // 그래서 오프라인에서도 온라인과 똑같이 열린다.
+          initialData: InAppWebViewInitialData(data: data.html, mimeType: 'text/html', encoding: 'utf-8'),
           initialSettings: InAppWebViewSettings(
             // 학습지는 우리가 만든 문서다. 바깥으로 나갈 일이 없다.
             javaScriptEnabled: true,
@@ -1004,6 +1112,39 @@ class _SaveIndicator extends StatelessWidget {
 
 /// 다른 기기가 먼저 저장했을 때. 덮어쓰기를 멈추고 사용자에게 말한다.
 /// 필기 저장이 멈췄다는 알림. 조용히 멈추면 사용자는 저장되고 있다고 믿는다.
+/// 기기에 보관 중인 필기가 있다는 표시.
+///
+/// 경고가 아니라 안심시키는 문구다. 사용자가 알아야 할 것은 딱 하나 —
+/// **필기는 남아 있고, 연결되면 알아서 올라간다.** 그걸 모르면 다시 그리거나 앱을 지운다.
+class _SpooledBanner extends StatelessWidget {
+  const _SpooledBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final p = DsTheme.of(context);
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        width: double.infinity,
+        color: p.brandPrimarySubtle,
+        padding: const EdgeInsets.symmetric(horizontal: DsSpace.s4, vertical: DsSpace.s2),
+        child: Row(
+          children: [
+            DsIcon(DsIcons.info, size: 16, color: p.brandTextOnSubtle),
+            const SizedBox(width: DsSpace.s2),
+            Expanded(
+              child: Text(
+                '필기를 이 기기에 보관해 뒀어요. 연결되면 자동으로 올려요.',
+                style: dsTextStyle(DsType.caption, p.brandTextOnSubtle),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _InkBlockedBanner extends StatelessWidget {
   const _InkBlockedBanner({required this.message, required this.onReload});
 

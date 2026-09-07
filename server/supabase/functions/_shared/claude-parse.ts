@@ -19,6 +19,14 @@ export interface LlmResult {
 }
 
 export interface LlmClient {
+  /**
+   * 이 학습지를 만든 프롬프트와 스키마의 지문(fingerprint).
+   *
+   * 검사관 점수를 쌓아 두고도 "점수가 떨어졌는데 어느 프롬프트 때문인가" 를 물을 수 없었다 —
+   * worksheets.prompt_version 컬럼은 있는데 아무도 채우지 않았기 때문이다.
+   * 사람이 손으로 올리는 버전 번호는 반드시 잊어버리므로 내용에서 계산한다.
+   */
+  version: string
   plan(topic: string, level: string, opts: { maxTokens: number; effort: string }): Promise<LlmResult>
   draft(outline: unknown, opts: { maxTokens: number; effort: string; lengthScale: number }): Promise<LlmResult>
   /** 검사관. 학습지를 교수설계 기준으로 채점한다. */
