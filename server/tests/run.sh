@@ -30,6 +30,9 @@ else
   echo "  (playwright 가 없어 건너뜀 — npm i -g playwright 후 다시 실행)"
 fi
 
+echo "▸ 텔레메트리"
+node --experimental-strip-types "$HERE/telemetry.test.ts" | tail -2
+
 echo "▸ 생성 파이프라인"
 node --experimental-strip-types "$HERE/pipeline.test.ts" | tail -2
 

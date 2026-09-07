@@ -16,6 +16,13 @@ class AppLogger {
   // Dart 는 (?i) 인라인 플래그를 지원하지 않는다 — caseSensitive 로 준다.
   static final _bearer = RegExp(r'bearer\s+[A-Za-z0-9._-]+', caseSensitive: false);
   static final _longToken = RegExp(r'(?<![A-Za-z0-9])[A-Za-z0-9_-]{40,}(?![A-Za-z0-9])');
+  // `token=abc` 처럼 **이름이 비밀이라고 말해 주는** 값. 길이로는 못 잡는다 —
+  // 짧은 비밀은 흔하고(6자리 인증번호, 짧은 키), 긴 문자열 규칙은 그걸 지나친다.
+  static final _namedSecret = RegExp(
+    r'\b(token|secret|password|passwd|pwd|api[_-]?key|access[_-]?key|authorization|otp|code)'
+    r'\s*[=:]\s*("?)([^\s,;&"}]{1,})\2',
+    caseSensitive: false,
+  );
 
   /// 로그에 나가는 모든 문자열이 지나는 문.
   static String redact(String input) => input
@@ -26,7 +33,8 @@ class AppLogger {
         return '${m[0]!.substring(0, at.clamp(0, 2))}***${m[0]!.substring(at)}';
       })
       .replaceAllMapped(_phone, (m) => '${m[1]}-****-${m[3]}')
-      .replaceAll(_longToken, '[redacted]');
+      .replaceAll(_longToken, '[redacted]')
+      .replaceAllMapped(_namedSecret, (m) => '${m[1]}=[redacted]');
 
   static void debug(String message, {String name = 'onpar'}) {
     if (!kDebugMode) return;
