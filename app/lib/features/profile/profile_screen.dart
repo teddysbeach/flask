@@ -540,7 +540,7 @@ class _Avatar extends StatelessWidget {
                 child: CircularProgressIndicator(
                   value: progress == 0 ? null : progress,
                   strokeWidth: 3,
-                  color: p.brandPrimary,
+                  color: p.brandText,
                 ),
               ),
           ],

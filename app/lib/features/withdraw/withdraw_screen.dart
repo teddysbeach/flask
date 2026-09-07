@@ -397,7 +397,7 @@ class _ReasonRow extends StatelessWidget {
                 DsIcon(
                   selected ? DsIcons.success : DsIcons.info,
                   size: 20,
-                  color: selected ? p.brandPrimary : p.textTertiary,
+                  color: selected ? p.brandText : p.textTertiary,
                 ),
                 const SizedBox(width: DsSpace.s3),
                 Expanded(

@@ -109,7 +109,7 @@ class _LegalDocumentScreenState extends ConsumerState<LegalDocumentScreen> {
               child: Semantics(
                 liveRegion: true,
                 label: '${widget.doc.title}을 불러오는 중',
-                child: Center(child: CircularProgressIndicator(color: p.brandPrimary)),
+                child: Center(child: CircularProgressIndicator(color: p.brandText)),
               ),
             ),
           ),

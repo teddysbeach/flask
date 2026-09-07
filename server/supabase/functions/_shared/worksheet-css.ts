@@ -41,7 +41,7 @@ body {
 .sheet__eyebrow {
   display: flex; align-items: center; gap: 7px;
   font-size: 13px; font-weight: 700; letter-spacing: .1em;
-  color: var(--ds-color-brand-primary);
+  color: var(--ds-color-brand-text);
   margin: 0 0 18px;
 }
 .sheet__title {
@@ -77,7 +77,7 @@ body {
 /* 번호와 아이콘은 제목과 나란히 두지 않는다. 마커가 셋이 겹치면 제목이 묻힌다. */
 .sec__label {
   display: flex; align-items: center; gap: 8px;
-  color: var(--ds-color-brand-primary);
+  color: var(--ds-color-brand-text);
   margin: 0 0 10px;
 }
 .sec__num {
@@ -141,7 +141,7 @@ code, .code {
 .problem {
   margin: 0 0 40px;
   padding: 4px 0 4px 28px;
-  border-left: 4px solid var(--ds-color-brand-primary);
+  border-left: 4px solid var(--ds-color-brand-text);
   max-width: 34em;
 }
 .problem__q {
@@ -189,7 +189,7 @@ code, .code {
   letter-spacing: -.2px;
   margin: 0 0 36px;
   padding-left: 24px;
-  border-left: 2px solid var(--ds-color-brand-primary);
+  border-left: 2px solid var(--ds-color-brand-text);
   max-width: 36em;
 }
 .analogy .ico { display: none; }   /* 리드 문단에는 아이콘을 넣지 않는다 */
@@ -226,12 +226,12 @@ code, .code {
 .par__badge {
   display: inline-flex; align-items: center; justify-content: center;
   width: 40px; height: 40px; border-radius: var(--ds-radius-full);
-  background: var(--ds-color-brand-primary); color: #fff;
+  background: var(--ds-color-brand-primary); color: var(--ds-color-brand-on-primary);
 }
 .par__badge span { display: none; }        /* 이름은 아래 본문 쪽에서 낸다 */
 .par__name {
   display: block; font-size: 13px; font-weight: 700;
-  color: var(--ds-color-brand-primary);
+  color: var(--ds-color-brand-text);
   margin: 2px 0 6px; letter-spacing: -.01em;
 }
 .par__note {
@@ -244,14 +244,14 @@ code, .code {
 .act {
   margin: 0 0 var(--ds-sheet-block-gap);
   padding: 24px 26px;
-  border: 2px solid var(--ds-color-brand-primary);
+  border: 2px solid var(--ds-color-brand-text);
   border-radius: var(--ds-radius-2xl);
   max-width: 40em;
 }
 .act__label {
   display: flex; align-items: center; gap: 7px;
   font-size: 13px; font-weight: 700; letter-spacing: .02em;
-  color: var(--ds-color-brand-primary); margin: 0 0 10px;
+  color: var(--ds-color-brand-text); margin: 0 0 10px;
 }
 .act__prompt { font-size: 17px; line-height: 1.7; font-weight: 500; margin: 0; }
 .act__options { list-style: none; margin: 14px 0 0; padding: 0; }
@@ -326,7 +326,7 @@ code, .code {
   border-top: 1px solid var(--ds-color-border-subtle); cursor: pointer;
   border-radius: var(--ds-radius-md);
 }
-.act__opt input { margin-top: 5px; accent-color: var(--ds-color-brand-primary); }
+.act__opt input { margin-top: 5px; accent-color: var(--ds-color-brand-text); }
 .act__opt.is-picked { background: var(--ds-color-surface-sunken); }
 .act__opt.is-correct { background: var(--ds-callout-tip-bg); }
 .act__opt.is-wrong { background: var(--ds-callout-caution-bg); }
@@ -337,7 +337,7 @@ code, .code {
 }
 .act__fb::before { content: "이렇게 고르셨다면 — "; font-weight: 700; color: var(--ds-callout-caution-accent); }
 .act__attempt { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 14px; color: var(--ds-color-text-secondary); cursor: pointer; }
-.act__attempt input { accent-color: var(--ds-color-brand-primary); }
+.act__attempt input { accent-color: var(--ds-color-brand-text); }
 .quiz__submit {
   margin-top: 12px; padding: 9px 18px; font-size: 14px; font-weight: 700; cursor: pointer;
   border: 0; border-radius: var(--ds-radius-full);
@@ -373,7 +373,7 @@ code, .code {
 .reflect + .reflect { margin-top: 32px; }
 .reflect { margin-top: 28px; max-width: 40em; }
 .reflect__prompt { display: flex; gap: 8px; align-items: start; font-size: 16px; font-weight: 700; line-height: 1.6; margin: 0; }
-.reflect__prompt .ico { color: var(--ds-color-brand-primary); margin-top: 3px; }
+.reflect__prompt .ico { color: var(--ds-color-brand-text); margin-top: 3px; }
 
 /* ── 표지: 전제 ── */
 .sheet__assumes {
@@ -435,7 +435,7 @@ code, .code {
 .timeline li:last-child { border-bottom: 0; }
 .timeline__when {
   font-size: 14px; font-weight: 700; line-height: 1.7;
-  color: var(--ds-color-brand-primary);
+  color: var(--ds-color-brand-text);
 }
 .timeline__what { font-size: 16px; line-height: 1.72; margin: 0; }
 /* 불확실한 사실은 눈에 보이게 표시한다. 정직성 규칙의 시각적 표현. */
@@ -492,7 +492,7 @@ code, .code {
 .ex-compare__row:last-child { border-bottom: 0; }
 .ex-compare__before { color: var(--ds-color-text-secondary); }
 .ex-compare__after { font-weight: 700; }
-.ex-compare__arrow { color: var(--ds-color-brand-primary); font-weight: 700; text-align: center; }
+.ex-compare__arrow { color: var(--ds-color-brand-text); font-weight: 700; text-align: center; }
 .ex-compare__full { grid-column: 1 / -1; }
 
 /* 장면 묘사 */
@@ -517,7 +517,7 @@ code, .code {
 .quiz__head::before {
   counter-increment: q; content: "Q" counter(q);
   font-size: 13px; font-weight: 700; letter-spacing: .1em;
-  color: var(--ds-color-brand-primary);
+  color: var(--ds-color-brand-text);
 }
 .quiz__evidence {
   font-size: 12px; font-weight: 700; line-height: 1.4;

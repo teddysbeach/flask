@@ -48,7 +48,7 @@ class HomeScreen extends ConsumerWidget {
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
-          color: p.brandPrimary,
+          color: p.brandText,
           onRefresh: () => _refresh(ref),
           child: ListView(
             padding: const EdgeInsets.fromLTRB(DsSpace.s4, DsSpace.s4, DsSpace.s4, DsSpace.s12),

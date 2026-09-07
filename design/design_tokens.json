@@ -9,8 +9,8 @@
     "source": "https://github.com/daangn/seed-design — packages/rootage/__generated__",
     "license": "Apache License 2.0 (Copyright 2025 주식회사 당근마켓)",
     "lineage": "Seed 의 시맨틱 컬러·타입 스케일·radius·shadow·duration 을 그대로 가져오고, 잉크 팔레트와 학습지 문서 계층만 이 프로젝트가 얹었다.",
-    "trademarkNote": "brand.* 의 주황(#ff6600)은 당근마켓의 브랜드 색이다. Apache 2.0 은 코드에 대한 허가이고 상표는 별개다. 상용 출시 전 반드시 ONPAR 고유 색으로 교체할 것 — docs/plan/02-design-system.md §7",
-    "a11yNote": "흰 글자 / #ff6600 대비는 약 2.9:1 로 WCAG AA(4.5:1) 미달이다. 큰 글자·굵은 글자·아이콘에만 쓰고 본문에는 쓰지 않는다.",
+    "trademarkNote": "brand.* 는 ONPAR 고유의 금빛 노랑(#ffb800)이다. Seed(당근)에서 가져온 것은 구조와 중립색이고, 브랜드 색은 우리 것으로 교체했다 — 상표 문제가 남지 않는다.",
+    "a11yNote": "노랑은 대비 규칙이 주황과 반대다. brand.onPrimary 는 검정 계열(#1a1c20)이고 흰 글자를 얹으면 1.7:1 로 못 읽는다. 밝은 배경 위의 브랜드 글자·얇은 선에는 brand.primary 가 아니라 brand.text(#8a5a00, 5.9:1)를 쓴다. 채운 면에는 primary, 글자와 선에는 text — 이 구분을 지키면 전부 AA 를 넘는다.",
     "iconSet": "Untitled UI Icons — untitledui-js (MIT)",
     "fetchedAt": "2026-09-06",
     "status": "populated",
@@ -18,14 +18,14 @@
   },
   "color": {
     "brand": {
-      "primary": "#ff6600",
-      "primaryHover": "#e14d00",
-      "primaryPressed": "#e14d00",
-      "primarySubtle": "#fff2ec",
-      "primarySubtlePressed": "#ffe8db",
-      "textOnSubtle": "#e14d00",
-      "text": "#ff6600",
-      "onPrimary": "#ffffff"
+      "primary": "#ffb800",
+      "primaryHover": "#e5a200",
+      "primaryPressed": "#e5a200",
+      "primarySubtle": "#fff6db",
+      "primarySubtlePressed": "#ffedb8",
+      "textOnSubtle": "#7a4f00",
+      "text": "#8a5a00",
+      "onPrimary": "#1a1c20"
     },
     "neutralPrimary": {
       "base": "#1a1c20",
@@ -45,7 +45,7 @@
       "disabled": "#d1d3d8",
       "placeholder": "#b0b3ba",
       "inverted": "#ffffff",
-      "onBrand": "#ffffff"
+      "onBrand": "#1a1c20"
     },
     "border": {
       "subtle": "#dcdee3",
@@ -55,13 +55,13 @@
     },
     "status": {
       "success": "#079171",
-      "warning": "#9b7821",
+      "warning": "#a85400",
       "danger": "#fa342c",
       "info": "#217cf9"
     },
     "statusBg": {
       "success": "#edfaf6",
-      "warning": "#fff7de",
+      "warning": "#ffeddd",
       "danger": "#fdf0f0",
       "info": "#eff6ff"
     },
@@ -75,14 +75,14 @@
   },
   "colorDark": {
     "brand": {
-      "primary": "#ff6600",
-      "primaryHover": "#ff9e65",
-      "primaryPressed": "#ff9e65",
-      "primarySubtle": "#31241f",
-      "primarySubtlePressed": "#4b291c",
-      "textOnSubtle": "#ff6600",
-      "text": "#ff6600",
-      "onPrimary": "#ffffff"
+      "primary": "#ffc53d",
+      "primaryHover": "#ffd466",
+      "primaryPressed": "#ffd466",
+      "primarySubtle": "#332a12",
+      "primarySubtlePressed": "#4a3a16",
+      "textOnSubtle": "#ffcc5c",
+      "text": "#ffc53d",
+      "onPrimary": "#1a1c20"
     },
     "neutralPrimary": {
       "base": "#2b2e35",
@@ -102,7 +102,7 @@
       "disabled": "#5b606a",
       "placeholder": "#868b94",
       "inverted": "#16171b",
-      "onBrand": "#ffffff"
+      "onBrand": "#1a1c20"
     },
     "border": {
       "subtle": "#393d46",
@@ -112,13 +112,13 @@
     },
     "status": {
       "success": "#22b27f",
-      "warning": "#ca901c",
+      "warning": "#ff9e4d",
       "danger": "#ff6e60",
       "info": "#41a2f9"
     },
     "statusBg": {
       "success": "#202926",
-      "warning": "#302819",
+      "warning": "#3a2a18",
       "danger": "#322323",
       "info": "#202742"
     },
@@ -300,12 +300,12 @@
     },
     "callout": {
       "story": {
-        "accent": "#ff6600",
-        "bg": "#fff2ec"
+        "accent": "#8a5a00",
+        "bg": "#fff6db"
       },
       "tip": {
-        "accent": "#9b7821",
-        "bg": "#fff7de"
+        "accent": "#046a52",
+        "bg": "#edfaf6"
       },
       "caution": {
         "accent": "#fa342c",

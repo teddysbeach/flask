@@ -292,7 +292,7 @@ class _SwitchRow extends StatelessWidget {
       contentPadding: const EdgeInsets.symmetric(horizontal: DsSpace.s4, vertical: DsSpace.s2),
       title: Text(title, style: dsTextStyle(DsType.bodyLg, p.textPrimary)),
       subtitle: Text(description, style: dsTextStyle(DsType.caption, p.textSecondary)),
-      activeThumbColor: p.brandPrimary,
+      activeThumbColor: p.brandText,
     );
   }
 }
@@ -347,7 +347,7 @@ class _HourSheet extends StatelessWidget {
                     title: Text(_hourLabel(h), style: dsTextStyle(DsType.bodyLg, p.textPrimary)),
                     trailing: h == current
                         ? DsIcon(DsIcons.success,
-                            size: 20, color: p.brandPrimary, semanticLabel: '선택됨')
+                            size: 20, color: p.brandText, semanticLabel: '선택됨')
                         : null,
                     onTap: () => Navigator.of(context).pop(h),
                   ),

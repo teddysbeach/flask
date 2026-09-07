@@ -149,7 +149,7 @@ Universal Links / App Links 는 **서버에 파일을 올려야** 산다. 안 �
 node design/build_brand.mjs   # Playwright(Chromium)로 SVG → PNG
 ```
 
-- 심볼: 원 하나(사람) 아래 **길이가 같은 줄 두 개**. par(동등한)가 이름의 절반이고 그 뜻이 두 줄의 같은 길이에 있다. 배경은 `design/design_tokens.json` 의 `brandPrimary`(#FF6600)
+- 심볼: 원 하나(사람) 아래 **길이가 같은 줄 두 개**. par(동등한)가 이름의 절반이고 그 뜻이 두 줄의 같은 길이에 있다. 배경은 `design/design_tokens.json` 의 `brandPrimary`(#FFB800), 마크는 `brandOnPrimary`(#1A1C20) — 노랑 위에 흰 마크를 얹으면 1.7:1 이라 안 보인다
 - 앱 안에서 쓰는 로고는 에셋이 아니라 도형이다 — `OnparLogo` · `OnparSymbol` · `OnparWordmark`(디자인 시스템)
 - 스크립트가 심볼이 Android 적응형 아이콘의 안전 원(가운데 66%)을 벗어나지 않는지, 스플래시 PNG 가 배율마다 정수 크기로 떨어지는지 검사한다
 - `node design/build_brand.mjs --check` 는 브라우저 없이 생성물이 최신인지만 본다(CI 드리프트 검사)

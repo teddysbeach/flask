@@ -112,9 +112,13 @@ const iconSvg = doc(1024, 1024, [
   symbolBody(ON_BRAND),
 ].join('\n  '));
 
-/** 잘라 낸 심볼(투명). 색은 쓰는 쪽이 정한다 — 앱은 ColorFilter 로 칠한다. */
+/**
+ * 잘라 낸 심볼(투명). 색은 쓰는 쪽이 정한다 — 앱은 currentColor 로 칠한다.
+ * on-brand 판은 브랜드 색을 채운 면 위에 얹는 것이라 `brand.onPrimary` 를 따른다.
+ * 노랑 배경에 흰 심볼을 얹으면 1.7:1 이라 안 보인다 — 색을 여기 박아 두지 않는 이유다.
+ */
 const symbolSvg = doc(GLYPH.w, GLYPH.h, symbolBody('currentColor'), `${GLYPH.x} ${GLYPH.y} ${GLYPH.w} ${GLYPH.h}`);
-const symbolWhiteSvg = doc(GLYPH.w, GLYPH.h, symbolBody(ON_BRAND), `${GLYPH.x} ${GLYPH.y} ${GLYPH.w} ${GLYPH.h}`);
+const symbolOnBrandSvg = doc(GLYPH.w, GLYPH.h, symbolBody(ON_BRAND), `${GLYPH.x} ${GLYPH.y} ${GLYPH.w} ${GLYPH.h}`);
 const symbolBrandSvg = doc(GLYPH.w, GLYPH.h, symbolBody(BRAND), `${GLYPH.x} ${GLYPH.y} ${GLYPH.w} ${GLYPH.h}`);
 const wordmarkSvg = doc(WORD.w, WORD.h, wordmarkBody('currentColor'));
 const wordmarkBrandSvg = doc(WORD.w, WORD.h, wordmarkBody(BRAND));
@@ -149,7 +153,7 @@ class DsBrand {
 const SVGS = [
   [join(DESIGN_BRAND, 'onpar_symbol.svg'), symbolBrandSvg],
   [join(DESIGN_BRAND, 'onpar_wordmark.svg'), wordmarkBrandSvg],
-  [join(DESIGN_BRAND, 'onpar_symbol_white.svg'), symbolWhiteSvg],
+  [join(DESIGN_BRAND, 'onpar_symbol_on_brand.svg'), symbolOnBrandSvg],
   [join(DESIGN_BRAND, 'onpar_icon.svg'), iconSvg],
   [join(DS_LIB, 'brand.g.dart'), brandDart],
 ];
@@ -209,13 +213,13 @@ for (const [name, size] of IOS_ICONS) {
   await png(iconSvg, join(IOS, 'Assets.xcassets', 'AppIcon.appiconset', name), size, size, { transparent: false });
 }
 
-console.log('▸ 스플래시 로고 (흰 심볼 · 투명)');
+console.log('▸ 스플래시 로고 (브랜드 면 위 심볼 · 투명)');
 // 글리프가 1:2 라 90pt 로 잡으면 2x·3x 까지 전부 정수다. 반 픽셀이 남으면 기기마다 흐려진다.
 const LAUNCH_W = 90;
 const LAUNCH_H = LAUNCH_W * GLYPH.h / GLYPH.w;
 if (!Number.isInteger(LAUNCH_H)) throw new Error(`스플래시 로고 높이가 정수가 아니다: ${LAUNCH_H}`);
 for (const [suffix, scale] of [['', 1], ['@2x', 2], ['@3x', 3]]) {
-  await png(symbolWhiteSvg, join(IOS, 'Assets.xcassets', 'LaunchImage.imageset', `LaunchImage${suffix}.png`),
+  await png(symbolOnBrandSvg, join(IOS, 'Assets.xcassets', 'LaunchImage.imageset', `LaunchImage${suffix}.png`),
     LAUNCH_W * scale, LAUNCH_H * scale);
 }
 
@@ -231,7 +235,7 @@ for (const [d, s] of DENSITIES) {
 
 console.log('▸ Android 스플래시 로고');
 for (const [d, s] of DENSITIES) {
-  await png(symbolWhiteSvg, join(ANDROID_RES, `drawable-${d}`, 'splash_logo.png'), LAUNCH_W * s, LAUNCH_H * s);
+  await png(symbolOnBrandSvg, join(ANDROID_RES, `drawable-${d}`, 'splash_logo.png'), LAUNCH_W * s, LAUNCH_H * s);
 }
 
 await browser.close();

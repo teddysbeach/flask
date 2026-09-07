@@ -284,7 +284,7 @@ class _Progress extends StatelessWidget {
                 value: total == 0 ? 0 : position / total,
                 minHeight: 6,
                 backgroundColor: p.surfaceSunken,
-                color: p.brandPrimary,
+                color: p.brandText,
               ),
             ),
           ],
@@ -383,7 +383,7 @@ class _ChoiceTile extends StatelessWidget {
     final border = correct
         ? p.statusSuccess
         : selected
-            ? p.brandPrimary
+            ? p.brandText
             : p.borderSubtle;
     return Semantics(
       button: onTap != null,

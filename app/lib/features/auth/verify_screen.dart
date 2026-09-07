@@ -320,7 +320,7 @@ class _Header extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(DsSpace.s3),
           decoration: BoxDecoration(color: p.brandPrimarySubtle, shape: BoxShape.circle),
-          child: DsIcon(icon, size: 24, color: p.brandPrimary),
+          child: DsIcon(icon, size: 24, color: p.brandText),
         ),
         const SizedBox(height: DsSpace.s4),
         Text(title, style: dsTextStyle(DsType.h2, p.textPrimary)),

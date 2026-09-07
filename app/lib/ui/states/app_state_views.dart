@@ -22,7 +22,7 @@ class LoadingView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(color: p.brandPrimary, strokeWidth: 3),
+            CircularProgressIndicator(color: p.brandText, strokeWidth: 3),
             if (label != null) ...[
               const SizedBox(height: DsSpace.s4),
               Text(label!, style: dsTextStyle(DsType.body, p.textSecondary)),

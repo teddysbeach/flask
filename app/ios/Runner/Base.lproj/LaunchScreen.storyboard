@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!-- ONPAR 스플래시.
-     브랜드 색(#FF6600 = sRGB 1, 0.4, 0) 바탕에 흰 마크만 가운데 놓는다.
+     브랜드 색(#FFB800 = sRGB 1, 0.722, 0) 바탕에 진한 마크만 가운데 놓는다.
+     노랑 위의 흰 마크는 1.7:1 이라 안 보인다 — 마크 색은 토큰(brand.onPrimary)을 따른다.
      flutter_native_splash 같은 패키지를 쓰지 않는다 — 생성물이 이 파일을 덮어쓰면
      다음 사람이 왜 바뀌었는지 추적할 수 없다. 여기가 원본이다.
      이미지는 Assets.xcassets/LaunchImage.imageset (1x/2x/3x). contentMode=center 라
@@ -25,7 +26,7 @@
                             <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" image="LaunchImage" translatesAutoresizingMaskIntoConstraints="NO" id="YRO-k0-Ey4">
                             </imageView>
                         </subviews>
-                        <color key="backgroundColor" red="1" green="0.40000000000000002" blue="0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <color key="backgroundColor" red="1" green="0.72156862745098038" blue="0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
                             <constraint firstItem="YRO-k0-Ey4" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="1a2-6s-vTC"/>
                             <constraint firstItem="YRO-k0-Ey4" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" id="4X2-HB-R7a"/>

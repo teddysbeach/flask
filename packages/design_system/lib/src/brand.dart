@@ -9,8 +9,10 @@ import 'tokens/brand.g.dart';
 /// 이름의 절반인 par(동등한)가 두 줄이 같은 길이인 데 있고, 같은 두 줄은 학습지의 줄이기도 하다.
 /// 그래서 이 마크는 브랜드 문장을 그대로 그린 것이다 — "모두가 같은 자리에서 배운다."
 ///
-/// 색은 인자로 받되 기본은 브랜드 색이다. 도형은 `design/build_brand.mjs` 가 만든다 —
-/// 여기서 좌표를 손보면 앱 아이콘·스플래시와 갈라진다.
+/// 기본색은 `brandText`(진한 금빛)다. `brandPrimary`(밝은 노랑)로 그리면 밝은 배경에서
+/// 대비가 1.7:1 이라 로고가 흐려 보인다 — 노랑은 **채운 면**의 색이고, 밝은 바탕 위의
+/// 도형과 글자는 진한 쪽을 쓴다. 주황 배경(앱 아이콘) 위에서는 `color:` 로 뒤집어 준다.
+/// 도형은 `design/build_brand.mjs` 가 만든다 — 여기서 좌표를 손보면 앱 아이콘·스플래시와 갈라진다.
 class OnparSymbol extends StatelessWidget {
   const OnparSymbol({super.key, this.height = 48, this.color, this.semanticLabel});
 
@@ -23,7 +25,7 @@ class OnparSymbol extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? DsTheme.of(context).brandPrimary;
+    final c = color ?? DsTheme.of(context).brandText;
     final picture = SvgPicture.string(
       DsBrand.symbol,
       height: height,
@@ -50,7 +52,7 @@ class OnparWordmark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? DsTheme.of(context).brandPrimary;
+    final c = color ?? DsTheme.of(context).brandText;
     final picture = SvgPicture.string(
       DsBrand.wordmark,
       height: height,
@@ -94,7 +96,7 @@ class OnparLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? DsTheme.of(context).brandPrimary;
+    final c = color ?? DsTheme.of(context).brandText;
     final symbol = OnparSymbol(height: symbolHeight, color: c);
     final wordmark = OnparWordmark(
       height: symbolHeight * (layout == OnparLogoLayout.stacked ? _wordmarkRatio : 0.62),

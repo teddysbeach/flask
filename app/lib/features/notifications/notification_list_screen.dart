@@ -148,7 +148,7 @@ class _NotificationTile extends StatelessWidget {
                   width: 8,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: unread ? p.brandPrimary : Colors.transparent,
+                    color: unread ? p.brandText : Colors.transparent,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -188,7 +188,7 @@ class _NotificationTile extends StatelessWidget {
                 SizedBox(
                   width: 18,
                   height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: p.brandPrimary),
+                  child: CircularProgressIndicator(strokeWidth: 2, color: p.brandText),
                 ),
               ],
             ],

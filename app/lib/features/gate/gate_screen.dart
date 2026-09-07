@@ -62,7 +62,7 @@ class _Passing extends StatelessWidget {
     return Semantics(
       liveRegion: true,
       label: '들어가는 중',
-      child: Center(child: CircularProgressIndicator(color: p.brandPrimary, strokeWidth: 3)),
+      child: Center(child: CircularProgressIndicator(color: p.brandText, strokeWidth: 3)),
     );
   }
 }
@@ -174,7 +174,7 @@ class _Update extends StatelessWidget {
     final p = DsTheme.of(context);
     return _GateBody(
       icon: DsIcons.info,
-      iconColor: p.brandPrimary,
+      iconColor: p.brandText,
       iconBackground: p.brandPrimarySubtle,
       title: force ? '업데이트가 필요해요' : '새 버전이 나왔어요',
       body: gate.message ??

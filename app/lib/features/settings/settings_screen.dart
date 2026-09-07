@@ -167,7 +167,7 @@ class SettingsScreen extends ConsumerWidget {
                   showChevron: false,
                   // 선택 표시는 색이 아니라 아이콘이다.
                   trailing: mode == current
-                      ? DsIcon(DsIcons.success, size: 20, color: p.brandPrimary, semanticLabel: '선택됨')
+                      ? DsIcon(DsIcons.success, size: 20, color: p.brandText, semanticLabel: '선택됨')
                       : const SizedBox(width: 20, height: 20),
                   onTap: () => Navigator.of(ctx).pop(mode),
                 ),

@@ -127,6 +127,6 @@
 - **untitledui-js** (Untitled UI Icons) — MIT, Copyright (c) 2025 Emmanuel C. Alozie
 - **Pretendard** — SIL Open Font License 1.1
 
-⚠️ Seed 의 브랜드 색(`#FF6600`)은 당근마켓의 상표적 자산이다.
-Apache 2.0 은 코드 라이선스이고 상표는 별개다 — **상용 출시 전 `brand.*` 를 ONPAR 고유 색으로 교체할 것.**
+브랜드 색은 **ONPAR 고유의 금빛 노랑(`#FFB800`)** 이다. Seed 의 `#FF6600` 은 당근마켓의 상표적 자산이고
+Apache 2.0 은 코드 라이선스일 뿐 상표는 별개라, 브랜드 색만 우리 것으로 교체했다 — 상표 문제는 여기서 끝난다.
 ([02. 디자인 시스템 §8](docs/plan/02-design-system.md))

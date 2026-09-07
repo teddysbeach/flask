@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>이벤트 소싱, 결과 말고 과정을 원본으로 두기</title>
 <style>:root {
-  --ds-color-brand-primary: #FF6600;
-  --ds-color-brand-primary-hover: #E14D00;
-  --ds-color-brand-primary-pressed: #E14D00;
-  --ds-color-brand-primary-subtle: #FFF2EC;
-  --ds-color-brand-primary-subtle-pressed: #FFE8DB;
-  --ds-color-brand-text-on-subtle: #E14D00;
-  --ds-color-brand-text: #FF6600;
-  --ds-color-brand-on-primary: #FFFFFF;
+  --ds-color-brand-primary: #FFB800;
+  --ds-color-brand-primary-hover: #E5A200;
+  --ds-color-brand-primary-pressed: #E5A200;
+  --ds-color-brand-primary-subtle: #FFF6DB;
+  --ds-color-brand-primary-subtle-pressed: #FFEDB8;
+  --ds-color-brand-text-on-subtle: #7A4F00;
+  --ds-color-brand-text: #8A5A00;
+  --ds-color-brand-on-primary: #1A1C20;
   --ds-color-neutral-primary-base: #1A1C20;
   --ds-color-neutral-primary-on-base: #FFFFFF;
   --ds-color-surface-base: #F3F4F5;
@@ -26,17 +26,17 @@
   --ds-color-text-disabled: #D1D3D8;
   --ds-color-text-placeholder: #B0B3BA;
   --ds-color-text-inverted: #FFFFFF;
-  --ds-color-text-on-brand: #FFFFFF;
+  --ds-color-text-on-brand: #1A1C20;
   --ds-color-border-subtle: #DCDEE3;
   --ds-color-border-default: rgb(0 0 0 / 0.06274509803921569);
   --ds-color-border-strong: #555D6D;
   --ds-color-border-focus: #5E98FE;
   --ds-color-status-success: #079171;
-  --ds-color-status-warning: #9B7821;
+  --ds-color-status-warning: #A85400;
   --ds-color-status-danger: #FA342C;
   --ds-color-status-info: #217CF9;
   --ds-color-status-bg-success: #EDFAF6;
-  --ds-color-status-bg-warning: #FFF7DE;
+  --ds-color-status-bg-warning: #FFEDDD;
   --ds-color-status-bg-danger: #FDF0F0;
   --ds-color-status-bg-info: #EFF6FF;
   --ds-color-ink-pen: #1A1C20;
@@ -91,24 +91,24 @@
   --ds-ws-lead-size: 21px;
   --ds-ws-lead-lh: 1.72;
   --ds-ws-lead-weight: 500;
-  --ds-callout-story-accent: #FF6600;
-  --ds-callout-story-bg: #FFF2EC;
-  --ds-callout-tip-accent: #9B7821;
-  --ds-callout-tip-bg: #FFF7DE;
+  --ds-callout-story-accent: #8A5A00;
+  --ds-callout-story-bg: #FFF6DB;
+  --ds-callout-tip-accent: #046A52;
+  --ds-callout-tip-bg: #EDFAF6;
   --ds-callout-caution-accent: #FA342C;
   --ds-callout-caution-bg: #FDF0F0;
   --ds-sheet-block-gap: 28px;
   --ds-paper: #FFFFFF;
 }
 :root[data-theme="dark"] {
-  --ds-color-brand-primary: #FF6600;
-  --ds-color-brand-primary-hover: #FF9E65;
-  --ds-color-brand-primary-pressed: #FF9E65;
-  --ds-color-brand-primary-subtle: #31241F;
-  --ds-color-brand-primary-subtle-pressed: #4B291C;
-  --ds-color-brand-text-on-subtle: #FF6600;
-  --ds-color-brand-text: #FF6600;
-  --ds-color-brand-on-primary: #FFFFFF;
+  --ds-color-brand-primary: #FFC53D;
+  --ds-color-brand-primary-hover: #FFD466;
+  --ds-color-brand-primary-pressed: #FFD466;
+  --ds-color-brand-primary-subtle: #332A12;
+  --ds-color-brand-primary-subtle-pressed: #4A3A16;
+  --ds-color-brand-text-on-subtle: #FFCC5C;
+  --ds-color-brand-text: #FFC53D;
+  --ds-color-brand-on-primary: #1A1C20;
   --ds-color-neutral-primary-base: #2B2E35;
   --ds-color-neutral-primary-on-base: #16171B;
   --ds-color-surface-base: #000000;
@@ -122,17 +122,17 @@
   --ds-color-text-disabled: #5B606A;
   --ds-color-text-placeholder: #868B94;
   --ds-color-text-inverted: #16171B;
-  --ds-color-text-on-brand: #FFFFFF;
+  --ds-color-text-on-brand: #1A1C20;
   --ds-color-border-subtle: #393D46;
   --ds-color-border-default: rgb(255 255 255 / 0.09019607843137255);
   --ds-color-border-strong: #DCDEE3;
   --ds-color-border-focus: #1E82EB;
   --ds-color-status-success: #22B27F;
-  --ds-color-status-warning: #CA901C;
+  --ds-color-status-warning: #FF9E4D;
   --ds-color-status-danger: #FF6E60;
   --ds-color-status-info: #41A2F9;
   --ds-color-status-bg-success: #202926;
-  --ds-color-status-bg-warning: #302819;
+  --ds-color-status-bg-warning: #3A2A18;
   --ds-color-status-bg-danger: #322323;
   --ds-color-status-bg-info: #202742;
   --ds-color-ink-pen: #F3F4F5;
@@ -144,14 +144,14 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --ds-color-brand-primary: #FF6600;
-    --ds-color-brand-primary-hover: #FF9E65;
-    --ds-color-brand-primary-pressed: #FF9E65;
-    --ds-color-brand-primary-subtle: #31241F;
-    --ds-color-brand-primary-subtle-pressed: #4B291C;
-    --ds-color-brand-text-on-subtle: #FF6600;
-    --ds-color-brand-text: #FF6600;
-    --ds-color-brand-on-primary: #FFFFFF;
+    --ds-color-brand-primary: #FFC53D;
+    --ds-color-brand-primary-hover: #FFD466;
+    --ds-color-brand-primary-pressed: #FFD466;
+    --ds-color-brand-primary-subtle: #332A12;
+    --ds-color-brand-primary-subtle-pressed: #4A3A16;
+    --ds-color-brand-text-on-subtle: #FFCC5C;
+    --ds-color-brand-text: #FFC53D;
+    --ds-color-brand-on-primary: #1A1C20;
     --ds-color-neutral-primary-base: #2B2E35;
     --ds-color-neutral-primary-on-base: #16171B;
     --ds-color-surface-base: #000000;
@@ -165,17 +165,17 @@
     --ds-color-text-disabled: #5B606A;
     --ds-color-text-placeholder: #868B94;
     --ds-color-text-inverted: #16171B;
-    --ds-color-text-on-brand: #FFFFFF;
+    --ds-color-text-on-brand: #1A1C20;
     --ds-color-border-subtle: #393D46;
     --ds-color-border-default: rgb(255 255 255 / 0.09019607843137255);
     --ds-color-border-strong: #DCDEE3;
     --ds-color-border-focus: #1E82EB;
     --ds-color-status-success: #22B27F;
-    --ds-color-status-warning: #CA901C;
+    --ds-color-status-warning: #FF9E4D;
     --ds-color-status-danger: #FF6E60;
     --ds-color-status-info: #41A2F9;
     --ds-color-status-bg-success: #202926;
-    --ds-color-status-bg-warning: #302819;
+    --ds-color-status-bg-warning: #3A2A18;
     --ds-color-status-bg-danger: #322323;
     --ds-color-status-bg-info: #202742;
     --ds-color-ink-pen: #F3F4F5;
@@ -222,7 +222,7 @@ body {
 .sheet__eyebrow {
   display: flex; align-items: center; gap: 7px;
   font-size: 13px; font-weight: 700; letter-spacing: .1em;
-  color: var(--ds-color-brand-primary);
+  color: var(--ds-color-brand-text);
   margin: 0 0 18px;
 }
 .sheet__title {
@@ -258,7 +258,7 @@ body {
 /* 번호와 아이콘은 제목과 나란히 두지 않는다. 마커가 셋이 겹치면 제목이 묻힌다. */
 .sec__label {
   display: flex; align-items: center; gap: 8px;
-  color: var(--ds-color-brand-primary);
+  color: var(--ds-color-brand-text);
   margin: 0 0 10px;
 }
 .sec__num {
@@ -322,7 +322,7 @@ code, .code {
 .problem {
   margin: 0 0 40px;
   padding: 4px 0 4px 28px;
-  border-left: 4px solid var(--ds-color-brand-primary);
+  border-left: 4px solid var(--ds-color-brand-text);
   max-width: 34em;
 }
 .problem__q {
@@ -370,7 +370,7 @@ code, .code {
   letter-spacing: -.2px;
   margin: 0 0 36px;
   padding-left: 24px;
-  border-left: 2px solid var(--ds-color-brand-primary);
+  border-left: 2px solid var(--ds-color-brand-text);
   max-width: 36em;
 }
 .analogy .ico { display: none; }   /* 리드 문단에는 아이콘을 넣지 않는다 */
@@ -407,12 +407,12 @@ code, .code {
 .par__badge {
   display: inline-flex; align-items: center; justify-content: center;
   width: 40px; height: 40px; border-radius: var(--ds-radius-full);
-  background: var(--ds-color-brand-primary); color: #fff;
+  background: var(--ds-color-brand-primary); color: var(--ds-color-brand-on-primary);
 }
 .par__badge span { display: none; }        /* 이름은 아래 본문 쪽에서 낸다 */
 .par__name {
   display: block; font-size: 13px; font-weight: 700;
-  color: var(--ds-color-brand-primary);
+  color: var(--ds-color-brand-text);
   margin: 2px 0 6px; letter-spacing: -.01em;
 }
 .par__note {
@@ -425,14 +425,14 @@ code, .code {
 .act {
   margin: 0 0 var(--ds-sheet-block-gap);
   padding: 24px 26px;
-  border: 2px solid var(--ds-color-brand-primary);
+  border: 2px solid var(--ds-color-brand-text);
   border-radius: var(--ds-radius-2xl);
   max-width: 40em;
 }
 .act__label {
   display: flex; align-items: center; gap: 7px;
   font-size: 13px; font-weight: 700; letter-spacing: .02em;
-  color: var(--ds-color-brand-primary); margin: 0 0 10px;
+  color: var(--ds-color-brand-text); margin: 0 0 10px;
 }
 .act__prompt { font-size: 17px; line-height: 1.7; font-weight: 500; margin: 0; }
 .act__options { list-style: none; margin: 14px 0 0; padding: 0; }
@@ -507,7 +507,7 @@ code, .code {
   border-top: 1px solid var(--ds-color-border-subtle); cursor: pointer;
   border-radius: var(--ds-radius-md);
 }
-.act__opt input { margin-top: 5px; accent-color: var(--ds-color-brand-primary); }
+.act__opt input { margin-top: 5px; accent-color: var(--ds-color-brand-text); }
 .act__opt.is-picked { background: var(--ds-color-surface-sunken); }
 .act__opt.is-correct { background: var(--ds-callout-tip-bg); }
 .act__opt.is-wrong { background: var(--ds-callout-caution-bg); }
@@ -518,7 +518,7 @@ code, .code {
 }
 .act__fb::before { content: "이렇게 고르셨다면 — "; font-weight: 700; color: var(--ds-callout-caution-accent); }
 .act__attempt { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 14px; color: var(--ds-color-text-secondary); cursor: pointer; }
-.act__attempt input { accent-color: var(--ds-color-brand-primary); }
+.act__attempt input { accent-color: var(--ds-color-brand-text); }
 .quiz__submit {
   margin-top: 12px; padding: 9px 18px; font-size: 14px; font-weight: 700; cursor: pointer;
   border: 0; border-radius: var(--ds-radius-full);
@@ -554,7 +554,7 @@ code, .code {
 .reflect + .reflect { margin-top: 32px; }
 .reflect { margin-top: 28px; max-width: 40em; }
 .reflect__prompt { display: flex; gap: 8px; align-items: start; font-size: 16px; font-weight: 700; line-height: 1.6; margin: 0; }
-.reflect__prompt .ico { color: var(--ds-color-brand-primary); margin-top: 3px; }
+.reflect__prompt .ico { color: var(--ds-color-brand-text); margin-top: 3px; }
 
 /* ── 표지: 전제 ── */
 .sheet__assumes {
@@ -616,7 +616,7 @@ code, .code {
 .timeline li:last-child { border-bottom: 0; }
 .timeline__when {
   font-size: 14px; font-weight: 700; line-height: 1.7;
-  color: var(--ds-color-brand-primary);
+  color: var(--ds-color-brand-text);
 }
 .timeline__what { font-size: 16px; line-height: 1.72; margin: 0; }
 /* 불확실한 사실은 눈에 보이게 표시한다. 정직성 규칙의 시각적 표현. */
@@ -673,7 +673,7 @@ code, .code {
 .ex-compare__row:last-child { border-bottom: 0; }
 .ex-compare__before { color: var(--ds-color-text-secondary); }
 .ex-compare__after { font-weight: 700; }
-.ex-compare__arrow { color: var(--ds-color-brand-primary); font-weight: 700; text-align: center; }
+.ex-compare__arrow { color: var(--ds-color-brand-text); font-weight: 700; text-align: center; }
 .ex-compare__full { grid-column: 1 / -1; }
 
 /* 장면 묘사 */
@@ -698,7 +698,7 @@ code, .code {
 .quiz__head::before {
   counter-increment: q; content: "Q" counter(q);
   font-size: 13px; font-weight: 700; letter-spacing: .1em;
-  color: var(--ds-color-brand-primary);
+  color: var(--ds-color-brand-text);
 }
 .quiz__evidence {
   font-size: 12px; font-weight: 700; line-height: 1.4;

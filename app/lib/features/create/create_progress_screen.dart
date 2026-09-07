@@ -150,7 +150,7 @@ class _CreateProgressScreenState extends ConsumerState<CreateProgressScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(DsSpace.s6, DsSpace.s12, DsSpace.s6, DsSpace.s8),
       children: [
-        Center(child: CircularProgressIndicator(color: p.brandPrimary, strokeWidth: 3)),
+        Center(child: CircularProgressIndicator(color: p.brandText, strokeWidth: 3)),
         const SizedBox(height: DsSpace.s8),
 
         // 단계가 바뀌면 스크린리더도 알아야 한다.
@@ -336,7 +336,7 @@ class _StageDots extends StatelessWidget {
                   child: i < currentIndex
                       ? DsIcon(DsIcons.success, size: 18, color: p.statusSuccess)
                       : i == currentIndex
-                          ? CircularProgressIndicator(strokeWidth: 2.4, color: p.brandPrimary)
+                          ? CircularProgressIndicator(strokeWidth: 2.4, color: p.brandText)
                           : Center(
                               child: Container(
                                 width: 7,

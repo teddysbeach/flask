@@ -153,7 +153,7 @@ class _OnboardingPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(DsSpace.s6),
             decoration: BoxDecoration(color: p.brandPrimarySubtle, shape: BoxShape.circle),
-            child: DsIcon(page.icon, size: 40, color: p.brandPrimary),
+            child: DsIcon(page.icon, size: 40, color: p.brandText),
           ),
           const SizedBox(height: DsSpace.s8),
           Text(page.title, textAlign: TextAlign.center, style: dsTextStyle(DsType.h1, p.textPrimary)),
@@ -191,7 +191,7 @@ class _Dots extends StatelessWidget {
                 height: 8,
                 width: i == index ? 24 : 8,
                 decoration: BoxDecoration(
-                  color: i == index ? p.brandPrimary : p.borderDefault,
+                  color: i == index ? p.brandText : p.borderDefault,
                   borderRadius: BorderRadius.circular(DsRadius.full),
                 ),
               ),

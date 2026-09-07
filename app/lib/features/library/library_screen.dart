@@ -67,7 +67,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             ),
             Expanded(
               child: RefreshIndicator(
-                color: p.brandPrimary,
+                color: p.brandText,
                 onRefresh: controller.refresh,
                 child: _body(context, state, controller, visible),
               ),
@@ -234,7 +234,7 @@ class _FilterBar extends StatelessWidget {
               backgroundColor: p.surfaceRaised,
               selectedColor: p.brandPrimarySubtle,
               checkmarkColor: p.brandTextOnSubtle,
-              side: BorderSide(color: f == value ? p.brandPrimary : p.borderSubtle),
+              side: BorderSide(color: f == value ? p.brandText : p.borderSubtle),
               labelStyle: dsTextStyle(
                 DsType.body,
                 f == value ? p.brandTextOnSubtle : p.textSecondary,

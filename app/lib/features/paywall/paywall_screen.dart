@@ -280,7 +280,7 @@ class _OfferCard extends StatelessWidget {
             color: p.surfaceRaised,
             borderRadius: BorderRadius.circular(DsRadius.lg),
             border: Border.all(
-              color: popular ? p.brandPrimary : p.borderSubtle,
+              color: popular ? p.brandText : p.borderSubtle,
               width: popular ? 2 : 1,
             ),
           ),

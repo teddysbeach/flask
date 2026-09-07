@@ -356,7 +356,7 @@ class _LevelOption extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (selected) DsIcon(DsIcons.success, size: 20, color: p.brandPrimary),
+                  if (selected) DsIcon(DsIcons.success, size: 20, color: p.brandText),
                 ],
               ),
             ),

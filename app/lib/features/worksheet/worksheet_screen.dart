@@ -937,7 +937,7 @@ class _ColorDot extends StatelessWidget {
                   color: color,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: selected ? p.brandPrimary : p.borderSubtle,
+                    color: selected ? p.brandText : p.borderSubtle,
                     width: selected ? 3 : 1,
                   ),
                 ),
