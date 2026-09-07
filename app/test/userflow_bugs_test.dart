@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onpar/core/boot_redirect.dart';
+import 'package:onpar/core/deep_links.dart';
 import 'package:onpar/core/notifications.dart';
 import 'package:onpar/core/routes.dart';
 import 'package:onpar/core/version_gate.dart';
@@ -41,6 +42,53 @@ void main() {
       for (final p in [Routes.home, Routes.library, Routes.create, Routes.paywall]) {
         expect(Routes.isPublic(p), isFalse, reason: '$p 는 세션이 있어야 한다');
       }
+    });
+  });
+
+  group('딥링크가 만들어 내는 경로', () {
+    /// 라우터 소스에 그 경로가 실제로 등록돼 있는가.
+    ///
+    /// GoRouter 를 띄워서 확인하려면 프로바이더 전부를 세워야 한다. 여기서 잡으려는 것은
+    /// "상수는 있는데 라우터에 없다" 는 종류의 누락이라, 등록 여부만 보면 충분하다.
+    bool registered(String path) {
+      final src = File('lib/router.dart').readAsStringSync();
+      // GoRoute(path: Routes.xxx ...) 또는 문자열 그대로.
+      final byConst = RegExp(r'path:\s*Routes\.(\w+)')
+          .allMatches(src)
+          .map((m) => m.group(1)!)
+          .toSet();
+      final names = {
+        Routes.notices: 'notices',
+        Routes.paywall: 'paywall',
+        Routes.reviewSession: 'reviewSession',
+        Routes.resetPassword: 'resetPassword',
+        Routes.settings: 'settings',
+        Routes.library: 'library',
+        Routes.home: 'home',
+      };
+      final name = names[path];
+      return name != null && byConst.contains(name);
+    }
+
+    test('딥링크가 보낼 수 있는 곳은 전부 라우터에 있다', () {
+      // 예전에 /notices 가 여기서 빠져 있었다. 상수도 있고 파서도 만들어 내는데
+      // 라우터에만 없어서, 공지 링크를 누르면 "없는 페이지" 에 떨어졌다.
+      for (final uri in [
+        'me.popol.onpar://notices',
+        'me.popol.onpar://paywall',
+        'me.popol.onpar://review',
+        'me.popol.onpar://reset-password',
+        'me.popol.onpar://settings',
+      ]) {
+        final route = DeepLinkService.toRoute(Uri.parse(uri));
+        expect(route, isNotNull, reason: '$uri 를 못 읽는다');
+        expect(registered(route!), isTrue, reason: '$uri → $route 가 라우터에 없다');
+      }
+    });
+
+    test('공지는 로그인 없이 열린다', () {
+      // 점검 공지가 가장 필요한 순간이 로그인이 안 되는 순간이다.
+      expect(Routes.isPublic(Routes.notices), isTrue);
     });
   });
 

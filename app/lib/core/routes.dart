@@ -50,7 +50,7 @@ class Routes {
   static const publicPaths = <String>{
     splash, gate, onboarding, consent,
     login, signup, verify, findAccount, resetPassword,
-    terms, privacy, licenses, support, faq, contact,
+    terms, privacy, licenses, support, faq, contact, notices,
   };
 
   static bool isPublic(String location) {

@@ -30,6 +30,7 @@ import 'features/home/home_shell.dart';
 import 'features/legal/legal_document_screen.dart';
 import 'features/legal/licenses_screen.dart';
 import 'features/library/library_screen.dart';
+import 'features/notices/notice_list_screen.dart';
 import 'features/notifications/notification_list_screen.dart';
 import 'features/notifications/notification_settings_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
@@ -259,6 +260,9 @@ List<RouteBase> _routes(Ref ref) => [
         pageBuilder: (_, state) => _sheetPage(state, const PaywallScreen()),
       ),
       GoRoute(path: Routes.notifications, builder: (_, __) => const NotificationListScreen()),
+      // 공지는 **로그인 전에도** 열려야 한다(publicPaths). 점검 공지가 필요한 순간이
+      // 바로 로그인이 안 되는 순간이다.
+      GoRoute(path: Routes.notices, builder: (_, __) => const NoticeListScreen()),
 
       StatefulShellRoute.indexedStack(
         builder: (_, __, shell) => HomeShell(navigationShell: shell),

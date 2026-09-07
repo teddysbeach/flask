@@ -112,6 +112,12 @@ class SettingsScreen extends ConsumerWidget {
                     title: '도움',
                     children: [
                       SettingsTile(
+                        label: '공지',
+                        description: '점검과 중요한 변경',
+                        icon: DsIcons.info,
+                        onTap: () => context.push(Routes.notices),
+                      ),
+                      SettingsTile(
                         label: '고객센터',
                         description: '자주 묻는 질문과 문의하기',
                         icon: DsIcons.info,
