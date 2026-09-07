@@ -143,7 +143,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       child: Scaffold(
         appBar: AppBar(title: const Text('프로필')),
         body: SafeArea(
-          child: profile.when(
+          child: dsAsync(profile,
             loading: () => const LoadingView(label: '프로필을 불러오는 중'),
             error: (e, st) => ErrorView(
               error: AppError.from(e, st),

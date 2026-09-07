@@ -79,7 +79,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       unawaited(_finish(skipped: false));
       return;
     }
-    _controller.nextPage(duration: DsMotion.durationBase, curve: DsMotion.easingStandard);
+    _controller.nextPage(duration: DsMotion.base, curve: DsCurve.standard);
   }
 
   @override
@@ -150,15 +150,29 @@ class _OnboardingPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           const SizedBox(height: DsSpace.s8),
-          Container(
-            padding: const EdgeInsets.all(DsSpace.s6),
-            decoration: BoxDecoration(color: p.brandPrimarySubtle, shape: BoxShape.circle),
-            child: DsIcon(page.icon, size: 40, color: p.brandText),
+          // 온보딩은 이 앱의 첫인상이다. 세 요소가 차례로 놓이면 '설명을 듣는다'가 되고,
+          // 한꺼번에 뜨면 '읽어야 할 것이 많다'가 된다.
+          DsFadeSlide(
+            duration: DsMotion.slower,
+            curve: DsCurve.emphasized,
+            child: Container(
+              padding: const EdgeInsets.all(DsSpace.s6),
+              decoration: BoxDecoration(color: p.brandPrimarySubtle, shape: BoxShape.circle),
+              child: DsIcon(page.icon, size: 40, color: p.brandText),
+            ),
           ),
           const SizedBox(height: DsSpace.s8),
-          Text(page.title, textAlign: TextAlign.center, style: dsTextStyle(DsType.h1, p.textPrimary)),
+          DsFadeSlide(
+            delay: dsStaggerDelay(2),
+            child: Text(page.title,
+                textAlign: TextAlign.center, style: dsTextStyle(DsType.h1, p.textPrimary)),
+          ),
           const SizedBox(height: DsSpace.s4),
-          Text(page.body, textAlign: TextAlign.center, style: dsTextStyle(DsType.bodyLg, p.textSecondary)),
+          DsFadeSlide(
+            delay: dsStaggerDelay(3),
+            child: Text(page.body,
+                textAlign: TextAlign.center, style: dsTextStyle(DsType.bodyLg, p.textSecondary)),
+          ),
           const SizedBox(height: DsSpace.s8),
         ],
       ),
@@ -185,8 +199,8 @@ class _Dots extends StatelessWidget {
           children: [
             for (var i = 0; i < count; i++)
               AnimatedContainer(
-                duration: DsMotion.durationBase,
-                curve: DsMotion.easingStandard,
+                duration: dsDuration(context, DsMotion.base),
+                curve: DsCurve.standard,
                 margin: const EdgeInsets.symmetric(horizontal: DsSpace.s1),
                 height: 8,
                 width: i == index ? 24 : 8,

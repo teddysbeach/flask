@@ -143,64 +143,66 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               DsSpace.s6,
               DsSpace.s6 + MediaQuery.viewInsetsOf(context).bottom,
             ),
-            child: AutofillGroup(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text('다시 오셨네요', style: dsTextStyle(DsType.h1, p.textPrimary)),
-                  const SizedBox(height: DsSpace.s2),
-                  Text('학습지와 복습 기록이 그대로 있어요.',
-                      style: dsTextStyle(DsType.body, p.textSecondary)),
-                  const SizedBox(height: DsSpace.s8),
-                  EmailField(
-                    controller: _email,
-                    focusNode: _emailFocus,
-                    errorText: _emailError,
-                    onSubmitted: (_) => _passwordFocus.requestFocus(),
-                  ),
-                  const SizedBox(height: DsSpace.s4),
-                  PasswordField(
-                    controller: _password,
-                    focusNode: _passwordFocus,
-                    errorText: _passwordError,
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => unawaited(_submit()),
-                    trailing: TextButton(
-                      onPressed: () => context.push(Routes.findAccount),
-                      child: Text('계정 찾기', style: dsTextStyle(DsType.caption, p.textSecondary)),
+            child: DsFadeSlide(
+              child: AutofillGroup(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text('다시 오셨네요', style: dsTextStyle(DsType.h1, p.textPrimary)),
+                    const SizedBox(height: DsSpace.s2),
+                    Text('학습지와 복습 기록이 그대로 있어요.',
+                        style: dsTextStyle(DsType.body, p.textSecondary)),
+                    const SizedBox(height: DsSpace.s8),
+                    EmailField(
+                      controller: _email,
+                      focusNode: _emailFocus,
+                      errorText: _emailError,
+                      onSubmitted: (_) => _passwordFocus.requestFocus(),
                     ),
-                  ),
-                  AuthFormError(message: _formError),
-                  const SizedBox(height: DsSpace.s6),
-                  OnceButton(onPressed: _submit, child: const Text('로그인')),
-                  const SizedBox(height: DsSpace.s4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('아직 계정이 없으세요?', style: dsTextStyle(DsType.body, p.textSecondary)),
-                      TextButton(
-                        onPressed: () => context.push(Routes.signup),
-                        child: const Text('가입하기'),
+                    const SizedBox(height: DsSpace.s4),
+                    PasswordField(
+                      controller: _password,
+                      focusNode: _passwordFocus,
+                      errorText: _passwordError,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => unawaited(_submit()),
+                      trailing: TextButton(
+                        onPressed: () => context.push(Routes.findAccount),
+                        child: Text('계정 찾기', style: dsTextStyle(DsType.caption, p.textSecondary)),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: DsSpace.s6),
-                  const _OrDivider(),
-                  const SizedBox(height: DsSpace.s6),
-                  if (showApple) ...[
-                    SocialButton(
-                      label: 'Apple 로 계속하기',
-                      icon: Icons.apple,
-                      onPressed: _signInWithApple,
                     ),
-                    const SizedBox(height: DsSpace.s3),
+                    AuthFormError(message: _formError),
+                    const SizedBox(height: DsSpace.s6),
+                    OnceButton(onPressed: _submit, child: const Text('로그인')),
+                    const SizedBox(height: DsSpace.s4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('아직 계정이 없으세요?', style: dsTextStyle(DsType.body, p.textSecondary)),
+                        TextButton(
+                          onPressed: () => context.push(Routes.signup),
+                          child: const Text('가입하기'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: DsSpace.s6),
+                    const _OrDivider(),
+                    const SizedBox(height: DsSpace.s6),
+                    if (showApple) ...[
+                      SocialButton(
+                        label: 'Apple 로 계속하기',
+                        icon: Icons.apple,
+                        onPressed: _signInWithApple,
+                      ),
+                      const SizedBox(height: DsSpace.s3),
+                    ],
+                    SocialButton(
+                      label: 'Google 로 계속하기',
+                      icon: Icons.g_mobiledata,
+                      onPressed: _signInWithGoogle,
+                    ),
                   ],
-                  SocialButton(
-                    label: 'Google 로 계속하기',
-                    icon: Icons.g_mobiledata,
-                    onPressed: _signInWithGoogle,
-                  ),
-                ],
+                ),
               ),
             ),
           ),

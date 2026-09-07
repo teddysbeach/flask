@@ -62,7 +62,14 @@ class _LegalDocumentScreenState extends ConsumerState<LegalDocumentScreen> {
         ],
       ),
       body: SafeArea(
-        child: showSummary ? _summary(offline) : _web(),
+        // 전문을 못 불러와 요약으로 떨어질 때. 갑자기 다른 글이 떠 있으면
+        // 사용자는 자기가 뭘 잘못 눌렀다고 생각한다.
+        child: DsSwitcher(
+          child: KeyedSubtree(
+            key: ValueKey(showSummary),
+            child: showSummary ? _summary(offline) : _web(),
+          ),
+        ),
       ),
     );
   }

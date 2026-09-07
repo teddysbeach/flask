@@ -41,8 +41,8 @@ class _LicensesScreenState extends ConsumerState<LicensesScreen> {
               style: dsTextStyle(DsType.body, p.textSecondary),
             ),
             const SizedBox(height: DsSpace.s6),
-            for (final notice in bundledNotices) ...[
-              _NoticeCard(notice: notice),
+            for (final (i, notice) in bundledNotices.indexed) ...[
+              DsFadeSlide(delay: dsStaggerDelay(i), child: _NoticeCard(notice: notice)),
               const SizedBox(height: DsSpace.s3),
             ],
             const SizedBox(height: DsSpace.s4),

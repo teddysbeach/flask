@@ -52,7 +52,7 @@ class _NotificationListScreenState extends ConsumerState<NotificationListScreen>
         ],
       ),
       body: SafeArea(
-        child: prefsAsync.when(
+        child: dsAsync(prefsAsync,
           loading: () => const LoadingView(),
           error: (e, st) => ErrorView(
             error: AppError.from(e, st),
@@ -74,10 +74,14 @@ class _NotificationListScreenState extends ConsumerState<NotificationListScreen>
               separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (context, i) {
                 final entry = items[i];
-                return _NotificationTile(
-                  entry: entry,
-                  busy: _opening == entry.scheduleId,
-                  onTap: () => _open(prefs, entry),
+                return DsFadeSlide(
+                  key: ValueKey(entry.id),
+                  delay: dsStaggerDelay(i),
+                  child: _NotificationTile(
+                    entry: entry,
+                    busy: _opening == entry.scheduleId,
+                    onTap: () => _open(prefs, entry),
+                  ),
                 );
               },
             );
@@ -144,7 +148,10 @@ class _NotificationTile extends StatelessWidget {
               // 색만으로 안 읽음을 말하지 않는다 — 점과 글자를 같이 쓴다.
               Padding(
                 padding: const EdgeInsets.only(top: DsSpace.s1),
-                child: Container(
+                // 읽으면 점이 사라진다. 툭 사라지면 사용자는 자기가 뭘 눌러 지웠는지 모른다.
+                child: AnimatedContainer(
+                  duration: dsDuration(context, DsMotion.base),
+                  curve: DsCurve.standard,
                   width: 8,
                   height: 8,
                   decoration: BoxDecoration(

@@ -30,62 +30,66 @@ class WorksheetTile extends StatelessWidget {
     final p = DsTheme.of(context);
     final failed = worksheet.status == WorksheetStatus.failed;
 
-    return Material(
-      color: p.surfaceRaised,
-      borderRadius: BorderRadius.circular(DsRadius.lg),
-      child: InkWell(
-        onTap: onTap,
+    // 물결(InkWell)은 어디를 눌렀는지 알려 주고, 크기(DsPressable)는 닿았다는 것을
+    // 알려 준다. 카드처럼 큰 것은 후자가 훨씬 분명하다 — 카드 전체가 반응하기 때문이다.
+    return DsPressable(
+      child: Material(
+        color: p.surfaceRaised,
         borderRadius: BorderRadius.circular(DsRadius.lg),
-        child: Container(
-          padding: const EdgeInsets.all(DsSpace.s4),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(DsRadius.lg),
-            border: Border.all(color: p.borderSubtle),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(DsRadius.lg),
+          child: Container(
+            padding: const EdgeInsets.all(DsSpace.s4),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(DsRadius.lg),
+              border: Border.all(color: p.borderSubtle),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        worksheet.displayTitle,
+                        style: dsTextStyle(
+                          DsType.bodyLg,
+                          p.textPrimary,
+                        ).copyWith(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    const SizedBox(width: DsSpace.s2),
+                    WorksheetStatusBadge(status: worksheet.status),
+                  ],
+                ),
+                const SizedBox(height: DsSpace.s2),
+                Text(_when(worksheet.createdAt), style: dsTextStyle(DsType.caption, p.textTertiary)),
+                if (failed) ...[
+                  const SizedBox(height: DsSpace.s3),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(DsSpace.s3),
+                    decoration: BoxDecoration(
+                      color: p.statusBgDanger,
+                      borderRadius: BorderRadius.circular(DsRadius.md),
+                    ),
                     child: Text(
-                      worksheet.displayTitle,
-                      style: dsTextStyle(
-                        DsType.bodyLg,
-                        p.textPrimary,
-                      ).copyWith(fontWeight: FontWeight.w600),
+                      worksheet.failureMessage,
+                      style: dsTextStyle(DsType.caption, p.textPrimary),
                     ),
                   ),
-                  const SizedBox(width: DsSpace.s2),
-                  WorksheetStatusBadge(status: worksheet.status),
-                ],
-              ),
-              const SizedBox(height: DsSpace.s2),
-              Text(_when(worksheet.createdAt), style: dsTextStyle(DsType.caption, p.textTertiary)),
-              if (failed) ...[
-                const SizedBox(height: DsSpace.s3),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(DsSpace.s3),
-                  decoration: BoxDecoration(
-                    color: p.statusBgDanger,
-                    borderRadius: BorderRadius.circular(DsRadius.md),
-                  ),
-                  child: Text(
-                    worksheet.failureMessage,
-                    style: dsTextStyle(DsType.caption, p.textPrimary),
-                  ),
-                ),
-                if (onRetry != null) ...[
-                  const SizedBox(height: DsSpace.s2),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton(onPressed: onRetry, child: const Text('다시 만들기')),
-                  ),
+                  if (onRetry != null) ...[
+                    const SizedBox(height: DsSpace.s2),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(onPressed: onRetry, child: const Text('다시 만들기')),
+                    ),
+                  ],
                 ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -109,7 +113,11 @@ class WorksheetStatusBadge extends StatelessWidget {
     };
     final busy = status == WorksheetStatus.queued || status == WorksheetStatus.generating;
 
-    return Container(
+    // "만드는 중 → 완성" 은 이 앱에서 사용자가 가장 기다린 순간이다.
+    // 글자만 갈아 끼우면 그 순간이 없던 일이 된다. 색과 폭이 함께 움직인다.
+    return AnimatedContainer(
+      duration: dsDuration(context, DsMotion.slow),
+      curve: DsCurve.standard,
       padding: const EdgeInsets.symmetric(horizontal: DsSpace.s2, vertical: DsSpace.s1),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(DsRadius.full)),
       child: Row(
@@ -128,7 +136,13 @@ class WorksheetStatusBadge extends StatelessWidget {
               color: fg,
             ),
           const SizedBox(width: DsSpace.s1),
-          Text(statusLabel(status), style: dsTextStyle(DsType.caption, fg)),
+          DsSwitcher(
+            duration: DsMotion.base,
+            alignment: Alignment.center,
+            travel: 8,
+            child: Text(statusLabel(status),
+                key: ValueKey(status), style: dsTextStyle(DsType.caption, fg)),
+          ),
         ],
       ),
     );

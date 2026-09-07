@@ -103,14 +103,16 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
           automaticallyImplyLeading: !_done,
         ),
         body: SafeArea(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              DsSpace.s6,
-              DsSpace.s4,
-              DsSpace.s6,
-              DsSpace.s6 + MediaQuery.viewInsetsOf(context).bottom,
+          child: DsFadeSlide(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                DsSpace.s6,
+                DsSpace.s4,
+                DsSpace.s6,
+                DsSpace.s6 + MediaQuery.viewInsetsOf(context).bottom,
+              ),
+              child: _done ? _doneBody(p) : _formBody(p),
             ),
-            child: _done ? _doneBody(p) : _formBody(p),
           ),
         ),
       ),

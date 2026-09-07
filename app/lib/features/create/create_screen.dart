@@ -202,7 +202,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
         appBar: AppBar(title: const Text('학습지 만들기')),
         // 키보드가 올라와도 입력칸이 가려지지 않게 본문 전체가 스크롤된다.
         body: SafeArea(
-          child: profile.when(
+          child: dsAsync(profile,
             loading: () => const LoadingView(label: '준비하고 있어요'),
             error: (e, st) => ErrorView(
               error: AppError.from(e, st),
@@ -365,43 +365,66 @@ class _LevelOption extends StatelessWidget {
         inMutuallyExclusiveGroup: true,
         selected: selected,
         label: '${level.label}, ${level.hint}',
-        child: Material(
-          color: selected ? p.brandPrimarySubtle : p.surfaceRaised,
-          borderRadius: BorderRadius.circular(DsRadius.lg),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(DsRadius.lg),
-            child: Container(
-              constraints: const BoxConstraints(minHeight: 56),
-              padding: const EdgeInsets.symmetric(horizontal: DsSpace.s4, vertical: DsSpace.s3),
-              decoration: BoxDecoration(
+        // 난이도는 이 화면에서 유일하게 고르는 것이다. 고른 순간 배경과 테두리가
+        // 흐르며 들어와야 '골랐다' 가 손보다 늦지 않다.
+        child: DsPressable(
+          child: AnimatedContainer(
+            duration: dsDuration(context, DsMotion.base),
+            curve: DsCurve.standard,
+            decoration: BoxDecoration(
+              color: selected ? p.brandPrimarySubtle : p.surfaceRaised,
+              borderRadius: BorderRadius.circular(DsRadius.lg),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(DsRadius.lg),
+              child: InkWell(
+                onTap: onTap,
                 borderRadius: BorderRadius.circular(DsRadius.lg),
-                border: Border.all(
-                  color: selected ? p.brandPrimary : p.borderSubtle,
-                  width: selected ? 2 : 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          level.label,
-                          style: dsTextStyle(
-                            DsType.bodyLg,
-                            selected ? p.brandTextOnSubtle : p.textPrimary,
-                          ).copyWith(fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: DsSpace.s1),
-                        Text(level.hint, style: dsTextStyle(DsType.caption, p.textSecondary)),
-                      ],
+                child: AnimatedContainer(
+                  duration: dsDuration(context, DsMotion.base),
+                  curve: DsCurve.standard,
+                  constraints: const BoxConstraints(minHeight: 56),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: DsSpace.s4, vertical: DsSpace.s3),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(DsRadius.lg),
+                    border: Border.all(
+                      color: selected ? p.brandPrimary : p.borderSubtle,
+                      width: selected ? 2 : 1,
                     ),
                   ),
-                  if (selected) DsIcon(DsIcons.success, size: 20, color: p.brandText),
-                ],
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              level.label,
+                              style: dsTextStyle(
+                                DsType.bodyLg,
+                                selected ? p.brandTextOnSubtle : p.textPrimary,
+                              ).copyWith(fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: DsSpace.s1),
+                            Text(level.hint,
+                                style: dsTextStyle(DsType.caption, p.textSecondary)),
+                          ],
+                        ),
+                      ),
+                      // 체크는 나타나는 것이 아니라 **자란다.** 크기가 0 에서 오면
+                      // 눈이 그 자리를 보게 되고, 그 자리가 방금 고른 칸이다.
+                      AnimatedScale(
+                        scale: selected ? 1 : 0,
+                        duration: dsDuration(context, DsMotion.base),
+                        curve: DsCurve.spring,
+                        child: DsIcon(DsIcons.success, size: 20, color: p.brandText),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),

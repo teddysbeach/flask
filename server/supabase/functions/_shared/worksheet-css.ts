@@ -352,9 +352,10 @@ code, .code {
   background: var(--ds-color-neutral-primary-base); color: var(--ds-color-neutral-primary-on-base);
 }
 .is-answered .quiz__submit { display: none; }
-/* 고르기 전에 답을 열려고 하면 살짝 흔들어 알린다 */
+/* 고르기 전에 답을 열려고 하면 살짝 흔들어 알린다.
+   흔드는 것은 summary(버튼)뿐이다 — 문단을 흔들면 그 위에 그은 획이 같이 흔들린다. */
 @keyframes nudge { 0%,100% { transform: translateX(0) } 25% { transform: translateX(-4px) } 75% { transform: translateX(4px) } }
-.is-nudge { animation: nudge .3s ease 2; }
+.is-nudge { animation: nudge var(--ds-duration-slow) var(--ds-ease-standard) 2; }
 .is-nudge .act__reveal summary, .is-nudge .quiz__a summary { color: var(--ds-callout-caution-accent); border-color: var(--ds-callout-caution-accent); }
 
 /* ── 맥락 노트 (접힘) ──
@@ -690,6 +691,66 @@ code, .code {
   .notice li::before { width: 24px; height: 24px; }
   .answer__text { font-size: 15px; min-height: 76px; }
   .sheet__footer { margin-top: 48px; }
+}
+
+/* ── 모션 ──
+   앱과 같은 곡선·같은 시간을 쓴다(design/design_tokens.json). 값이 두 벌이 되면
+   같은 제품이 두 속도로 움직이고, 사용자는 그것을 "학습지만 좀 느리다" 로 읽는다.
+
+   **이 문서에는 다른 곳에 없는 제약이 하나 있다: 필기.**
+   획은 [data-ink-anchor] 요소(.ink-space)의 사각형에 정규화되어 저장된다.
+   getBoundingClientRect 는 transform 을 반영하므로, 필기 칸을 품은 조상에
+   transform 을 걸면 애니메이션이 도는 동안 그린 획이 어긋난 자리에 남는다.
+   그래서 규칙은 둘이다.
+
+     1. transform 은 **컨트롤에만** 건다 — summary, button. 이들은 .ink-space 를 품지 않는다.
+     2. 본문 블록은 **opacity 만** 바꾼다. 밝기는 사각형을 건드리지 않는다.
+
+   자리(레이아웃)는 언제나 즉시 열린다. 열리는 동안 아래 내용이 천천히 밀려 내려오면
+   손이 따라가지 못하고, 필기하던 사람에게 그건 오작동이다. */
+
+/* 누르는 것들: 색은 흐르고, 손끝에는 크기로 답한다. */
+.act__reveal summary,
+.quiz__a summary,
+.context__summary,
+.quiz__submit,
+.act__opt,
+.act__attempt,
+.answer__text {
+  transition:
+    background-color var(--ds-duration-fast) var(--ds-ease-standard),
+    border-color var(--ds-duration-fast) var(--ds-ease-standard),
+    color var(--ds-duration-fast) var(--ds-ease-standard);
+}
+.act__reveal summary:active,
+.quiz__a summary:active,
+.context__summary:active,
+.quiz__submit:active {
+  transform: scale(var(--ds-motion-press-scale));
+  transition-duration: var(--ds-duration-instant);
+}
+@media (hover: hover) {
+  .act__reveal summary:hover,
+  .quiz__a summary:hover,
+  .context__summary:hover { border-color: var(--ds-color-border-strong); }
+  .quiz__submit:hover { background: var(--ds-color-text-secondary); }
+}
+
+/* 열리는 답. **자리는 즉시, 글자는 천천히.**
+   이 문서에서 사용자가 유일하게 기다리는 등장이라 여기만 조금 길게 준다. */
+@keyframes ds-reveal { from { opacity: 0 } to { opacity: 1 } }
+.act__reveal[open] > .act__reveal-body,
+.quiz__a[open] > .quiz__a-body,
+.context[open] > .context__body {
+  animation: ds-reveal var(--ds-duration-base) var(--ds-ease-enter) both;
+}
+
+/* 고른 보기에 색이 드는 순간. 정답/오답은 특히 천천히 물들어야 결과로 읽힌다. */
+.act__opt.is-picked,
+.act__opt.is-correct,
+.act__opt.is-wrong {
+  transition-duration: var(--ds-duration-slow);
+  transition-timing-function: var(--ds-ease-enter);
 }
 
 /* 움직임에 민감한 사람이 있다. OS 에 "동작 줄이기" 를 켜 둔 것은 취향이 아니라 요청이다.

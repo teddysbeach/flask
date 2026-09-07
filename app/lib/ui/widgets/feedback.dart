@@ -107,16 +107,28 @@ class _OnceButtonState extends State<OnceButton> {
   Widget build(BuildContext context) {
     final p = DsTheme.of(context);
     final on = widget.enabled && !_busy && widget.onPressed != null;
-    return FilledButton(
-      style: widget.style,
-      onPressed: on ? _run : null,
-      child: _busy
-          ? SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(strokeWidth: 2.4, color: p.brandOnPrimary),
-            )
-          : widget.child,
+    // 눌림은 크기로 알린다(애플의 촉감). 물결은 어디를 눌렀는지 알려 주지만
+    // 손끝이 닿았다는 것을 알려 주지는 않는다.
+    return DsPressable(
+      enabled: on,
+      child: FilledButton(
+        style: widget.style,
+        onPressed: on ? _run : null,
+        // 글자 ↔ 스피너가 툭 바뀌면 버튼이 한 번 깜빡인 것처럼 보인다.
+        child: DsSwitcher(
+          duration: DsMotion.fast,
+          alignment: Alignment.center,
+          travel: 0,
+          child: _busy
+              ? SizedBox(
+                  key: const ValueKey('busy'),
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2.4, color: p.brandOnPrimary),
+                )
+              : KeyedSubtree(key: const ValueKey('label'), child: widget.child),
+        ),
+      ),
     );
   }
 }

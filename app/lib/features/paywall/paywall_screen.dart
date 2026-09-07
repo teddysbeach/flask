@@ -80,7 +80,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         ],
       ),
       body: SafeArea(
-        child: data.when(
+        child: dsAsync(data,
           loading: () => const LoadingView(label: '상품을 불러오는 중'),
           error: (e, st) => ErrorView(
             error: AppError.from(e, st),
@@ -274,7 +274,11 @@ class _OfferCard extends StatelessWidget {
         if (store == null) '지금은 살 수 없어요',
       ].join(', '),
       child: ExcludeSemantics(
-        child: Container(
+        // 상품 카드는 값을 스토어에서 받아 채운다. 가격이 늦게 들어와 테두리·배지가
+        // 툭 바뀌면 "값이 바뀌었나" 로 읽힌다 — 돈 이야기에서 그건 특히 나쁘다.
+        child: AnimatedContainer(
+          duration: dsDuration(context, DsMotion.base),
+          curve: DsCurve.standard,
           padding: const EdgeInsets.all(DsSpace.s4),
           decoration: BoxDecoration(
             color: p.surfaceRaised,
@@ -334,19 +338,31 @@ class _OfferCard extends StatelessWidget {
               const SizedBox(height: DsSpace.s4),
               SizedBox(
                 width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                  onPressed: store == null || disabled ? null : onBuy,
-                  child: busy
-                      ? SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.4,
-                            color: p.brandOnPrimary,
-                          ),
-                        )
-                      : Text(store == null ? '지금은 살 수 없어요' : '구매하기'),
+                child: DsPressable(
+                  enabled: store != null && !disabled,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                    onPressed: store == null || disabled ? null : onBuy,
+                    // 결제창이 뜨기까지의 몇 초. 글자가 스피너로 툭 바뀌면
+                    // 눌린 건지 실패한 건지 알 수 없다.
+                    child: DsSwitcher(
+                      duration: DsMotion.fast,
+                      alignment: Alignment.center,
+                      travel: 0,
+                      child: busy
+                          ? SizedBox(
+                              key: const ValueKey('busy'),
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                                color: p.brandOnPrimary,
+                              ),
+                            )
+                          : Text(store == null ? '지금은 살 수 없어요' : '구매하기',
+                              key: const ValueKey('label')),
+                    ),
+                  ),
                 ),
               ),
             ],

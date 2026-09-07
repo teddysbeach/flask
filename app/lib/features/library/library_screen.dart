@@ -172,10 +172,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       itemBuilder: (context, i) {
         if (i == visible.length) return _Footer(state: state, controller: controller);
         final w = visible[i];
-        return WorksheetTile(
-          worksheet: w,
-          onTap: () => openWorksheet(context, w),
-          onRetry: () => openWorksheet(context, w),
+        // 첫 화면에 보이는 몇 장만 차례로 놓인다(dsStaggerDelay 가 상한을 건다).
+        // 스크롤해서 내려가는 동안에도 계속 시차를 주면 목록이 손을 따라오지 못한다.
+        return DsFadeSlide(
+          key: ValueKey(w.id),
+          delay: dsStaggerDelay(i),
+          child: WorksheetTile(
+            worksheet: w,
+            onTap: () => openWorksheet(context, w),
+            onRetry: () => openWorksheet(context, w),
+          ),
         );
       },
     );

@@ -99,14 +99,16 @@ class _FindAccountScreenState extends ConsumerState<FindAccountScreen> {
             children: [
               if (offline) const OfflineBanner(),
               Expanded(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(
-                    DsSpace.s6,
-                    DsSpace.s4,
-                    DsSpace.s6,
-                    DsSpace.s6 + MediaQuery.viewInsetsOf(context).bottom,
+                child: DsFadeSlide(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.fromLTRB(
+                      DsSpace.s6,
+                      DsSpace.s4,
+                      DsSpace.s6,
+                      DsSpace.s6 + MediaQuery.viewInsetsOf(context).bottom,
+                    ),
+                    child: _sent ? _sentBody(p) : _formBody(p),
                   ),
-                  child: _sent ? _sentBody(p) : _formBody(p),
                 ),
               ),
             ],

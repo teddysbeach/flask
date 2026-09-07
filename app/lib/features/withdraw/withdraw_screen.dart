@@ -83,24 +83,32 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
           ),
         ),
         body: SafeArea(
-          child: switch (_step) {
-            0 => _StepWarning(onNext: () => setState(() => _step = 1)),
-            1 => _StepReason(
-                reason: _reason,
-                detail: _detail,
-                onPick: (r) => setState(() => _reason = r),
-                onBack: () => setState(() => _step = 0),
-                onNext: () => setState(() => _step = 2),
-              ),
-            _ => _StepConfirm(
-                confirm: _confirm,
-                confirmWord: _confirmWord,
-                working: _working,
-                error: _error,
-                onBack: _working ? null : () => setState(() => _step = 1),
-                onSubmit: _canSubmit ? _submit : null,
-              ),
-          },
+          // 탈퇴는 세 단계다. 단계가 옆으로 넘어가야 '되돌릴 수 있는 과정' 으로 보인다 —
+          // 같은 자리에서 내용만 갈리면 사용자는 몇 번째인지 놓친다.
+          child: DsSwitcher(
+            duration: DsMotion.slow,
+            child: KeyedSubtree(
+              key: ValueKey(_step),
+              child: switch (_step) {
+                0 => _StepWarning(onNext: () => setState(() => _step = 1)),
+                1 => _StepReason(
+                    reason: _reason,
+                    detail: _detail,
+                    onPick: (r) => setState(() => _reason = r),
+                    onBack: () => setState(() => _step = 0),
+                    onNext: () => setState(() => _step = 2),
+                  ),
+                _ => _StepConfirm(
+                    confirm: _confirm,
+                    confirmWord: _confirmWord,
+                    working: _working,
+                    error: _error,
+                    onBack: _working ? null : () => setState(() => _step = 1),
+                    onSubmit: _canSubmit ? _submit : null,
+                  ),
+              },
+            ),
+          ),
         ),
       ),
     );
@@ -390,23 +398,26 @@ class _ReasonRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(DsRadius.md),
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 48),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: DsSpace.s2),
-            child: Row(
-              children: [
-                DsIcon(
-                  selected ? DsIcons.success : DsIcons.info,
-                  size: 20,
-                  color: selected ? p.brandText : p.textTertiary,
-                ),
-                const SizedBox(width: DsSpace.s3),
-                Expanded(
-                  child: Text(
-                    reason.label,
-                    style: dsTextStyle(DsType.body, selected ? p.textPrimary : p.textSecondary),
+          child: DsPressable(
+            scale: 0.985,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: DsSpace.s2),
+              child: Row(
+                children: [
+                  DsIcon(
+                    selected ? DsIcons.success : DsIcons.info,
+                    size: 20,
+                    color: selected ? p.brandText : p.textTertiary,
                   ),
-                ),
-              ],
+                  const SizedBox(width: DsSpace.s3),
+                  Expanded(
+                    child: Text(
+                      reason.label,
+                      style: dsTextStyle(DsType.body, selected ? p.textPrimary : p.textSecondary),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -513,35 +524,37 @@ class _WithdrawDone extends StatelessWidget {
     final p = DsTheme.of(context);
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(DsSpace.s6),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              DsIcon(DsIcons.success, size: 40, color: p.textTertiary, semanticLabel: '완료'),
-              const SizedBox(height: DsSpace.s4),
-              Semantics(
-                liveRegion: true,
-                child: Text(
-                  '탈퇴가 끝났어요',
-                  textAlign: TextAlign.center,
-                  style: dsTextStyle(DsType.h2, p.textPrimary),
+        child: DsFadeSlide(
+          child: Padding(
+            padding: const EdgeInsets.all(DsSpace.s6),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                DsIcon(DsIcons.success, size: 40, color: p.textTertiary, semanticLabel: '완료'),
+                const SizedBox(height: DsSpace.s4),
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    '탈퇴가 끝났어요',
+                    textAlign: TextAlign.center,
+                    style: dsTextStyle(DsType.h2, p.textPrimary),
+                  ),
                 ),
-              ),
-              const SizedBox(height: DsSpace.s3),
-              Text(
-                '그동안 ONPAR 을 써 주셔서 고마웠어요.\n'
-                '학습지와 필기는 지워졌고, 구매 내역만 법이 정한 기간 동안 익명으로 남아요.\n'
-                '언젠가 다시 배우고 싶어지면 새로 가입해 주세요.',
-                textAlign: TextAlign.center,
-                style: dsTextStyle(DsType.body, p.textSecondary),
-              ),
-              const SizedBox(height: DsSpace.s8),
-              FilledButton(
-                onPressed: () => context.go(Routes.login),
-                child: const Text('처음 화면으로'),
-              ),
-            ],
+                const SizedBox(height: DsSpace.s3),
+                Text(
+                  '그동안 ONPAR 을 써 주셔서 고마웠어요.\n'
+                  '학습지와 필기는 지워졌고, 구매 내역만 법이 정한 기간 동안 익명으로 남아요.\n'
+                  '언젠가 다시 배우고 싶어지면 새로 가입해 주세요.',
+                  textAlign: TextAlign.center,
+                  style: dsTextStyle(DsType.body, p.textSecondary),
+                ),
+                const SizedBox(height: DsSpace.s8),
+                FilledButton(
+                  onPressed: () => context.go(Routes.login),
+                  child: const Text('처음 화면으로'),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -67,13 +67,13 @@ class _NotificationSettingsScreenState extends ConsumerState<NotificationSetting
       backgroundColor: p.surfaceBase,
       appBar: AppBar(title: const Text('알림 설정')),
       body: SafeArea(
-        child: prefsAsync.when(
+        child: dsAsync(prefsAsync,
           loading: () => const LoadingView(),
           error: (e, st) => ErrorView(
             error: AppError.from(e, st),
             onRetry: () => ref.invalidate(sharedPrefsProvider),
           ),
-          data: (rawPrefs) => profileAsync.when(
+          data: (rawPrefs) => dsAsync(profileAsync,
             loading: () => const LoadingView(),
             error: (e, st) => ErrorView(
               error: AppError.from(e, st),

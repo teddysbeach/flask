@@ -9,6 +9,9 @@ env/*.json
 *.secrets.*
 server/supabase/.env
 
+# 테스트가 만드는 임시 렌더 결과. 테스트를 돌릴 때마다 바뀌므로 추적하지 않는다.
+.scratch/
+
 # flutter / dart
 app/.dart_tool/
 app/build/

@@ -117,7 +117,7 @@ class _CreateProgressScreenState extends ConsumerState<CreateProgressScreen> {
         ),
       ),
       body: SafeArea(
-        child: progress.when(
+        child: dsAsync(progress,
           // 첫 상태를 받기 전에도 사용자는 이미 기다리고 있다. 같은 진행 화면을 보여준다.
           loading: () => _working(context, null),
           error: (e, st) {
@@ -158,8 +158,9 @@ class _CreateProgressScreenState extends ConsumerState<CreateProgressScreen> {
           liveRegion: true,
           child: Column(
             children: [
-              AnimatedSwitcher(
-                duration: DsMotion.durationSlow,
+              DsSwitcher(
+                duration: DsMotion.slow,
+                alignment: Alignment.center,
                 child: Text(
                   title,
                   key: ValueKey(title),
@@ -169,9 +170,15 @@ class _CreateProgressScreenState extends ConsumerState<CreateProgressScreen> {
                 ),
               ),
               const SizedBox(height: DsSpace.s3),
-              Text(detail,
-                  textAlign: TextAlign.center,
-                  style: dsTextStyle(DsType.body, p.textSecondary)),
+              // 설명도 같이 바뀐다. 제목만 넘어가고 설명이 그대로면 둘이 어긋나 보인다.
+              DsSwitcher(
+                duration: DsMotion.slow,
+                alignment: Alignment.center,
+                child: Text(detail,
+                    key: ValueKey(detail),
+                    textAlign: TextAlign.center,
+                    style: dsTextStyle(DsType.body, p.textSecondary)),
+              ),
             ],
           ),
         ),
@@ -333,29 +340,43 @@ class _StageDots extends StatelessWidget {
                 SizedBox(
                   width: 22,
                   height: 22,
-                  child: i < currentIndex
-                      ? DsIcon(DsIcons.success, size: 18, color: p.statusSuccess)
-                      : i == currentIndex
-                          ? CircularProgressIndicator(strokeWidth: 2.4, color: p.brandText)
-                          : Center(
-                              child: Container(
-                                width: 7,
-                                height: 7,
-                                decoration: BoxDecoration(
-                                  color: p.borderStrong,
-                                  shape: BoxShape.circle,
+                  // 한 단계가 끝나면 스피너가 체크로 **넘어간다.** 툭 바뀌면 진행이 아니라
+                  // 화면 새로고침으로 보이고, 기다리는 사람에게 그 차이는 크다.
+                  child: DsSwitcher(
+                    duration: DsMotion.base,
+                    alignment: Alignment.center,
+                    travel: 6,
+                    child: i < currentIndex
+                        ? DsIcon(DsIcons.success,
+                            key: const ValueKey('done'), size: 18, color: p.statusSuccess)
+                        : i == currentIndex
+                            ? CircularProgressIndicator(
+                                key: const ValueKey('busy'),
+                                strokeWidth: 2.4,
+                                color: p.brandText)
+                            : Center(
+                                key: const ValueKey('todo'),
+                                child: Container(
+                                  width: 7,
+                                  height: 7,
+                                  decoration: BoxDecoration(
+                                    color: p.borderStrong,
+                                    shape: BoxShape.circle,
+                                  ),
                                 ),
                               ),
-                            ),
+                  ),
                 ),
                 const SizedBox(width: DsSpace.s3),
                 Expanded(
-                  child: Text(
-                    stages[i].$2,
+                  child: AnimatedDefaultTextStyle(
+                    duration: dsDuration(context, DsMotion.slow),
+                    curve: DsCurve.standard,
                     style: dsTextStyle(
                       DsType.body,
                       i <= currentIndex ? p.textPrimary : p.textTertiary,
                     ),
+                    child: Text(stages[i].$2),
                   ),
                 ),
               ],

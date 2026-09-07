@@ -408,6 +408,75 @@ await test('누르는 것은 전부 44px 이상이다', async () => {
   assert(small.length === 0, `44px 미만 ${small.length}곳: ${small.slice(0, 6).join(' / ')}`)
 })
 
+await test('필기 칸을 품은 조상에는 transform 이 걸리지 않는다', async () => {
+  // 이 문서의 모션에는 다른 어디에도 없는 제약이 있다.
+  // 획은 [data-ink-anchor] 요소의 사각형에 정규화되어 저장되고,
+  // getBoundingClientRect 는 transform 을 반영한다. 필기 칸을 품은 조상에 transform 이
+  // 걸리면 애니메이션이 도는 동안 그린 획이 어긋난 자리에 남는다 — 그리고 그건 저장된다.
+  const bad = await page.evaluate(() => {
+    const out: string[] = []
+    for (const anchor of document.querySelectorAll('[data-ink-anchor]')) {
+      for (let el: Element | null = anchor; el; el = el.parentElement) {
+        const cs = getComputedStyle(el)
+        // 고정 transform 은 괜찮다 — .sheet-scaler 의 배율이 그것이고, 필기 런타임은
+        // 그 배율을 알고 나눠 쓴다(ink-runtime.js). 문제는 **움직이는** transform 이다.
+        // 값이 시간에 따라 변하면 런타임이 읽은 배율과 실제가 프레임마다 어긋난다.
+        const transitions = cs.transitionProperty.split(',').map((v) => v.trim())
+        const durations = cs.transitionDuration.split(',').map((v) => parseFloat(v) || 0)
+        const movesByTransition = transitions.some((prop, i) =>
+          /^(transform|all)$/.test(prop) && (durations[i % durations.length] ?? 0) > 0)
+        const movesByAnimation =
+          cs.animationName !== 'none' && (parseFloat(cs.animationDuration) || 0) > 0
+        if (movesByTransition || movesByAnimation) {
+          out.push(`${el.tagName.toLowerCase()}.${String(el.className).split(' ')[0]}`)
+        }
+      }
+    }
+    return [...new Set(out)]
+  })
+  assert(bad.length === 0, `필기 칸 위에 움직이는 조상이 있다: ${bad.join(' / ')}`)
+})
+
+await test('답을 열어도 필기 칸의 가로 좌표계가 흔들리지 않는다', async () => {
+  // 자리(레이아웃)는 즉시 열리고 글자만 밝아지는 설계다. 애니메이션이 도는 동안
+  // 필기 칸의 폭이 변하면 그 사이에 그은 획이 다른 배율로 저장된다.
+  const url = renderFixture('event-sourcing')
+  await page.goto(url)
+  await waitReady()
+  const measure = () => page.evaluate(() => {
+    const el = document.querySelector('[data-ink-anchor]')!
+    const r = el.getBoundingClientRect()
+    return { w: Math.round(r.width), h: Math.round(r.height) }
+  })
+  const before = await measure()
+  await page.evaluate(() => {
+    const d = document.querySelector('.quiz__a') as HTMLDetailsElement | null
+    if (d) d.open = true
+  })
+  // 애니메이션 한복판에서 잰다. 여기서 값이 다르면 그 순간의 필기가 어긋난다.
+  await page.waitForTimeout(120)
+  const during = await measure()
+  assert(before.w === during.w && before.h === during.h,
+    `열리는 도중 필기 칸이 ${before.w}×${before.h} → ${during.w}×${during.h} 로 바뀐다`)
+})
+
+await test('모션 값은 앱과 같은 토큰에서 온다', async () => {
+  const vars = await page.evaluate(() => {
+    const cs = getComputedStyle(document.documentElement)
+    return {
+      base: cs.getPropertyValue('--ds-duration-base').trim(),
+      enter: cs.getPropertyValue('--ds-ease-enter').trim(),
+      standard: cs.getPropertyValue('--ds-ease-standard').trim(),
+      press: cs.getPropertyValue('--ds-motion-press-scale').trim(),
+    }
+  })
+  assert(vars.base.endsWith('ms'), `--ds-duration-base 가 비었다: "${vars.base}"`)
+  for (const [k, v] of Object.entries(vars)) {
+    assert(v.length > 0, `--ds-${k} 가 학습지에 안 실렸다 — 앱과 값이 갈라진다`)
+  }
+  assert(vars.enter.startsWith('cubic-bezier'), `곡선이 아니다: ${vars.enter}`)
+})
+
 await test('동작 줄이기를 켠 사람에게는 움직이지 않는다', async () => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.reload()
@@ -421,6 +490,20 @@ await test('동작 줄이기를 켠 사람에게는 움직이지 않는다', asy
   })
   assert(!/^\d+(\.\d+)?s$/.test(String(animated)) || parseFloat(String(animated)) < 0.05,
     `동작 줄이기를 켰는데 애니메이션이 ${animated} 동안 돈다`)
+
+  // 새로 넣은 전환(누름·색·답 열림)도 같이 멈춰야 한다. 하나라도 남으면
+  // "동작 줄이기" 가 반쯤만 지켜지는 셈이고, 그건 안 지킨 것과 같다.
+  const still = await page.evaluate(() => {
+    const out: string[] = []
+    for (const sel of ['.act__reveal summary', '.quiz__a summary', '.quiz__submit', '.act__opt']) {
+      const el = document.querySelector(sel)
+      if (!el) continue
+      const d = getComputedStyle(el).transitionDuration.split(',').map((v) => parseFloat(v))
+      if (d.some((v) => v > 0.05)) out.push(sel)
+    }
+    return out
+  })
+  assert(still.length === 0, `동작 줄이기를 켰는데 전환이 남아 있다: ${still.join(' / ')}`)
   await page.emulateMedia({ reducedMotion: 'no-preference' })
 })
 

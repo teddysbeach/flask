@@ -69,7 +69,9 @@ class FormScaffold extends StatelessWidget {
                   horizontal: DsSpace.s4,
                   vertical: DsSpace.s6,
                 ),
-                child: ReadableWidth(child: child),
+                // 폼은 이 앱에서 가장 많이 지나가는 화면이다(가입·로그인·인증·비밀번호·탈퇴).
+                // 한곳에서 한 번 얹으면 그 화면들이 전부 같은 속도로 자리를 잡는다.
+                child: ReadableWidth(child: DsFadeSlide(child: child)),
               ),
             ),
             if (bottom != null)
@@ -80,7 +82,10 @@ class FormScaffold extends StatelessWidget {
                   top: DsSpace.s2,
                   bottom: DsSpace.s4 + MediaQuery.viewInsetsOf(context).bottom,
                 ),
-                child: ReadableWidth(child: bottom!),
+                // 아래 버튼은 본문보다 한 박자 늦게 온다. 같이 오면 눈이 어디를 볼지 모른다.
+                child: ReadableWidth(
+                  child: DsFadeSlide(delay: dsStaggerDelay(2), child: bottom!),
+                ),
               ),
           ],
         ),

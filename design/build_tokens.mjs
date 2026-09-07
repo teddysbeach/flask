@@ -32,6 +32,17 @@ const strip = (v) =>
     ? Object.fromEntries(Object.entries(v).filter(([k]) => !isMeta(k)).map(([k, x]) => [k, strip(x)]))
     : v
 
+/** `cubic-bezier(a, b, c, d)` → [a, b, c, d]. 값이 깨지면 조용히 넘어가지 않고 멈춘다. */
+const bezier = (v) => {
+  const m = /^cubic-bezier\(([^)]+)\)$/.exec(String(v).trim())
+  if (!m) throw new Error(`곡선 값이 cubic-bezier() 형식이 아닙니다: ${v}`)
+  const parts = m[1].split(',').map((n) => Number(n.trim()))
+  if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n))) {
+    throw new Error(`곡선 값의 숫자가 네 개가 아닙니다: ${v}`)
+  }
+  return parts
+}
+
 const camel = (parts) =>
   parts.map((p, i) => (i === 0 ? p : p[0].toUpperCase() + p.slice(1))).join('')
 const kebab = (parts) =>
@@ -152,9 +163,13 @@ function buildDart(t) {
     return `  static const ${k} = <BoxShadow>[BoxShadow(color: ${toDartColor(color)}, offset: Offset(${dx.toFixed(1)}, ${dy.toFixed(1)}), blurRadius: ${blur.toFixed(1)})];`
   }).join('\n')
 
-  const motion = Object.entries(t.motion)
-    .filter(([k]) => k.startsWith('duration'))
+  // 모션은 시간과 곡선 두 벌이다. 곡선을 손으로 옮겨 적던 시절에 Dart 와 CSS 가
+  // 서로 다른 값을 들고 있었다 — 같은 앱이 두 속도로 움직였다. 이제 둘 다 여기서 나온다.
+  const dur = Object.entries(t.motion.duration)
     .map(([k, v]) => `  static const ${k} = Duration(milliseconds: ${v});`).join('\n')
+  const curves = Object.entries(t.motion.easing)
+    .map(([k, v]) => `  static const ${k} = Cubic(${bezier(v).join(', ')});`).join('\n')
+  const motion = dur
 
   const ink = Object.entries(t.worksheet.inkSpace).map(([k, v]) => `  static const ink${k[0].toUpperCase()}${k.slice(1)} = ${Number(v).toFixed(1)};`).join('\n')
   const wsExtra = ['blockGap', 'ruleWidth'].map((k) => `  static const ${k} = ${Number(t.worksheet[k]).toFixed(1)};`).join('\n')
@@ -216,11 +231,25 @@ class DsShadow {
 ${shadow}
 }
 
+/// 시간. 짧을수록 자주 쓰는 것이다 — 자주 보는 움직임이 길면 앱이 느려 보인다.
 class DsMotion {
   const DsMotion._();
 ${motion}
-  static const easingStandard = Cubic(0.2, 0, 0, 1);
-  static const easingEmphasized = Cubic(0.05, 0.7, 0.1, 1);
+
+  /// 목록 항목 사이의 시차. 이보다 크면 줄줄이 따라 들어오는 것이 눈에 보인다.
+  static const stagger = Duration(milliseconds: ${t.motion.stagger});
+
+  /// 등장할 때 올라오는 거리(dp). 크게 주면 '움직임'이 아니라 '이동'이 된다.
+  static const travel = ${Number(t.motion.travel).toFixed(1)};
+
+  /// 눌렀을 때 줄어드는 비율. 손끝이 닿았다는 것을 화면이 인정하는 최소한의 크기다.
+  static const pressScale = ${Number(t.motion.pressScale).toFixed(2)};
+}
+
+/// 곡선. 전부 감속(easeOut) 계열이다 — 애플의 움직임이 그렇고, 감속은 '놓았다'로 읽힌다.
+class DsCurve {
+  const DsCurve._();
+${curves}
 }
 
 class DsFont {
@@ -268,6 +297,10 @@ function buildCss(t) {
       decl(`ws-${kebab([k])}-weight`, String(v.weight)),
     ]),
     ...calloutVars(t, 'light'),
+    ...Object.entries(t.motion.duration).map(([k, v]) => decl(`duration-${k}`, `${v}ms`)),
+    ...Object.entries(t.motion.easing).map(([k, v]) => decl(`ease-${k}`, v)),
+    decl('motion-travel', `${t.motion.travel}px`),
+    decl('motion-press-scale', String(t.motion.pressScale)),
     decl('sheet-block-gap', `${t.worksheet.blockGap}px`),
     decl('paper', toCssColor(t.worksheet.paper.light)),
   ].join('\n')

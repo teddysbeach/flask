@@ -94,7 +94,11 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
                       );
                     }
                     final index = _index.clamp(0, items.length - 1);
-                    return _Card(
+                    // 문제가 바뀌는 것은 이 화면의 전부다. 같은 자리에서 글자만 갈리면
+                    // 사용자는 다음 문제로 넘어간 것을 못 알아채고 방금 본 답을 다시 읽는다.
+                    return DsSwitcher(
+                      duration: DsMotion.slow,
+                      child: _Card(
                       key: ValueKey(items[index].scheduleId),
                       item: items[index],
                       position: index + 1,
@@ -109,6 +113,7 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
                       onReveal: () => setState(() => _revealed = true),
                       onGrade: (grade) => _grade(items[index], grade, items.length),
                       onOpenWorksheet: () => _openWorksheet(items[index]),
+                      ),
                     );
                   },
                 ),
@@ -261,9 +266,14 @@ class _Card extends StatelessWidget {
                   _RecallPrompt(onReveal: onReveal),
                 if (revealed) ...[
                   const SizedBox(height: DsSpace.s6),
-                  _Answer(item: item),
+                  // 답은 '열린다'. 떠올리기를 멈추고 확인하는 순간이라, 이 화면에서
+                  // 유일하게 사용자가 기다렸던 등장이다.
+                  DsFadeSlide(duration: DsMotion.slow, child: _Answer(item: item)),
                   const SizedBox(height: DsSpace.s6),
-                  _GradeBar(submitting: submitting, onGrade: onGrade),
+                  DsFadeSlide(
+                    delay: dsStaggerDelay(2),
+                    child: _GradeBar(submitting: submitting, onGrade: onGrade),
+                  ),
                 ],
                 const SizedBox(height: DsSpace.s6),
                 TextButton(
@@ -311,11 +321,17 @@ class _Progress extends StatelessWidget {
             const SizedBox(height: DsSpace.s1),
             ClipRRect(
               borderRadius: BorderRadius.circular(DsRadius.full),
-              child: LinearProgressIndicator(
-                value: total == 0 ? 0 : position / total,
-                minHeight: 6,
-                backgroundColor: p.surfaceSunken,
-                color: p.brandText,
+              // 막대가 한 칸씩 점프하면 '몇 개 남았나' 가 아니라 '화면이 다시 그려졌다'로 보인다.
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(end: total == 0 ? 0 : position / total),
+                duration: dsDuration(context, DsMotion.slow),
+                curve: DsCurve.standard,
+                builder: (_, value, __) => LinearProgressIndicator(
+                  value: value,
+                  minHeight: 6,
+                  backgroundColor: p.surfaceSunken,
+                  color: p.brandText,
+                ),
               ),
             ),
           ],
@@ -419,29 +435,36 @@ class _ChoiceTile extends StatelessWidget {
     return Semantics(
       button: onTap != null,
       selected: selected,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(DsRadius.xl),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 48),
-          padding: const EdgeInsets.symmetric(horizontal: DsSpace.s4, vertical: DsSpace.s3),
-          decoration: BoxDecoration(
-            color: correct ? p.statusBgSuccess : p.surfaceRaised,
-            border: Border.all(color: border, width: correct || selected ? 2 : 1),
-            borderRadius: BorderRadius.circular(DsRadius.xl),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: Text(label, style: dsTextStyle(DsType.bodyLg, p.textPrimary))),
-              if (correct) ...[
-                const SizedBox(width: DsSpace.s2),
-                DsIcon(DsIcons.success, size: 20, color: p.statusSuccess, semanticLabel: '정답'),
-              ] else if (selected) ...[
-                const SizedBox(width: DsSpace.s2),
-                Text('내 답', style: dsTextStyle(DsType.caption, p.textSecondary)),
+      child: DsPressable(
+        enabled: onTap != null,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(DsRadius.xl),
+          // 정답이 드러나는 순간 테두리와 배경이 함께 물든다. 툭 바뀌면 '정답이었구나' 가 아니라
+          // '화면이 바뀌었네' 가 된다.
+          child: AnimatedContainer(
+            duration: dsDuration(context, DsMotion.slow),
+            curve: DsCurve.standard,
+            constraints: const BoxConstraints(minHeight: 48),
+            padding: const EdgeInsets.symmetric(horizontal: DsSpace.s4, vertical: DsSpace.s3),
+            decoration: BoxDecoration(
+              color: correct ? p.statusBgSuccess : p.surfaceRaised,
+              border: Border.all(color: border, width: correct || selected ? 2 : 1),
+              borderRadius: BorderRadius.circular(DsRadius.xl),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: Text(label, style: dsTextStyle(DsType.bodyLg, p.textPrimary))),
+                if (correct) ...[
+                  const SizedBox(width: DsSpace.s2),
+                  DsIcon(DsIcons.success, size: 20, color: p.statusSuccess, semanticLabel: '정답'),
+                ] else if (selected) ...[
+                  const SizedBox(width: DsSpace.s2),
+                  Text('내 답', style: dsTextStyle(DsType.caption, p.textSecondary)),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -545,26 +568,42 @@ class _Summary extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            DsIcon(DsIcons.success, size: 40, color: p.statusSuccess),
+            // 다 끝냈다. 이 화면에서만 살짝 튕기는 곡선을 쓴다 —
+            // 축하는 앱 전체에서 여기 한 곳뿐이라야 축하로 남는다.
+            DsFadeSlide(
+              duration: DsMotion.slower,
+              curve: DsCurve.spring,
+              travel: 20,
+              child: DsIcon(DsIcons.success, size: 40, color: p.statusSuccess),
+            ),
             const SizedBox(height: DsSpace.s4),
             Semantics(
               liveRegion: true,
-              child: Text(
-                '오늘 $answered개를 복습했어요',
-                textAlign: TextAlign.center,
-                style: dsTextStyle(DsType.h2, p.textPrimary),
+              child: DsFadeSlide(
+                delay: dsStaggerDelay(2),
+                child: Text(
+                  '오늘 $answered개를 복습했어요',
+                  textAlign: TextAlign.center,
+                  style: dsTextStyle(DsType.h2, p.textPrimary),
+                ),
               ),
             ),
             const SizedBox(height: DsSpace.s2),
-            Text(
-              recalled == answered
-                  ? '잊을 때쯤 다시 꺼내면 기억이 오래가요. 다음 복습은 알림으로 알려 드릴게요.'
-                  : '그중 $recalled개를 떠올렸어요. 못 떠올린 문제는 곧 다시 보여 드릴게요.',
-              textAlign: TextAlign.center,
-              style: dsTextStyle(DsType.body, p.textSecondary),
+            DsFadeSlide(
+              delay: dsStaggerDelay(3),
+              child: Text(
+                recalled == answered
+                    ? '잊을 때쯤 다시 꺼내면 기억이 오래가요. 다음 복습은 알림으로 알려 드릴게요.'
+                    : '그중 $recalled개를 떠올렸어요. 못 떠올린 문제는 곧 다시 보여 드릴게요.',
+                textAlign: TextAlign.center,
+                style: dsTextStyle(DsType.body, p.textSecondary),
+              ),
             ),
             const SizedBox(height: DsSpace.s8),
-            FilledButton(onPressed: onClose, child: const Text('닫기')),
+            DsFadeSlide(
+              delay: dsStaggerDelay(4),
+              child: FilledButton(onPressed: onClose, child: const Text('닫기')),
+            ),
           ],
         ),
       ),

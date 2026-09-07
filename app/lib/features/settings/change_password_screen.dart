@@ -71,76 +71,78 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       child: Scaffold(
         appBar: AppBar(title: const Text('비밀번호 변경')),
         body: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.all(DsSpace.s4),
-            children: [
-              Text(
-                '새로 쓸 비밀번호를 정해 주세요. 바꾸고 나면 다음 로그인부터 새 비밀번호를 쓰게 돼요.',
-                style: dsTextStyle(DsType.body, p.textSecondary),
-              ),
-              const SizedBox(height: DsSpace.s6),
-              TextField(
-                controller: _password,
-                obscureText: _obscure,
-                autofillHints: const [AutofillHints.newPassword],
-                textInputAction: TextInputAction.next,
-                onSubmitted: (_) => _confirmFocus.requestFocus(),
-                decoration: InputDecoration(
-                  labelText: '새 비밀번호',
-                  suffixIcon: IconButton(
-                    // 48dp 기본 크기를 가진 IconButton 을 쓴다.
-                    onPressed: () => setState(() => _obscure = !_obscure),
-                    icon: DsIcon(
-                      _obscure ? DsIcons.info : DsIcons.close,
-                      size: 20,
-                      color: p.textSecondary,
-                    ),
-                    tooltip: _obscure ? '비밀번호 보기' : '비밀번호 가리기',
-                  ),
+          child: DsFadeSlide(
+            child: ListView(
+              padding: const EdgeInsets.all(DsSpace.s4),
+              children: [
+                Text(
+                  '새로 쓸 비밀번호를 정해 주세요. 바꾸고 나면 다음 로그인부터 새 비밀번호를 쓰게 돼요.',
+                  style: dsTextStyle(DsType.body, p.textSecondary),
                 ),
-              ),
-              const SizedBox(height: DsSpace.s3),
-              _Rules(rules: check.rules),
-              const SizedBox(height: DsSpace.s4),
-              TextField(
-                controller: _confirm,
-                focusNode: _confirmFocus,
-                obscureText: _obscure,
-                autofillHints: const [AutofillHints.newPassword],
-                textInputAction: TextInputAction.done,
-                decoration: InputDecoration(
-                  labelText: '새 비밀번호 확인',
-                  errorText: _confirm.text.isEmpty || matched ? null : '두 칸이 서로 달라요.',
-                ),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: DsSpace.s4),
-                Semantics(
-                  liveRegion: true,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      DsIcon(DsIcons.warning, size: 18, color: p.statusDanger, semanticLabel: '오류'),
-                      const SizedBox(width: DsSpace.s2),
-                      Expanded(
-                        child: Text(_error!.message, style: dsTextStyle(DsType.body, p.statusDanger)),
+                const SizedBox(height: DsSpace.s6),
+                TextField(
+                  controller: _password,
+                  obscureText: _obscure,
+                  autofillHints: const [AutofillHints.newPassword],
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => _confirmFocus.requestFocus(),
+                  decoration: InputDecoration(
+                    labelText: '새 비밀번호',
+                    suffixIcon: IconButton(
+                      // 48dp 기본 크기를 가진 IconButton 을 쓴다.
+                      onPressed: () => setState(() => _obscure = !_obscure),
+                      icon: DsIcon(
+                        _obscure ? DsIcons.info : DsIcons.close,
+                        size: 20,
+                        color: p.textSecondary,
                       ),
-                    ],
+                      tooltip: _obscure ? '비밀번호 보기' : '비밀번호 가리기',
+                    ),
                   ),
+                ),
+                const SizedBox(height: DsSpace.s3),
+                _Rules(rules: check.rules),
+                const SizedBox(height: DsSpace.s4),
+                TextField(
+                  controller: _confirm,
+                  focusNode: _confirmFocus,
+                  obscureText: _obscure,
+                  autofillHints: const [AutofillHints.newPassword],
+                  textInputAction: TextInputAction.done,
+                  decoration: InputDecoration(
+                    labelText: '새 비밀번호 확인',
+                    errorText: _confirm.text.isEmpty || matched ? null : '두 칸이 서로 달라요.',
+                  ),
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: DsSpace.s4),
+                  Semantics(
+                    liveRegion: true,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        DsIcon(DsIcons.warning, size: 18, color: p.statusDanger, semanticLabel: '오류'),
+                        const SizedBox(width: DsSpace.s2),
+                        Expanded(
+                          child: Text(_error!.message, style: dsTextStyle(DsType.body, p.statusDanger)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: DsSpace.s6),
+                OnceButton(
+                  enabled: canSubmit,
+                  onPressed: canSubmit ? _submit : null,
+                  child: const Text('비밀번호 바꾸기'),
+                ),
+                const SizedBox(height: DsSpace.s4),
+                Text(
+                  '비밀번호가 기억나지 않으면 로그아웃한 뒤 "비밀번호 찾기" 로 다시 정할 수 있어요.',
+                  style: dsTextStyle(DsType.caption, p.textTertiary),
                 ),
               ],
-              const SizedBox(height: DsSpace.s6),
-              OnceButton(
-                enabled: canSubmit,
-                onPressed: canSubmit ? _submit : null,
-                child: const Text('비밀번호 바꾸기'),
-              ),
-              const SizedBox(height: DsSpace.s4),
-              Text(
-                '비밀번호가 기억나지 않으면 로그아웃한 뒤 "비밀번호 찾기" 로 다시 정할 수 있어요.',
-                style: dsTextStyle(DsType.caption, p.textTertiary),
-              ),
-            ],
+            ),
           ),
         ),
       ),

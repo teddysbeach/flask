@@ -648,17 +648,29 @@ class _WorksheetScreenState extends ConsumerState<WorksheetScreen>
         body: SafeArea(
           child: Column(
             children: [
-              if (offline) const OfflineBanner(),
-              // "저장됨" 도 "사라짐" 도 아닌 상태가 있다. 그걸 말하지 않으면 사용자는
-              // 앱을 지워도 되는지 알 수 없고, 지우면 그 필기는 정말 사라진다.
-              if (_spooled) const _SpooledBanner(),
-              if (_inkSaveBlocked != null)
-                _InkBlockedBanner(
-                  message: _inkSaveBlocked!,
-                  onReload: () => unawaited(_reloadInkFromServer()),
+              // 배너가 뜨고 지는 동안 **자리도 같이 열리고 닫힌다.**
+              // 필기 중에 학습지가 한 칸 툭 밀리면 그 순간 그은 획이 어긋난 자리에 남는다.
+              AnimatedSize(
+                duration: dsDuration(context, DsMotion.base),
+                curve: DsCurve.standard,
+                alignment: Alignment.topCenter,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (offline) const OfflineBanner(),
+                    // "저장됨" 도 "사라짐" 도 아닌 상태가 있다. 그걸 말하지 않으면 사용자는
+                    // 앱을 지워도 되는지 알 수 없고, 지우면 그 필기는 정말 사라진다.
+                    if (_spooled) const _SpooledBanner(),
+                    if (_inkSaveBlocked != null)
+                      _InkBlockedBanner(
+                        message: _inkSaveBlocked!,
+                        onReload: () => unawaited(_reloadInkFromServer()),
+                      ),
+                  ],
                 ),
+              ),
               Expanded(
-                child: view.when(
+                child: dsAsync(view,
                   loading: () => const LoadingView(label: '학습지를 여는 중'),
                   error: (e, st) => _errorView(context, AppError.from(e, st)),
                   data: (data) => _viewer(context, data),
@@ -981,29 +993,39 @@ class _ToolButton extends StatelessWidget {
         label: label,
         child: Padding(
           padding: const EdgeInsets.all(DsSpace.s1),
-          child: Material(
-            color: selected ? p.brandPrimarySubtle : Colors.transparent,
-            borderRadius: BorderRadius.circular(DsRadius.md),
-            child: InkWell(
-              onTap: enabled ? onTap : null,
+          // 도구는 필기 중에 가장 자주 누르는 것이다. 고른 도구의 배경이 흐르며 들어와야
+          // "바뀌었다"가 손보다 늦지 않는다.
+          child: AnimatedContainer(
+            duration: dsDuration(context, DsMotion.fast),
+            curve: DsCurve.standard,
+            decoration: BoxDecoration(
+              color: selected ? p.brandPrimarySubtle : Colors.transparent,
               borderRadius: BorderRadius.circular(DsRadius.md),
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 56, minHeight: 52),
-                padding: const EdgeInsets.symmetric(horizontal: DsSpace.s2, vertical: DsSpace.s1),
-                child: ExcludeSemantics(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      DsIcon(icon, size: 20, color: fg),
-                      const SizedBox(height: 2),
-                      Text(
-                        label,
-                        style: dsTextStyle(DsType.caption, fg).copyWith(
-                          fontSize: 11,
-                          fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+            ),
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(DsRadius.md),
+              child: InkWell(
+                onTap: enabled ? onTap : null,
+                borderRadius: BorderRadius.circular(DsRadius.md),
+                child: Container(
+                  constraints: const BoxConstraints(minWidth: 56, minHeight: 52),
+                  padding: const EdgeInsets.symmetric(horizontal: DsSpace.s2, vertical: DsSpace.s1),
+                  child: ExcludeSemantics(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        DsIcon(icon, size: 20, color: fg),
+                        const SizedBox(height: 2),
+                        Text(
+                          label,
+                          style: dsTextStyle(DsType.caption, fg).copyWith(
+                            fontSize: 11,
+                            fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -1099,9 +1121,22 @@ class _SaveIndicator extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              mark,
+              // 저장 표시는 필기하는 내내 눈 끝에 걸려 있다. 깜빡이면 손이 멈춘다.
+              // 그래서 여기서는 아주 짧게, 이동 없이 밝기만 넘긴다.
+              DsSwitcher(
+                duration: DsMotion.fast,
+                alignment: Alignment.center,
+                travel: 0,
+                child: KeyedSubtree(key: ValueKey(label), child: mark),
+              ),
               const SizedBox(width: DsSpace.s1),
-              Text(label, style: dsTextStyle(DsType.caption, p.textTertiary)),
+              DsSwitcher(
+                duration: DsMotion.fast,
+                alignment: Alignment.centerLeft,
+                travel: 0,
+                child: Text(label,
+                    key: ValueKey(label), style: dsTextStyle(DsType.caption, p.textTertiary)),
+              ),
             ],
           ),
         ),

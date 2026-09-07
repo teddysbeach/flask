@@ -22,8 +22,8 @@ class FaqScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(DsSpace.s4, DsSpace.s4, DsSpace.s4, DsSpace.s12),
           children: [
-            for (final item in faqItems) ...[
-              _FaqCard(item: item),
+            for (final (i, item) in faqItems.indexed) ...[
+              DsFadeSlide(delay: dsStaggerDelay(i), child: _FaqCard(item: item)),
               const SizedBox(height: DsSpace.s2),
             ],
             const SizedBox(height: DsSpace.s6),

@@ -91,7 +91,9 @@ class _QuotaCard extends ConsumerWidget {
     final p = DsTheme.of(context);
 
     return _Card(
-      child: ref.watch(profileProvider).when(
+      child: dsAsync(
+            ref.watch(profileProvider),
+            alignment: Alignment.centerLeft,
             loading: () => const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -120,7 +122,7 @@ class _QuotaCard extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.baseline,
                         textBaseline: TextBaseline.alphabetic,
                         children: [
-                          Text('$left',
+                          DsCounterText('$left',
                               style: dsTextStyle(DsType.display,
                                   empty ? p.textTertiary : p.textPrimary)),
                           const SizedBox(width: DsSpace.s1),
@@ -154,7 +156,8 @@ class _ReviewCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final p = DsTheme.of(context);
 
-    return ref.watch(dueReviewCountProvider).when(
+    return dsAsync(
+          ref.watch(dueReviewCountProvider),
           loading: () => const _Card(
             child: Row(children: [SkeletonBox(height: 18, width: 160)]),
           ),
@@ -234,7 +237,9 @@ class _RecentSection extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: DsSpace.s2),
-        ref.watch(recentWorksheetsProvider).when(
+        dsAsync(
+              ref.watch(recentWorksheetsProvider),
+              alignment: Alignment.topLeft,
               loading: () => const Column(
                 children: [
                   WorksheetTileSkeleton(),
@@ -262,13 +267,18 @@ class _RecentSection extends ConsumerWidget {
                     ),
                   );
                 }
+                // 학습지는 차례로 놓인다. 한꺼번에 나타나면 '목록이 로드됐다' 지만
+                // 차례로 놓이면 '내가 만든 것이 쌓여 있다' 로 읽힌다.
                 return Column(
                   children: [
-                    for (final w in items) ...[
-                      WorksheetTile(
-                        worksheet: w,
-                        onTap: () => openWorksheet(context, w),
-                        onRetry: () => openWorksheet(context, w),
+                    for (final (i, w) in items.indexed) ...[
+                      DsFadeSlide(
+                        delay: dsStaggerDelay(i),
+                        child: WorksheetTile(
+                          worksheet: w,
+                          onTap: () => openWorksheet(context, w),
+                          onRetry: () => openWorksheet(context, w),
+                        ),
                       ),
                       if (w != items.last) const SizedBox(height: DsSpace.s2),
                     ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'motion.dart';
 import 'tokens/tokens.g.dart';
 
 /// 팔레트를 위젯 트리에 흘려보낸다.
@@ -46,6 +47,19 @@ ThemeData dsThemeData(Brightness brightness) {
     fontFamily: DsFont.family,
     fontFamilyFallback: DsFont.sans,
     extensions: [DsTheme(palette: p)],
+    // 화면 전환은 **여기 한 곳**에서 정한다. 화면마다 정하면 어떤 화면은 밀리고
+    // 어떤 화면은 페이드되는데, 사용자는 그걸 "앱이 일관성 없다" 가 아니라
+    // "앱이 덜 만들어졌다" 로 읽는다.
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.iOS: DsPageTransitionsBuilder(),
+        TargetPlatform.android: DsPageTransitionsBuilder(),
+        TargetPlatform.macOS: DsPageTransitionsBuilder(),
+        TargetPlatform.windows: DsPageTransitionsBuilder(),
+        TargetPlatform.linux: DsPageTransitionsBuilder(),
+        TargetPlatform.fuchsia: DsPageTransitionsBuilder(),
+      },
+    ),
     colorScheme: ColorScheme(
       brightness: brightness,
       primary: p.brandPrimary,

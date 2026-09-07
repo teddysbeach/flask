@@ -214,7 +214,10 @@ class _QuotaCard extends ConsumerWidget {
         color: p.brandPrimarySubtle,
         borderRadius: BorderRadius.circular(DsRadius.lg),
       ),
-      child: profile.when(
+      child: dsAsync(
+        profile,
+        alignment: Alignment.center,
+        travel: 8,
         loading: () => const Row(
           children: [
             Expanded(child: SkeletonBox(height: 22)),
@@ -251,7 +254,9 @@ class _QuotaCard extends ConsumerWidget {
                   children: [
                     Text('남은 학습지', style: dsTextStyle(DsType.caption, p.brandTextOnSubtle)),
                     const SizedBox(height: DsSpace.s1),
-                    Text('${me.quotaRemaining}장',
+                    // 장수는 이 화면에서 유일하게 '바뀌는 숫자'다. 결제하고 돌아왔을 때
+                    // 같은 자리에 다른 숫자가 그냥 앉아 있으면 늘어난 줄 모른다.
+                    DsCounterText('${me.quotaRemaining}장',
                         style: dsTextStyle(DsType.h2, p.textPrimary)),
                   ],
                 ),

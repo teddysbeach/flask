@@ -204,9 +204,11 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
               DsSpace.s6,
               DsSpace.s6 + MediaQuery.viewInsetsOf(context).bottom,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: _isPhone ? _phoneBody(p) : _emailBody(p),
+            child: DsFadeSlide(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: _isPhone ? _phoneBody(p) : _emailBody(p),
+              ),
             ),
           ),
         ),

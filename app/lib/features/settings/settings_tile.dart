@@ -69,104 +69,114 @@ class SettingsTile extends StatelessWidget {
       // 색이 빨갛다는 것은 스크린리더에 전달되지 않는다. 말로 붙여 준다.
       label: danger ? '$label. 되돌릴 수 없어요' : null,
       value: value,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: on ? onTap : null,
-          child: ConstrainedBox(
-            // 터치 영역 최소 48dp. 글꼴이 커지면 아래로 늘어난다.
-            constraints: const BoxConstraints(minHeight: 56),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: DsSpace.s4,
-                vertical: DsSpace.s3,
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  if (icon != null) ...[
-                    DsIcon(icon!, size: 20, color: danger ? p.statusDanger : p.textSecondary),
-                    const SizedBox(width: DsSpace.s3),
-                  ],
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(label, style: dsTextStyle(DsType.bodyLg, labelColor)),
-                        if (description != null) ...[
-                          const SizedBox(height: DsSpace.s1),
-                          Text(description!, style: dsTextStyle(DsType.caption, p.textSecondary)),
-                        ],
-                      ],
-                    ),
-                  ),
-                  if (value != null) ...[
-                    const SizedBox(width: DsSpace.s3),
-                    Flexible(
-                      child: Text(
-                        value!,
-                        textAlign: TextAlign.end,
-                        style: dsTextStyle(DsType.body, p.textSecondary),
+      // 목록 한 줄도 눌리면 줄어든다. 설정 화면에서 이것 하나가 빠지면
+      // "설정만 다른 앱 같다" 는 인상이 남는다.
+      child: DsPressable(
+        enabled: on,
+        scale: 0.985,
+          child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: on ? onTap : null,
+            child: ConstrainedBox(
+              // 터치 영역 최소 48dp. 글꼴이 커지면 아래로 늘어난다.
+              constraints: const BoxConstraints(minHeight: 56),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: DsSpace.s4,
+                  vertical: DsSpace.s3,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (icon != null) ...[
+                      DsIcon(icon!, size: 20, color: danger ? p.statusDanger : p.textSecondary),
+                      const SizedBox(width: DsSpace.s3),
+                    ],
+                    Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(label, style: dsTextStyle(DsType.bodyLg, labelColor)),
+                            if (description != null) ...[
+                              const SizedBox(height: DsSpace.s1),
+                              Text(description!, style: dsTextStyle(DsType.caption, p.textSecondary)),
+                            ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                  if (trailing != null) ...[
-                    const SizedBox(width: DsSpace.s2),
-                    trailing!,
-                  ],
-                  if (showChevron && onTap != null) ...[
-                    const SizedBox(width: DsSpace.s2),
-                    const ChevronRight(),
-                  ],
-                ],
+                      if (value != null) ...[
+                        const SizedBox(width: DsSpace.s3),
+                        Flexible(
+                          child: Text(
+                            value!,
+                            textAlign: TextAlign.end,
+                            style: dsTextStyle(DsType.body, p.textSecondary),
+                          ),
+                        ),
+                      ],
+                      if (trailing != null) ...[
+                        const SizedBox(width: DsSpace.s2),
+                        trailing!,
+                      ],
+                      if (showChevron && onTap != null) ...[
+                        const SizedBox(width: DsSpace.s2),
+                        const ChevronRight(),
+                      ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    }
   }
-}
 
-/// 제목이 붙은 카드 묶음.
-class SettingsSection extends StatelessWidget {
-  const SettingsSection({super.key, this.title, required this.children});
+  /// 제목이 붙은 카드 묶음.
+  class SettingsSection extends StatelessWidget {
+    const SettingsSection({super.key, this.title, required this.children});
 
-  final String? title;
-  final List<Widget> children;
+    final String? title;
+    final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
     final p = DsTheme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (title != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(DsSpace.s4, DsSpace.s6, DsSpace.s4, DsSpace.s2),
-            child: Text(title!, style: dsTextStyle(DsType.caption, p.textTertiary)),
-          )
-        else
-          const SizedBox(height: DsSpace.s4),
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: DsSpace.s4),
-          decoration: BoxDecoration(
-            color: p.surfaceRaised,
-            borderRadius: BorderRadius.circular(DsRadius.lg),
-            border: Border.all(color: p.borderSubtle),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            children: [
-              for (var i = 0; i < children.length; i++) ...[
-                if (i > 0) Divider(height: 1, thickness: 1, color: p.borderSubtle),
-                children[i],
+    // 설정·계정·고객센터가 전부 이 묶음으로 그려진다. 여기서 한 번 얹으면
+    // 그 화면들의 목록이 같은 리듬으로 자리를 잡는다 — 화면마다 얹으면 반드시 어긋난다.
+    return DsFadeSlide(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (title != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(DsSpace.s4, DsSpace.s6, DsSpace.s4, DsSpace.s2),
+              child: Text(title!, style: dsTextStyle(DsType.caption, p.textTertiary)),
+            )
+          else
+            const SizedBox(height: DsSpace.s4),
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: DsSpace.s4),
+            decoration: BoxDecoration(
+              color: p.surfaceRaised,
+              borderRadius: BorderRadius.circular(DsRadius.lg),
+              border: Border.all(color: p.borderSubtle),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                for (var i = 0; i < children.length; i++) ...[
+                  if (i > 0) Divider(height: 1, thickness: 1, color: p.borderSubtle),
+                  children[i],
+                ],
               ],
-            ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

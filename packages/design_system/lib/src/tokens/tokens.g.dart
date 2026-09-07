@@ -234,13 +234,33 @@ class DsShadow {
   static const lg = <BoxShadow>[BoxShadow(color: Color(0x1F000000), offset: Offset(0.0, 4.0), blurRadius: 16.0)];
 }
 
+/// 시간. 짧을수록 자주 쓰는 것이다 — 자주 보는 움직임이 길면 앱이 느려 보인다.
 class DsMotion {
   const DsMotion._();
-  static const durationFast = Duration(milliseconds: 100);
-  static const durationBase = Duration(milliseconds: 200);
-  static const durationSlow = Duration(milliseconds: 300);
-  static const easingStandard = Cubic(0.2, 0, 0, 1);
-  static const easingEmphasized = Cubic(0.05, 0.7, 0.1, 1);
+  static const instant = Duration(milliseconds: 90);
+  static const fast = Duration(milliseconds: 160);
+  static const base = Duration(milliseconds: 240);
+  static const slow = Duration(milliseconds: 360);
+  static const slower = Duration(milliseconds: 520);
+
+  /// 목록 항목 사이의 시차. 이보다 크면 줄줄이 따라 들어오는 것이 눈에 보인다.
+  static const stagger = Duration(milliseconds: 40);
+
+  /// 등장할 때 올라오는 거리(dp). 크게 주면 '움직임'이 아니라 '이동'이 된다.
+  static const travel = 12.0;
+
+  /// 눌렀을 때 줄어드는 비율. 손끝이 닿았다는 것을 화면이 인정하는 최소한의 크기다.
+  static const pressScale = 0.97;
+}
+
+/// 곡선. 전부 감속(easeOut) 계열이다 — 애플의 움직임이 그렇고, 감속은 '놓았다'로 읽힌다.
+class DsCurve {
+  const DsCurve._();
+  static const standard = Cubic(0.32, 0.72, 0, 1);
+  static const enter = Cubic(0.22, 1, 0.36, 1);
+  static const exit = Cubic(0.4, 0, 1, 1);
+  static const emphasized = Cubic(0.16, 1, 0.3, 1);
+  static const spring = Cubic(0.34, 1.4, 0.64, 1);
 }
 
 class DsFont {

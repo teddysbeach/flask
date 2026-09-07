@@ -24,12 +24,17 @@ class SplashScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const OnparLogo(symbolHeight: 92),
+                // 앱을 켠 첫 0.5초다. 로고가 이미 놓여 있으면 '기다렸다' 로 읽히고,
+                // 살짝 커지며 놓이면 '지금 열렸다' 로 읽힌다. 이 화면에만 쓰는 강조 곡선.
+                const _LogoEntrance(),
                 const SizedBox(height: DsSpace.s6),
-                Text(
-                  '배우고 싶은 걸 넣으면, 학습지가 나와요',
-                  textAlign: TextAlign.center,
-                  style: dsTextStyle(DsType.body, p.textSecondary),
+                DsFadeSlide(
+                  delay: dsStaggerDelay(2),
+                  child: Text(
+                    '배우고 싶은 걸 넣으면, 학습지가 나와요',
+                    textAlign: TextAlign.center,
+                    style: dsTextStyle(DsType.body, p.textSecondary),
+                  ),
                 ),
                 const SizedBox(height: DsSpace.s12),
                 if (Env.isConfigured)
@@ -49,6 +54,41 @@ class SplashScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 로고가 놓이는 방식. 페이드와 함께 0.94 → 1 로 커진다.
+///
+/// 커지는 폭이 이보다 크면 '튀어나온다'가 되고, 스플래시에서 튀어나오는 것은
+/// 브랜드가 아니라 광고처럼 보인다.
+class _LogoEntrance extends StatefulWidget {
+  const _LogoEntrance();
+
+  @override
+  State<_LogoEntrance> createState() => _LogoEntranceState();
+}
+
+class _LogoEntranceState extends State<_LogoEntrance> with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: DsMotion.slower)..forward();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const logo = OnparLogo(symbolHeight: 92);
+    if (dsReduceMotion(context)) return logo;
+
+    final curved = _c.drive(CurveTween(curve: DsCurve.emphasized));
+    return FadeTransition(
+      opacity: curved,
+      alwaysIncludeSemantics: true,
+      child: ScaleTransition(scale: Tween(begin: 0.94, end: 1.0).animate(curved), child: logo),
     );
   }
 }

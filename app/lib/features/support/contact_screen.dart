@@ -104,7 +104,15 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
       child: Scaffold(
         appBar: AppBar(title: const Text('문의하기')),
         body: SafeArea(
-          child: _ticketId != null ? _received(p) : _form(p, version),
+          // 접수되면 화면이 통째로 바뀐다. 툭 갈리면 "보낸 게 맞나" 싶고,
+          // 넘어가면 "보냈고 이건 접수증" 으로 읽힌다.
+          child: DsSwitcher(
+            duration: DsMotion.slow,
+            child: KeyedSubtree(
+              key: ValueKey(_ticketId != null),
+              child: _ticketId != null ? _received(p) : _form(p, version),
+            ),
+          ),
         ),
       ),
     );

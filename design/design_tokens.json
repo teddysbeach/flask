@@ -226,11 +226,40 @@
     "lg": "0px 4px 16px #0000001f"
   },
   "motion": {
-    "durationFast": 100,
-    "durationBase": 200,
-    "durationSlow": 300,
-    "easingStandard": "cubic-bezier(0.4, 0, 0.2, 1)",
-    "easingEmphasized": "cubic-bezier(0.05, 0.7, 0.1, 1)"
+    "_note": [
+      "모션의 기준은 애플이다. 이유는 취향이 아니라 이 앱이 사는 곳 때문이다 —",
+      "아이패드에서 애플펜슬로 쓰는 앱이라, 화면의 움직임이 iOS 의 움직임과 다르면",
+      "'이 앱만 느리다/튄다'로 읽힌다. 그래서 두 가지를 애플에서 가져왔다.",
+      "  1. 거의 모든 전환이 감속(easeOut)이다. 빠르게 출발해 천천히 놓는다.",
+      "  2. 사라지는 것은 나타나는 것보다 빠르다. 기다림은 등장에만 쓴다.",
+      "커브값은 요즘 쓰는 것으로 골랐다. quint/expo 계열은 끝에서 길게 눕는 곡선이라",
+      "짧은 시간에도 '천천히 놓았다'는 인상이 남는다 — 애플의 스프링이 주는 인상과 같다.",
+      "앱(Flutter)과 학습지(HTML)가 같은 값을 쓴다. 두 벌이 되면 같은 제품이 두 속도로 움직인다."
+    ],
+    "duration": {
+      "instant": 90,
+      "fast": 160,
+      "base": 240,
+      "slow": 360,
+      "slower": 520
+    },
+    "easing": {
+      "standard": "cubic-bezier(0.32, 0.72, 0, 1)",
+      "enter": "cubic-bezier(0.22, 1, 0.36, 1)",
+      "exit": "cubic-bezier(0.4, 0, 1, 1)",
+      "emphasized": "cubic-bezier(0.16, 1, 0.3, 1)",
+      "spring": "cubic-bezier(0.34, 1.4, 0.64, 1)"
+    },
+    "_easingNote": {
+      "standard": "화면 전환·시트. iOS 시트가 올라올 때의 그 곡선이다. 앞이 가파르고 뒤가 길다.",
+      "enter": "들어오는 것(easeOutQuint). 목록·카드·본문이 자리를 잡는 데 쓴다.",
+      "exit": "나가는 것(easeIn). 사라지는 것을 기다리게 하지 않는다.",
+      "emphasized": "강조 등장(easeOutExpo). 화면당 한 번만 — 전부 강조하면 아무것도 강조가 아니다.",
+      "spring": "끝에서 살짝 넘겼다 돌아온다. 성공·완료처럼 축하할 때만. 색 보간에는 쓰지 않는다(범위를 넘는다)."
+    },
+    "stagger": 40,
+    "travel": 12,
+    "pressScale": 0.97
   },
   "breakpoint": {
     "phone": 0,
@@ -301,16 +330,34 @@
     "_calloutNote": "콜아웃은 라이트/다크 값을 따로 갖는다. 한 값만 두면 다크에서 밝은 배경 위에 밝은 글자가 얹혀 1:1 대비가 된다 — 아예 안 보인다.",
     "callout": {
       "story": {
-        "accent": { "light": "#8a5a00", "dark": "#ffcc5c" },
-        "bg": { "light": "#fff6db", "dark": "#332a12" }
+        "accent": {
+          "light": "#8a5a00",
+          "dark": "#ffcc5c"
+        },
+        "bg": {
+          "light": "#fff6db",
+          "dark": "#332a12"
+        }
       },
       "tip": {
-        "accent": { "light": "#046a52", "dark": "#4ed9ae" },
-        "bg": { "light": "#edfaf6", "dark": "#16302a" }
+        "accent": {
+          "light": "#046a52",
+          "dark": "#4ed9ae"
+        },
+        "bg": {
+          "light": "#edfaf6",
+          "dark": "#16302a"
+        }
       },
       "caution": {
-        "accent": { "light": "#c41d14", "dark": "#ff8a80" },
-        "bg": { "light": "#fdf0f0", "dark": "#322323" }
+        "accent": {
+          "light": "#c41d14",
+          "dark": "#ff8a80"
+        },
+        "bg": {
+          "light": "#fdf0f0",
+          "dark": "#322323"
+        }
       }
     },
     "blockGap": 28,

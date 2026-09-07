@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:onpar_design_system/onpar_design_system.dart';
 
 import 'core/analytics.dart';
 import 'core/analytics_observer.dart';
@@ -90,6 +91,19 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return router;
 });
+
+/// 아래에서 올라오는 페이지. 나머지 화면은 테마의 [DsPageTransitionsBuilder] 가 맡는다 —
+/// 전환을 화면마다 정하면 반드시 어긋나므로, 여기 예외는 시트뿐이다.
+CustomTransitionPage<void> _sheetPage(GoRouterState state, Widget child) => CustomTransitionPage(
+      key: state.pageKey,
+      transitionDuration: DsMotion.slow,
+      // 닫히는 것은 열리는 것보다 빠르다.
+      reverseTransitionDuration: DsMotion.base,
+      child: child,
+      transitionsBuilder: (context, animation, secondary, child) =>
+          const DsSheetTransitionsBuilder()
+              .buildTransitions<void>(null, context, animation, secondary, child),
+    );
 
 String? _redirect(Ref ref, GoRouterState state) {
   final links = ref.read(deepLinkServiceProvider);
@@ -237,7 +251,13 @@ List<RouteBase> _routes(Ref ref) => [
         parentNavigatorKey: _rootKey,
         builder: (_, __) => const ReviewSessionScreen(),
       ),
-      GoRoute(path: Routes.paywall, parentNavigatorKey: _rootKey, builder: (_, __) => const PaywallScreen()),
+      // 결제는 **잠깐 얹히는 화면**이다. 밀려 들어오면 "다음 단계" 로 읽히고,
+      // 아래에서 올라오면 "여기서 결정하고 돌아간다" 로 읽힌다(iOS 시트).
+      GoRoute(
+        path: Routes.paywall,
+        parentNavigatorKey: _rootKey,
+        pageBuilder: (_, state) => _sheetPage(state, const PaywallScreen()),
+      ),
       GoRoute(path: Routes.notifications, builder: (_, __) => const NotificationListScreen()),
 
       StatefulShellRoute.indexedStack(

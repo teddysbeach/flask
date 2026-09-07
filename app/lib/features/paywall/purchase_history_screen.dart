@@ -36,7 +36,7 @@ class PurchaseHistoryScreen extends ConsumerWidget {
         ],
       ),
       body: SafeArea(
-        child: history.when(
+        child: dsAsync(history,
           loading: () => const LoadingView(label: '구매 내역을 불러오는 중'),
           error: (e, st) => ErrorView(
             error: AppError.from(e, st),
@@ -57,7 +57,8 @@ class PurchaseHistoryScreen extends ConsumerWidget {
                   child: ListView(
                     padding: const EdgeInsets.only(bottom: DsSpace.s12),
                     children: [
-                      for (final row in rows) _HistoryTile(record: row),
+                      for (final (i, row) in rows.indexed)
+                        DsFadeSlide(delay: dsStaggerDelay(i), child: _HistoryTile(record: row)),
                       Padding(
                         padding: const EdgeInsets.all(DsSpace.s6),
                         child: NoticeBox(

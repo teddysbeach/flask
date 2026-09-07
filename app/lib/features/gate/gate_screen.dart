@@ -89,29 +89,47 @@ class _GateBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = DsTheme.of(context);
+    // 관문은 사용자가 원해서 온 화면이 아니다(점검·강제 업데이트).
+    // 차례로 놓이면 통보가 아니라 설명으로 읽힌다.
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Align(
-          child: Container(
-            padding: const EdgeInsets.all(DsSpace.s4),
-            decoration: BoxDecoration(color: iconBackground, shape: BoxShape.circle),
-            child: DsIcon(icon, size: 28, color: iconColor),
+        DsFadeSlide(
+          duration: DsMotion.slower,
+          curve: DsCurve.emphasized,
+          child: Align(
+            child: Container(
+              padding: const EdgeInsets.all(DsSpace.s4),
+              decoration: BoxDecoration(color: iconBackground, shape: BoxShape.circle),
+              child: DsIcon(icon, size: 28, color: iconColor),
+            ),
           ),
         ),
         const SizedBox(height: DsSpace.s6),
-        Text(title, textAlign: TextAlign.center, style: dsTextStyle(DsType.h2, p.textPrimary)),
+        DsFadeSlide(
+          delay: dsStaggerDelay(1),
+          child: Text(title,
+              textAlign: TextAlign.center, style: dsTextStyle(DsType.h2, p.textPrimary)),
+        ),
         const SizedBox(height: DsSpace.s3),
-        Text(body, textAlign: TextAlign.center, style: dsTextStyle(DsType.bodyLg, p.textSecondary)),
+        DsFadeSlide(
+          delay: dsStaggerDelay(2),
+          child: Text(body,
+              textAlign: TextAlign.center, style: dsTextStyle(DsType.bodyLg, p.textSecondary)),
+        ),
         const SizedBox(height: DsSpace.s8),
-        ...actions,
+        for (final (i, action) in actions.indexed)
+          DsFadeSlide(delay: dsStaggerDelay(3 + i), child: action),
         if (footnote != null) ...[
           const SizedBox(height: DsSpace.s6),
-          Text(
-            footnote!,
-            textAlign: TextAlign.center,
-            style: dsTextStyle(DsType.caption, p.textTertiary),
+          DsFadeSlide(
+            delay: dsStaggerDelay(5),
+            child: Text(
+              footnote!,
+              textAlign: TextAlign.center,
+              style: dsTextStyle(DsType.caption, p.textTertiary),
+            ),
           ),
         ],
       ],
