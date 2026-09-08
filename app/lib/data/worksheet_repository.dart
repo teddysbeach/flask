@@ -74,6 +74,28 @@ class WorksheetRepository {
     }
   }
 
+  /// 생성 중인 학습지의 상태. 진행 화면이 3초마다 부른다.
+  ///
+  /// 평범한 select 가 아니라 RPC 인 이유가 있다. **읽는 행위가 곧 고치는 행위**다 —
+  /// 서버의 백그라운드가 죽어 매달려 있는 건이면 이 호출이 그 자리에서 닫고 장수를 돌려준다.
+  /// 예전에는 그 청소가 "같은 사용자가 새 생성을 요청할 때" 만 돌았고, 그래서 아무것도
+  /// 하지 않으면 화면은 13분이고 30분이고 "만드는 중" 이었다.
+  Future<WorksheetSummary> status(String id) async {
+    try {
+      final rows = await _client.rpc('worksheet_status', params: {'p_id': id}).withTimeout();
+      final list = rows as List<dynamic>;
+      if (list.isEmpty) {
+        // 남의 것이거나 지워진 것. 있음/없음을 구분해 알려주지 않는다.
+        throw AppError.of(AppErrorKind.notFound, message: '학습지를 찾을 수 없어요.');
+      }
+      return WorksheetSummary.fromMap(Map<String, dynamic>.from(list.first as Map));
+    } on AppError {
+      rethrow;
+    } catch (e, st) {
+      throw mapSupabaseError(e, st);
+    }
+  }
+
   /// 생성 요청. 서버는 202 로 바로 답하고 뒤에서 만든다(40~120초).
   ///
   /// 같은 주제로 두 번 눌러도 한 번만 나간다. 이게 없으면 사용자가 두 장을 잃는다.
@@ -106,19 +128,32 @@ class WorksheetRepository {
     });
   }
 
+  /// 서버가 매달린 생성을 닫아 주는 기준(generation_stall_timeout, 10분)보다 조금 뒤.
+  ///
+  /// 앞서면 안 된다. 앞서면 사용자는 **서버가 곧 내놓을 진짜 실패 사유** 대신
+  /// "오래 걸리네요" 라는 모호한 화면을 보게 되고, 장수를 돌려받았는지도 알 수 없다.
+  static const watchDeadline = Duration(minutes: 11);
+
   /// 생성이 끝날 때까지 상태를 지켜본다. Realtime 이 끊겨도 폴링이 받쳐 준다 —
   /// 여기서 멈추면 사용자는 영원히 도는 스피너를 본다.
+  ///
+  /// 마감은 **학습지가 만들어진 시각** 기준이다. 스트림이 시작한 시각으로 재면
+  /// 화면을 나갔다 들어올 때마다 시계가 0으로 돌아가서, 30분이 지나도 영원히
+  /// "곧 됩니다" 상태에 머문다. 실제로 그렇게 13분을 기다린 신고가 있었다.
   Stream<WorksheetSummary> watch(String id) async* {
-    var last = await get(id);
+    var last = await status(id);
     yield last;
     if (last.isTerminal) return;
 
-    final deadline = DateTime.now().add(const Duration(minutes: 5));
+    final deadline = last.createdAt.add(watchDeadline);
     while (DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(const Duration(seconds: 3));
       try {
-        final next = await get(id);
-        if (next.status != last.status || next.isTerminal) yield next;
+        final next = await status(id);
+        // 단계가 바뀐 것도 화면이 알아야 한다. 상태만 보면 진행 표시가 안 움직인다.
+        if (next.status != last.status || next.stage != last.stage || next.isTerminal) {
+          yield next;
+        }
         last = next;
         if (next.isTerminal) return;
       } on AppError catch (e) {

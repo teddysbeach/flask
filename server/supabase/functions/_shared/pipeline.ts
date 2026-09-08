@@ -25,6 +25,29 @@ export type ErrorCode =
   | 'cost_cap_exceeded'
   /** 청소기가 먼저 이 생성을 실패로 닫고 환불했다. 뒤늦게 끝난 결과는 버린다. */
   | 'generation_superseded'
+  /**
+   * 스스로 정한 벽시계 예산을 넘겼다.
+   *
+   * 런타임이 백그라운드를 죽이면 우리는 아무것도 못 한다 — 행이 'generating' 인 채
+   * 남고, 사용자는 "만드는 중" 을 몇십 분 동안 본다. 그러니 죽기 전에 **우리가 먼저**
+   * 끊고 닫고 환불한다. 기다리게 하는 것보다 실패했다고 말하는 편이 언제나 낫다.
+   */
+  | 'generation_timeout'
+
+/** 파이프라인이 밟는 단계. DB 의 worksheets_stage_valid 제약과 같은 목록이어야 한다. */
+export type Stage = 'plan' | 'draft' | 'critic' | 'revise' | 'render' | 'save'
+
+/**
+ * 한 장에 쓸 수 있는 벽시계 시간.
+ *
+ * 정상은 40~120초다. 재작성 2회에 재시도까지 겹쳐도 이 안에 끝난다.
+ * 넘겼다는 것은 어딘가 걸렸다는 뜻이고, 더 기다려서 좋아지지 않는다 —
+ * 그동안 사용자는 스피너를 보고 있고 토큰은 계속 나간다.
+ *
+ * DB 의 generation_stall_timeout(10분)보다 **짧아야** 한다. 그래야 정상적으로 살아 있는
+ * 생성이 청소기에 먼저 잡혀 '연결이 끊겼다' 는 엉뚱한 말을 듣는 일이 없다.
+ */
+export const GENERATION_BUDGET_MS = 8 * 60_000
 
 export class PipelineError extends Error {
   code: ErrorCode
@@ -45,6 +68,13 @@ export interface Deps {
     dailyGenerationCount(userId: string): Promise<number>
     refundQuota(userId: string): Promise<void>
     createWorksheet(row: { id: string; userId: string; topic: string; level: string }): Promise<void>
+    /**
+     * 지금 밟고 있는 단계를 적는다. **최선 노력이다 — 실패해도 생성을 깨지 않는다.**
+     *
+     * 이 값이 없던 동안 진행 화면은 경과 시간만 보고 단계를 지어냈고,
+     * 서버가 죽은 뒤에도 "품질을 검사하고 있어요" 라고 말했다.
+     */
+    setStage(worksheetId: string, stage: Stage): Promise<void>
     /**
      * 완성본을 저장한다. **아직 살아 있는 생성에만** 쓴다 —
      * 청소기가 이미 실패로 닫고 환불한 건이면 false 를 돌려주고 아무것도 쓰지 않는다.
@@ -104,6 +134,15 @@ export interface CostBudget {
 
 export const newCostBudget = (): CostBudget => ({ remainingUsd: MAX_WORKSHEET_COST_USD })
 
+/**
+ * 한 장의 마감 시각. **시도들이 함께 쓴다** — 돈 예산과 같은 이유다.
+ *
+ * 시도마다 새로 주면 재시도 3회에 8분 × 3 이 되고, 그러면 DB 의 청소 기준(10분)을
+ * 넘긴 살아 있는 생성이 '연결이 끊겼다' 며 환불당한다. 다 만들어 놓고 버리는 일이
+ * 생기는 자리가 정확히 여기다.
+ */
+export const newDeadline = (now: Date): Date => new Date(now.getTime() + GENERATION_BUDGET_MS)
+
 export interface GenerateAccepted {
   worksheetId: string
   status: 'queued'
@@ -137,12 +176,36 @@ export async function acceptGeneration(deps: Deps, input: GenerateInput): Promis
 export async function runGeneration(
   deps: Deps, input: GenerateInput, worksheetId: string, attempt = 1,
   budget: CostBudget = newCostBudget(),
+  deadline?: Date,
 ): Promise<void> {
   const started = deps.now()
+  const dueAt = deadline ?? newDeadline(started)
   let planResult: LlmResult | undefined
   let draftResult: LlmResult | undefined
   let criticResult: LlmResult | undefined
-  let stage = 'plan'
+  let stage: Stage = 'plan'
+
+  /**
+   * 단계를 옮긴다. 옮길 때마다 **두 가지**를 한다 — 서버에 알리고, 시간을 본다.
+   *
+   * 알리는 쪽은 최선 노력이다(실패해도 생성은 계속된다). 시간 쪽은 아니다:
+   * 예산을 넘겼으면 여기서 끊어야 런타임이 우리를 죽이기 전에 우리가 먼저 닫고 환불한다.
+   */
+  const enter = async (next: Stage) => {
+    const now = deps.now()
+    if (now.getTime() > dueAt.getTime()) {
+      throw new PipelineError('generation_timeout',
+        `벽시계 예산 ${Math.round(GENERATION_BUDGET_MS / 1000)}초를 넘겼습니다 ` +
+        `(이번 시도 ${Math.round((now.getTime() - started.getTime()) / 1000)}초, ${stage} → ${next})`)
+    }
+    stage = next
+    try {
+      await deps.db.setStage(worksheetId, next)
+    } catch (e) {
+      // 진행 표시가 안 되는 것과 학습지가 안 나오는 것은 무게가 다르다.
+      console.error('[pipeline] 단계 보고 실패', String(e))
+    }
+  }
 
   // 이번 시도에 쓴 호출들. 기록(generation_jobs)에 남길 실비를 세는 데 쓴다.
   //
@@ -171,6 +234,7 @@ export async function runGeneration(
     const dp = draftParams(downshift)
 
     // ① 설계 — 판단은 여기서 끝난다
+    await enter('plan')
     planResult = charge(await deps.llm.plan(input.topic, input.level, { maxTokens: 1000, effort: 'medium' }))
     const outline = planResult.json as WorksheetOutline
     if (!outline || typeof outline !== 'object' || !Array.isArray(outline.quiz_plan)) {
@@ -182,7 +246,7 @@ export async function runGeneration(
     }
 
     // ② 집필 — 설계도를 문장으로 옮기기만 한다
-    stage = 'draft'
+    await enter('draft')
     draftResult = charge(await deps.llm.draft(outline, {
       maxTokens: dp.maxTokens, effort: dp.effort, lengthScale: dp.lengthScale,
     }))
@@ -205,7 +269,7 @@ export async function runGeneration(
         const issues = (e instanceof ValidationError ? e.issues.slice(0, 12) : [String(e)]).map((i) => `[스키마] ${i}`)
         if (round >= MAX_REVISIONS) throw new PipelineError('draft_schema_invalid', issues.join('; '))
         revisions++
-        stage = 'revise'
+        await enter('revise')
         draftResult = charge(await deps.llm.revise(outline, draftResult.json, revisionInstructions(issues, emptyVerdict()), { maxTokens: dp.maxTokens, effort: dp.effort }))
         continue
       }
@@ -222,7 +286,7 @@ export async function runGeneration(
       ]
 
       // 검사관 — 정적 검사 위에서 의미적 판단 (오개념, 전이 거리, 단순화의 정확성)
-      stage = 'critic'
+      await enter('critic')
       criticResult = charge(await deps.llm.critique(candidate, staticIssues, { maxTokens: 1500 }))
       verdict = normalizeVerdict(criticResult.json)
 
@@ -238,13 +302,13 @@ export async function runGeneration(
       }
 
       revisions++
-      stage = 'revise'
+      await enter('revise')
       draftResult = charge(await deps.llm.revise(outline, candidate, revisionInstructions(staticIssues, verdict), { maxTokens: dp.maxTokens, effort: dp.effort }))
     }
     if (!content || !verdict) throw new PipelineError('draft_quality_rejected', '검사 루프가 결과 없이 끝났습니다')
 
     // ④ 렌더 — 결정론적 순수 함수
-    stage = 'render'
+    await enter('render')
     const quizItemIds = content.practice.quiz.map(() => deps.newId())
     const htmlPath = `${input.userId}/${worksheetId}.html`
     let html: string
@@ -255,6 +319,7 @@ export async function runGeneration(
     }
     await deps.storage.putHtml(htmlPath, html)
 
+    await enter('save')
     const saved = await deps.db.saveContent(worksheetId, content, {
       quizItemIds, htmlPath,
       planModel: planResult.model, draftModel: draftResult.model,
@@ -294,8 +359,6 @@ export async function runGeneration(
       errorCode: code,
     })
     throw e
-  } finally {
-    void started
   }
 }
 

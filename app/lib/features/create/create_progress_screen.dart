@@ -35,13 +35,28 @@ class CreateProgressScreen extends ConsumerStatefulWidget {
 }
 
 class _CreateProgressScreenState extends ConsumerState<CreateProgressScreen> {
-  /// 단계는 서버가 알려주지 않는다. 걸리는 시간이 대체로 일정해서 시간으로 나눈다.
-  /// 지어낸 진행률(%)은 쓰지 않는다 — 90%에서 멈춰 있는 막대가 가장 나쁘다.
-  static const _stages = <(Duration, String, String)>[
-    (Duration.zero, '주제를 정리하고 있어요', '무엇부터 설명할지 순서를 잡는 중이에요.'),
-    (Duration(seconds: 18), '학습지를 쓰고 있어요', '예시와 연습 문제를 함께 만들고 있어요.'),
-    (Duration(seconds: 70), '품질을 검사하고 있어요', '덜 만들어진 학습지를 드리지 않으려고 한 번 더 봐요.'),
+  /// 서버가 말한 단계를 사람 말로. **여기 있는 것만 화면에 뜬다** —
+  /// 지어낸 것은 하나도 없고, 서버가 아무 말도 안 했으면 아무 말도 하지 않는다.
+  static const _labels = <GenerationStage, (String, String)>{
+    GenerationStage.plan: ('주제를 정리하고 있어요', '무엇부터 설명할지 순서를 잡는 중이에요.'),
+    GenerationStage.draft: ('학습지를 쓰고 있어요', '예시와 연습 문제를 함께 만들고 있어요.'),
+    GenerationStage.critic: ('품질을 검사하고 있어요', '덜 만들어진 학습지를 드리지 않으려고 한 번 더 봐요.'),
+    GenerationStage.revise: ('다시 쓰고 있어요', '검사에서 걸린 부분을 고쳐서 다시 쓰는 중이에요.'),
+    GenerationStage.render: ('학습지를 그리고 있어요', '필기할 수 있는 한 장으로 옮기는 중이에요.'),
+    GenerationStage.save: ('거의 다 됐어요', '복습 일정까지 잡고 마무리하는 중이에요.'),
+  };
+
+  /// 화면에 줄지어 보여줄 단계. revise 는 뺀다 — 몇 번 돌지 정해져 있지 않아서
+  /// 목록에 넣으면 진행이 뒤로 가는 것처럼 보인다(대신 지금 단계로는 표시된다).
+  static const _track = <GenerationStage>[
+    GenerationStage.plan,
+    GenerationStage.draft,
+    GenerationStage.critic,
+    GenerationStage.render,
   ];
+
+  /// 보통 걸리는 시간. 넘겼다고 실패는 아니지만, 넘겼는데도 아무 말 안 하면 그건 숨기는 것이다.
+  static const _normal = Duration(minutes: 3);
 
   Timer? _tick;
   Duration _elapsed = Duration.zero;
@@ -78,12 +93,22 @@ class _CreateProgressScreenState extends ConsumerState<CreateProgressScreen> {
     return _failed(context, w);
   }
 
-  (String, String) get _stage {
-    var current = _stages.first;
-    for (final s in _stages) {
-      if (_elapsed >= s.$1) current = s;
-    }
-    return (current.$2, current.$3);
+  /// 지금 무엇을 하고 있는가. **모르면 모른다고 말한다.**
+  ///
+  /// 예전에는 경과 시간으로 단계를 지어냈다. 그래서 서버가 죽은 뒤에도 화면은
+  /// "품질을 검사하고 있어요" 라고 13분 동안 말했다. 사용자가 잃은 것은 시간이 아니라
+  /// 다음에 이 앱이 하는 말을 믿을 이유였다.
+  (String, String) _stageText(WorksheetSummary? w) {
+    final known = w?.stage;
+    if (known != null) return _labels[known]!;
+    // 서버가 아직 첫 단계를 적기 전(보통 몇 초)에는 사실만 말한다.
+    return ('학습지를 만들고 있어요', '주문이 서버에 들어갔어요. 곧 어디까지 왔는지 알려 드릴게요.');
+  }
+
+  static String _elapsedText(Duration d) {
+    final m = d.inMinutes;
+    final sec = d.inSeconds % 60;
+    return m > 0 ? '$m분 $sec초째' : '$sec초째';
   }
 
   void _openWorksheet() {
@@ -150,7 +175,11 @@ class _CreateProgressScreenState extends ConsumerState<CreateProgressScreen> {
 
   Widget _working(BuildContext context, WorksheetSummary? w) {
     final p = DsTheme.of(context);
-    final (title, detail) = _stage;
+    final (title, detail) = _stageText(w);
+    // 시간은 화면이 센 초가 아니라 **서버가 적은 시각**으로 잰다. 앱을 껐다 켜도,
+    // 이 화면을 나갔다 들어와도 같은 숫자가 나와야 믿을 수 있다.
+    final age = w?.age(DateTime.now()) ?? _elapsed;
+    final slow = age > _normal;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(DsSpace.s6, DsSpace.s12, DsSpace.s6, DsSpace.s8),
@@ -196,24 +225,36 @@ class _CreateProgressScreenState extends ConsumerState<CreateProgressScreen> {
         ],
 
         const SizedBox(height: DsSpace.s8),
-        _StageDots(elapsed: _elapsed, stages: _stages),
+        _StageDots(current: w?.stage, track: _track),
 
-        const SizedBox(height: DsSpace.s8),
+        const SizedBox(height: DsSpace.s6),
+        // 경과 시간은 늘 보인다. 감춰 두면 "얼마나 기다린 거지" 를 사용자가 세게 된다.
+        Text(_elapsedText(age),
+            textAlign: TextAlign.center,
+            style: dsTextStyle(DsType.caption, slow ? p.statusWarning : p.textTertiary)),
+
+        const SizedBox(height: DsSpace.s6),
         Container(
           padding: const EdgeInsets.all(DsSpace.s4),
           decoration: BoxDecoration(
-            color: p.statusBgInfo,
+            color: slow ? p.statusBgWarning : p.statusBgInfo,
             borderRadius: BorderRadius.circular(DsRadius.md),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              DsIcon(DsIcons.info, size: 18, color: p.statusInfo),
+              DsIcon(slow ? DsIcons.warning : DsIcons.info,
+                  size: 18, color: slow ? p.statusWarning : p.statusInfo),
               const SizedBox(width: DsSpace.s2),
               Expanded(
                 child: Text(
-                  '보통 40~120초쯤 걸려요. 이 화면을 나가도 계속 만들어지고, '
-                  '다 되면 서재에서 열 수 있어요.',
+                  slow
+                      // 늦어지는 것을 늦어진다고 말한다. 그리고 **끝이 있다는 것**을 함께 말한다 —
+                      // 언제 끝나는지 모르는 기다림이 사람을 앱에서 내보낸다.
+                      ? '보통보다 오래 걸리고 있어요. 10분이 넘으면 자동으로 멈추고 '
+                        '사용한 장수를 돌려드려요. 기다리지 않고 나가셔도 돼요.'
+                      : '보통 40~120초쯤 걸려요. 이 화면을 나가도 계속 만들어지고, '
+                        '다 되면 홈에서 열 수 있어요.',
                   style: dsTextStyle(DsType.body, p.textPrimary),
                 ),
               ),
@@ -320,24 +361,36 @@ class _CreateProgressScreenState extends ConsumerState<CreateProgressScreen> {
   }
 }
 
-/// 지금 몇 번째 단계인지. 색만으로 구분하지 않게 지나온 단계엔 체크가 붙는다.
+/// 지금 어느 단계인지. 색만으로 구분하지 않게 지나온 단계엔 체크가 붙는다.
+///
+/// 지나온 단계를 **서버가 말한 현재 단계**로 정한다. 예전에는 경과 시간으로 정해서,
+/// 서버가 죽어도 체크가 하나씩 늘어났다 — 아무 일도 안 일어나는 동안 진행되는 척하는
+/// 표시가 가장 나쁘다.
 class _StageDots extends StatelessWidget {
-  const _StageDots({required this.elapsed, required this.stages});
+  const _StageDots({required this.current, required this.track});
 
-  final Duration elapsed;
-  final List<(Duration, String, String)> stages;
+  final GenerationStage? current;
+  final List<GenerationStage> track;
+
+  static const _names = <GenerationStage, String>{
+    GenerationStage.plan: '주제 정리',
+    GenerationStage.draft: '학습지 쓰기',
+    GenerationStage.critic: '품질 검사',
+    GenerationStage.render: '한 장으로 그리기',
+  };
 
   @override
   Widget build(BuildContext context) {
     final p = DsTheme.of(context);
-    var currentIndex = 0;
-    for (var i = 0; i < stages.length; i++) {
-      if (elapsed >= stages[i].$1) currentIndex = i;
-    }
+    // 다시 쓰는 중이면 검사 단계에 머문 것으로 본다 — 되돌아간 것이 아니라 맴도는 것이다.
+    final at = current == GenerationStage.revise ? GenerationStage.critic : current;
+    final idx = at == null ? -1 : track.indexOf(at);
+    // save 는 목록에 없다. 거기까지 갔으면 전부 끝난 것이다.
+    final currentIndex = at == GenerationStage.save ? track.length : idx;
 
     return Column(
       children: [
-        for (var i = 0; i < stages.length; i++)
+        for (var i = 0; i < track.length; i++)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: DsSpace.s1),
             child: Row(
@@ -351,10 +404,10 @@ class _StageDots extends StatelessWidget {
                     duration: DsMotion.base,
                     alignment: Alignment.center,
                     travel: 6,
-                    child: i < currentIndex
+                    child: currentIndex > i
                         ? DsIcon(DsIcons.success,
                             key: const ValueKey('done'), size: 18, color: p.statusSuccess)
-                        : i == currentIndex
+                        : currentIndex == i
                             ? CircularProgressIndicator(
                                 key: const ValueKey('busy'),
                                 strokeWidth: 2.4,
@@ -379,11 +432,15 @@ class _StageDots extends StatelessWidget {
                     curve: DsCurve.standard,
                     style: dsTextStyle(
                       DsType.body,
-                      i <= currentIndex ? p.textPrimary : p.textTertiary,
+                      currentIndex >= i ? p.textPrimary : p.textTertiary,
                     ),
-                    child: Text(stages[i].$2),
+                    child: Text(_names[track[i]]!),
                   ),
                 ),
+                // 다시 쓰는 중이라는 사실을 숨기지 않는다. 같은 자리에서 오래 도는 이유다.
+                if (current == GenerationStage.revise && track[i] == GenerationStage.critic)
+                  Text('다시 쓰는 중',
+                      style: dsTextStyle(DsType.caption, p.statusWarning)),
               ],
             ),
           ),

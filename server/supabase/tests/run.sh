@@ -19,9 +19,19 @@ echo "▸ shim 적용 (auth / storage / 역할)"
 psql -v ON_ERROR_STOP=1 -X -q -d "$DB" -f "$HERE/00_shim.sql"
 
 echo "▸ 마이그레이션 적용"
+#
+# `psql ... && echo OK` 로 쓰면 psql 이 실패해도 러너가 0 을 돌려준다(set -e 가
+# && 목록의 앞 명령을 봐주기 때문이다). 그러면 **덜 적용된 스키마 위에서** 뒤의 테스트가
+# 전부 통과하고 CI 는 초록이 된다 — 실제로 그렇게 한 번 통과했다.
+# 실패는 그 자리에서 멈춰야 한다.
 for f in "$MIGRATIONS"/*.sql; do
   printf '  %-46s' "$(basename "$f")"
-  psql -v ON_ERROR_STOP=1 -X -q -d "$DB" -f "$f" && echo "OK"
+  if ! psql -v ON_ERROR_STOP=1 -X -q -d "$DB" -f "$f"; then
+    echo "실패"
+    echo "마이그레이션이 적용되지 않았습니다: $(basename "$f")" >&2
+    exit 1
+  fi
+  echo "OK"
 done
 
 echo "▸ 테스트"

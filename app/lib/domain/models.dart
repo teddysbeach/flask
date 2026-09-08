@@ -70,6 +70,26 @@ WorksheetStatus _status(String? s) => switch (s) {
       _ => WorksheetStatus.queued,
     };
 
+/// 생성이 지금 밟고 있는 단계. 서버(`worksheets.stage`)가 정하고 앱은 읽기만 한다.
+///
+/// 예전에는 이 값이 없어서 진행 화면이 **경과 시간만 보고 단계를 지어냈다.**
+/// 18초가 지나면 "쓰고 있어요", 70초가 지나면 "검사하고 있어요" — 서버가 죽은 뒤에도
+/// 화면은 계속 그렇게 말했다. 13분째 "품질을 검사하고 있어요" 를 본 사람이 잃는 것은
+/// 시간이 아니라 다음에 이 앱이 하는 말을 믿을 이유다.
+enum GenerationStage {
+  plan, draft, critic, revise, render, save;
+
+  static GenerationStage? parse(String? v) => switch (v) {
+        'plan' => GenerationStage.plan,
+        'draft' => GenerationStage.draft,
+        'critic' => GenerationStage.critic,
+        'revise' => GenerationStage.revise,
+        'render' => GenerationStage.render,
+        'save' => GenerationStage.save,
+        _ => null,
+      };
+}
+
 class WorksheetSummary {
   const WorksheetSummary({
     required this.id,
@@ -80,6 +100,8 @@ class WorksheetSummary {
     this.readyAt,
     this.errorCode,
     this.htmlPath,
+    this.stage,
+    this.stageAt,
   });
 
   final String id;
@@ -91,8 +113,24 @@ class WorksheetSummary {
   final String? errorCode;
   final String? htmlPath;
 
+  /// 서버가 말한 단계. null 이면 **아직 모른다** 는 뜻이고, 그러면 모른다고 말한다.
+  final GenerationStage? stage;
+  final DateTime? stageAt;
+
   String get displayTitle => title ?? topic;
   bool get isTerminal => status == WorksheetStatus.ready || status == WorksheetStatus.failed;
+
+  /// 주문을 넣은 뒤 지난 시간. 화면이 세는 초가 아니라 **서버가 적은 시각** 기준이다 —
+  /// 앱을 껐다 켜도, 다른 기기에서 봐도 같은 값이 나와야 한다.
+  Duration age(DateTime now) => now.difference(createdAt);
+
+  /// 같은 단계에 머문 시간. 모르면 null 이다.
+  Duration? stuckFor(DateTime now) =>
+      stageAt == null ? null : now.difference(stageAt!);
+
+  /// 보통 걸리는 시간(40~120초)을 넘겼는가. 넘겼다고 실패는 아니지만,
+  /// 넘겼는데도 "정상입니다" 라고 말하면 그게 거짓말이다.
+  bool isSlow(DateTime now) => age(now) > const Duration(minutes: 3);
 
   /// 실패 코드를 사람 말로. 사용자는 `draft_quality_rejected` 를 읽을 이유가 없다.
   /// 어느 경우든 쿼터는 환불됐다는 사실을 같이 말한다 — 그게 사용자가 가장 궁금한 것이다.
@@ -104,6 +142,9 @@ class WorksheetSummary {
         // 서버가 중간에 끊겨 매달려 있던 건. 사용자는 아무 잘못이 없고, 장수는 이미 돌려받았다.
         'generation_stalled' =>
           '만드는 중에 연결이 끊겨서 마무리하지 못했어요. 사용한 장수는 돌려드렸으니 다시 시도해 주세요.',
+        // 파이프라인이 스스로 벽시계 예산을 넘겨 끊은 경우.
+        'generation_timeout' =>
+          '만드는 데 너무 오래 걸려서 중간에 멈췄어요. 사용한 장수는 돌려드렸으니 다시 시도해 주세요.',
         'cost_cap_exceeded' =>
           '이 주제는 예상보다 훨씬 오래 걸려서 중간에 멈췄어요. 사용한 장수는 돌려드렸어요. 주제를 조금 좁혀서 다시 해 보시면 잘 나와요.',
         _ => '만드는 중에 문제가 생겼어요. 사용한 장수는 돌려드렸으니 다시 시도해 주세요.',
@@ -118,6 +159,10 @@ class WorksheetSummary {
         readyAt: m['ready_at'] == null ? null : DateTime.parse(m['ready_at'] as String).toLocal(),
         errorCode: m['error_code'] as String?,
         htmlPath: m['html_path'] as String?,
+        stage: GenerationStage.parse(m['stage'] as String?),
+        stageAt: m['stage_at'] == null
+            ? null
+            : DateTime.parse(m['stage_at'] as String).toLocal(),
       );
 }
 

@@ -9,7 +9,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 /** 하루에 만들 수 있는 학습지 상한. 쿼터(장수)와 별개로 도는 남용 방지선이다. */
 const DAILY_LIMIT = 30
 import { json, errorResponse, CORS, validateTopic, validateLevel, normalizeTopicForMatch } from '../_shared/http.ts'
-import { acceptGeneration, runGeneration, toErrorCode, isRetryable, MAX_ATTEMPTS, backoffMs, newCostBudget } from '../_shared/pipeline.ts'
+import { acceptGeneration, runGeneration, toErrorCode, isRetryable, MAX_ATTEMPTS, backoffMs, newCostBudget, newDeadline } from '../_shared/pipeline.ts'
 import { createLlmClient } from '../_shared/claude.ts'
 import { makeDeps } from '../_shared/deps.ts'
 import { PLAN_SYSTEM_PROMPT, DRAFT_SYSTEM_PROMPT, OUTLINE_SCHEMA, WORKSHEET_SCHEMA } from '../_shared/prompts.ts'
@@ -112,9 +112,12 @@ Deno.serve(async (req: Request) => {
 async function generateWithRetry(deps: any, input: any, worksheetId: string) {
   // 예산은 시도들이 함께 쓴다. 시도마다 새로 주면 한 장에 상한 × 3 을 쓸 수 있다.
   const budget = newCostBudget()
+  // 시간도 마찬가지다. 시도마다 8분을 새로 주면 살아 있는 생성이 DB 청소 기준(10분)을
+  // 넘겨 환불당하고, 다 만든 학습지를 버리게 된다.
+  const deadline = newDeadline(deps.now())
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      await runGeneration(deps, input, worksheetId, attempt, budget)
+      await runGeneration(deps, input, worksheetId, attempt, budget, deadline)
       return
     } catch (e) {
       const code = toErrorCode(e)

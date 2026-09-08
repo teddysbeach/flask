@@ -37,6 +37,7 @@ function makeDeps(over: any = {}) {
   const log: any = {
     quotaConsumed: 0, quotaRefunded: 0, worksheets: [], contents: [],
     schedules: [], jobs: [], failures: [], uploads: [], critiques: 0, revisions: 0, lastInstructions: '',
+    stages: [] as string[],
   }
   let idSeq = 0
   const usage = { inputTokens: 2600, outputTokens: 1000, cacheReadTokens: 0 }
@@ -84,12 +85,18 @@ function makeDeps(over: any = {}) {
         log.quotaRefunded++
         return true
       },
+      setStage: async (_id: string, stage: string) => {
+        if (over.setStageThrows) throw over.setStageThrows
+        log.stages.push(stage)
+      },
       recordJob: async (j: any) => log.jobs.push(j),
       recentCostsUsd: async () => over.recentCosts ?? [],
       userPrefs: async () => ({ timeZone: 'Asia/Seoul', reviewHour: 21 }),
     },
     storage: { putHtml: async (p: string, h: string) => log.uploads.push({ path: p, bytes: h.length }) },
-    now: () => new Date('2026-09-06T05:00:00Z'),
+    // 기본은 멈춘 시계다. over.clock 을 주면 부를 때마다 그만큼 흐른다 —
+    // 벽시계 예산을 재는 테스트가 진짜로 8분을 기다릴 수는 없다.
+    now: over.clock ?? (() => new Date('2026-09-06T05:00:00Z')),
     newId: () => `id${++idSeq}`,
   }
   return { deps, log }
@@ -334,6 +341,111 @@ await test('백오프가 지수적으로 늘고 상한이 있다', () => {
   assert.equal(pipe.backoffMs(2), 2000)
   assert.ok(pipe.backoffMs(10) <= 8000, '상한 없이 늘면 잡이 영영 안 끝난다')
 })
+
+// ── 진행 보고와 벽시계 ────────────────────────────────────────────────────
+//
+// 13분째 "품질을 검사하고 있어요" 를 보고 있었다는 신고에서 나온 검사들이다.
+// 화면이 거짓말을 한 것이 절반, 아무도 그 생성을 닫아 주지 않은 것이 절반이었다.
+
+await test('단계를 밟는 대로 서버에 보고한다', async () => {
+  const { deps, log } = makeDeps()
+  await pipe.runGeneration(deps, INPUT, 'w1')
+  assert.deepEqual(log.stages, ['plan', 'draft', 'critic', 'render', 'save'],
+    '진행 화면이 읽을 단계가 실제 순서와 다르다')
+})
+
+await test('재작성을 하면 revise 도 보고된다', async () => {
+  const { deps, log } = makeDeps({
+    verdicts: [{ score: 60, must_fix: [{ path: 'concept', issue: '얕다' }] }, { score: 90, must_fix: [] }],
+  })
+  await pipe.runGeneration(deps, INPUT, 'w1')
+  assert.ok(log.stages.includes('revise'), '다시 쓰는 동안 화면은 여전히 "검사 중" 이라고 말한다')
+  assert.equal(log.stages.filter((s: string) => s === 'critic').length, 2)
+})
+
+await test('단계 보고가 실패해도 학습지는 나온다', async () => {
+  // 진행 막대 하나 때문에 학습지를 잃을 수는 없다.
+  const { deps, log } = makeDeps({ setStageThrows: new Error('DB 잠깐 끊김') })
+  await pipe.runGeneration(deps, INPUT, 'w1')
+  assert.equal(log.contents.length, 1)
+  assert.equal(log.quotaRefunded, 0)
+})
+
+await test('벽시계 예산을 넘기면 스스로 닫고 환불한다', async () => {
+  // 런타임이 우리를 죽이면 아무도 이 행을 못 닫는다. 죽기 전에 우리가 먼저 끊는다.
+  let t = Date.parse('2026-09-06T05:00:00Z')
+  const { deps, log } = makeDeps({
+    clock: () => { const d = new Date(t); t += pipe.GENERATION_BUDGET_MS; return d },
+  })
+  await assert.rejects(() => pipe.runGeneration(deps, INPUT, 'w1'))
+  assert.equal(log.failures[0].code, 'generation_timeout')
+  assert.equal(log.quotaRefunded, 1, '시간 초과로 끊었으면 장수는 돌려줘야 한다')
+})
+
+await test('시간 초과는 다시 시도하지 않는다', () => {
+  // 8분을 태운 뒤 또 8분을 태우는 것은 기다림을 두 배로 만들 뿐이다.
+  assert.equal(pipe.isRetryable('generation_timeout'), false)
+})
+
+await test('마감 시각은 시도들이 함께 쓴다', async () => {
+  // 시도마다 8분을 새로 주면 살아 있는 생성이 DB 청소 기준(10분)을 넘겨
+  // "연결이 끊겼다" 며 환불당한다. 다 만든 학습지를 버리는 자리가 여기다.
+  const base = Date.parse('2026-09-06T05:00:00Z')
+  const { deps, log } = makeDeps({ clock: () => new Date(base) })
+  // 1차 시도가 이미 다 써 버린 마감 시각을 그대로 물려받는다.
+  const alreadySpent = new Date(base - 1)
+  await assert.rejects(
+    () => pipe.runGeneration(deps, INPUT, 'w1', 2, pipe.newCostBudget(), alreadySpent),
+    /generation_timeout/,
+    '두 번째 시도가 시간을 새로 받아 갔다')
+  assert.equal(log.stages.length, 0, '시간이 없는데 첫 단계를 시작했다')
+
+  // 넘기지 않으면 이번 시도가 새로 8분을 받는다(첫 시도의 정상 경로).
+  const fresh = makeDeps({ clock: () => new Date(base) })
+  await fresh.deps.db.setStage('w1', 'plan')
+  await pipe.runGeneration(fresh.deps, INPUT, 'w1')
+  assert.equal(fresh.log.contents.length, 1)
+})
+
+await test('generateWithRetry 가 마감 시각을 반복문 밖에서 만든다', () => {
+  // 반복문 안으로 들어가는 순간 시도마다 8분이 새로 생긴다. 눈으로는 안 보이는 실수라
+  // 코드 모양을 직접 잰다.
+  const src = readFileSync(
+    resolve(HERE, '../supabase/functions/generate-worksheet/index.ts'), 'utf8')
+  const body = /async function generateWithRetry[\s\S]*?\n}/.exec(src)
+  assert.ok(body, 'generateWithRetry 를 못 찾았다')
+  const [before, after] = body[0].split(/for \(let attempt/)
+  assert.ok(/newDeadline\(/.test(before), '마감 시각을 반복문 밖에서 안 만든다')
+  assert.ok(!/newDeadline\(/.test(after ?? ''), '마감 시각을 시도마다 새로 만들고 있다')
+  assert.ok(/runGeneration\([^)]*deadline/.test(after ?? ''), '마감 시각을 넘기지 않는다')
+})
+
+await test('예산은 8분이고 DB 청소 기준(10분)보다 짧다', () => {
+  // 순서가 뒤집히면 정상적으로 살아 있는 생성이 먼저 청소당한다.
+  const sql = readFileSync(
+    resolve(HERE, '../supabase/migrations/20260101000026_generation_progress.sql'), 'utf8')
+  const m = /generation_stall_timeout[\s\S]*?interval '(\d+) minutes'/.exec(sql)
+  assert.ok(m, 'DB 의 청소 기준을 못 찾았다')
+  assert.ok(pipe.GENERATION_BUDGET_MS < Number(m[1]) * 60_000,
+    `파이프라인 예산(${pipe.GENERATION_BUDGET_MS / 60000}분)이 청소 기준(${m[1]}분)보다 길다`)
+})
+
+await test('단계 이름이 DB 제약과 같다', () => {
+  const sql = readFileSync(
+    resolve(HERE, '../supabase/migrations/20260101000026_generation_progress.sql'), 'utf8')
+  const m = /worksheets_stage_valid[\s\S]*?stage in \(([^)]*)\)/.exec(sql)
+  assert.ok(m, 'stage 제약을 못 찾았다')
+  const allowed = new Set(m[1].split(',').map((x) => x.trim().replace(/'/g, '')))
+  const { deps, log } = makeDeps({
+    verdicts: [{ score: 60, must_fix: [{ path: 'c', issue: 'x' }] }, { score: 90, must_fix: [] }],
+  })
+  return pipe.runGeneration(deps, INPUT, 'w1').then(() => {
+    for (const st of log.stages) {
+      assert.ok(allowed.has(st), `파이프라인이 보고하는 '${st}' 를 DB 가 거부한다`)
+    }
+  })
+})
+
 
 console.log(`\n${failures.length ? '실패 ' + failures.length + '개' : '전부 통과'} (통과 ${passed}개)\n`)
 if (failures.length) process.exit(1)

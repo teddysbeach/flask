@@ -98,6 +98,14 @@ export function makeDeps(admin: any, llm: LlmClient): Deps {
         if (error) throw error
       },
 
+      async setStage(worksheetId, stage) {
+        // 진행 표시일 뿐이다. 여기서 던지면 진행 막대 하나 때문에 학습지가 안 나온다.
+        const { error } = await admin.rpc('set_generation_stage', {
+          p_worksheet: worksheetId, p_stage: stage,
+        })
+        if (error) console.error('[deps] 단계 기록 실패', error.message)
+      },
+
       async saveContent(worksheetId, content: WorksheetContent, meta) {
         // 문제와 "이게 막히면 먼저" 제안은 jsonb 에 묻지 않고 테이블로 꺼낸다.
         // 복습 스케줄이 quiz_items.id 를 참조해야 하기 때문이다.

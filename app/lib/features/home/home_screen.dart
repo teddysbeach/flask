@@ -520,6 +520,9 @@ class _MakingCard extends StatelessWidget {
   const _MakingCard({required this.worksheet});
   final WorksheetSummary worksheet;
 
+  static String _since(Duration d) =>
+      d.inMinutes > 0 ? '${d.inMinutes}분째' : '${d.inSeconds}초째';
+
   @override
   Widget build(BuildContext context) {
     final p = DsTheme.of(context);
@@ -537,8 +540,21 @@ class _MakingCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('만드는 중',
-                    style: dsTextStyle(DsType.caption, p.textSecondary)),
+                Row(
+                  children: [
+                    Text('만드는 중',
+                        style: dsTextStyle(DsType.caption, p.textSecondary)),
+                    const SizedBox(width: DsSpace.s2),
+                    // 얼마나 됐는지를 함께 말한다. 이게 없어서 "13분째 만드는 중" 이
+                    // "방금 시작함" 과 똑같이 생긴 카드였다.
+                    Text(_since(worksheet.age(DateTime.now())),
+                        style: dsTextStyle(
+                            DsType.caption,
+                            worksheet.isSlow(DateTime.now())
+                                ? p.statusWarning
+                                : p.textTertiary)),
+                  ],
+                ),
                 const SizedBox(height: DsSpace.s1),
                 Text(
                   worksheet.displayTitle,
